@@ -597,7 +597,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsTimerDisplay => !IsIdleClock;
     public bool ShowIdleDate => IsIdleClock && ShowDate;
-    public bool ShowCompactSeparator => IsIdleClock || IsClockAreaVisible;
+    // В покое разделителя нет — его роль играет полоска хода таймера сразу под датой (докладка 2026-09-27).
+    public bool ShowCompactSeparator => !IsIdleClock && IsClockAreaVisible;
     public bool ShowCompactClockRow => !IsIdleClock && IsClockAreaVisible;
 
     private void RefreshIdleClock() =>
@@ -687,19 +688,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ClockText = now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
         // «сб, 27 сен.» → «СБ, 27 СЕН»: заглавными, как «ГОТОВО», и без точки сокращения.
         DateText = now.ToString("ddd, d MMM", Russian).Replace(".", string.Empty).ToUpper(Russian);
-        FullDateText = now.ToString("dd.MM.yyyy");
+        DateDay = now.ToString("dd");
+        DateMonth = now.ToString("MM");
+        DateYear = now.ToString("yy");
     }
 
-    private string _fullDateText = string.Empty;
-    /// <summary>
-    /// Дата для компакта — полная, с годом (докладка 2026-09-27), тем же сегментным шрифтом, что часы.
-    /// DSEG7 не рисует буквы, поэтому только цифры «ДД.ММ.ГГГГ»; подложка — «88.88.8888».
-    /// </summary>
-    public string FullDateText
-    {
-        get => _fullDateText;
-        private set { if (_fullDateText == value) return; _fullDateText = value; OnPropertyChanged(); }
-    }
+    // Дата для компакта — «ДД . ММ . ГГ» сегментным шрифтом (докладка 2026-09-27: короткий год; части
+    // разнесены, слитно «27.09.26» в DSEG читалось плохо). DSEG7 не рисует буквы — только цифры.
+    // Части отдельными свойствами: разрядку между ними даёт вёрстка, а не пробелы (пробел в DSEG шириной с цифру).
+    private string _dateDay = string.Empty, _dateMonth = string.Empty, _dateYear = string.Empty;
+    public string DateDay { get => _dateDay; private set { if (_dateDay == value) return; _dateDay = value; OnPropertyChanged(); } }
+    public string DateMonth { get => _dateMonth; private set { if (_dateMonth == value) return; _dateMonth = value; OnPropertyChanged(); } }
+    public string DateYear { get => _dateYear; private set { if (_dateYear == value) return; _dateYear = value; OnPropertyChanged(); } }
 
     /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>
     public static readonly int[] FinishEffectDurationSteps = { 2, 3, 5, 10, 15, 30, 60, 120, 300, 0 };

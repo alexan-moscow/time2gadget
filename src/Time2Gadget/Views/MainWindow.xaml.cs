@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     // Размеры СОДЕРЖИМОГО (без 2*8 Chrome margin) при масштабе 1.0; окно = содержимое * масштаб + 16
     // (LayoutTransform на Chrome масштабирует содержимое, внешний margin — нет).
     private const double NormalContentWidth = 257, NormalContentHeight = 325;  // 16(top)+225(кольцо)+16(зазор)+52(кнопки)+16(bottom) — везде одинаковый отступ 16 (докладка 2026-09-27)
-    private const double CompactContentWidth = 220, CompactContentHeight = 156; // 156 — со строкой часов/даты
+    private const double CompactContentWidth = 220, CompactContentHeight = 132; // подобрано замером пикселей: самый высокий вариант (таймер ММ:СС + строка часов) помещается, лишнего зазора нет
     private const double ChromeMargin = 8;
 
     // Угловые кнопки. В компакте — ближе к углам, автозакрытие — ПОД крестиком (докладка 2026-09-27: больше

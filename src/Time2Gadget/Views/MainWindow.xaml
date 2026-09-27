@@ -17,6 +17,29 @@
         Closing="OnWindowClosing"
         Loaded="OnWindowLoaded">
 
+    <Window.Resources>
+        <!-- Дата компакта «ДД . ММ . ГГ» сегментным шрифтом: каждая пара цифр — с подложкой «88», точки разнесены
+             отступами (слитно в DSEG читалось плохо, докладка 2026-09-27). Размер наследует FontSize ContentControl. -->
+        <ControlTemplate x:Key="CompactDateTemplate" TargetType="ContentControl">
+            <StackPanel Orientation="Horizontal" TextElement.FontSize="{TemplateBinding FontSize}">
+                <Grid>
+                    <TextBlock Text="88" Style="{StaticResource Style.ClockGhost}" FontSize="{TemplateBinding FontSize}" />
+                    <TextBlock Text="{Binding DateDay}" Style="{StaticResource Style.ClockText}" FontSize="{TemplateBinding FontSize}" />
+                </Grid>
+                <TextBlock Text="." Style="{StaticResource Style.ClockText}" FontSize="{TemplateBinding FontSize}" Margin="3,0" />
+                <Grid>
+                    <TextBlock Text="88" Style="{StaticResource Style.ClockGhost}" FontSize="{TemplateBinding FontSize}" />
+                    <TextBlock Text="{Binding DateMonth}" Style="{StaticResource Style.ClockText}" FontSize="{TemplateBinding FontSize}" />
+                </Grid>
+                <TextBlock Text="." Style="{StaticResource Style.ClockText}" FontSize="{TemplateBinding FontSize}" Margin="3,0" />
+                <Grid>
+                    <TextBlock Text="88" Style="{StaticResource Style.ClockGhost}" FontSize="{TemplateBinding FontSize}" />
+                    <TextBlock Text="{Binding DateYear}" Style="{StaticResource Style.ClockText}" FontSize="{TemplateBinding FontSize}" />
+                </Grid>
+            </StackPanel>
+        </ControlTemplate>
+    </Window.Resources>
+
     <Window.InputBindings>
         <KeyBinding Key="Space" Command="{Binding StartPauseCommand}" />
         <KeyBinding Key="R" Command="{Binding ResetCommand}" />
@@ -153,7 +176,7 @@
                  COMPACT — скруглённый прямоугольник (не круг), докладка 2026-09-27.
                  ============================================================ -->
             <Border x:Name="CompactContent" CornerRadius="20" Background="{StaticResource Brush.SurfaceSector}"
-                    Width="220" Height="156" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5"><!-- +16 под строку часов/даты -->
+                    Width="220" Height="132" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5"><!-- 132 — подобрано замером: без лишнего зазора над полоской (2026-09-27) -->
                 <Border.RenderTransform>
                     <ScaleTransform x:Name="CompactScale" ScaleX="1" ScaleY="1" />
                 </Border.RenderTransform>
@@ -170,7 +193,8 @@
 
                     <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent" controls:HintService.Key="CompactCenter"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- Прижато к полоске хода: дата/строка часов стоит сразу над ней (докладка 2026-09-27). -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <!-- Крупный блок на всю ширину между угловыми кнопками (146px, пропорции шрифта сохраняются):
                                  таймер, либо — когда таймер не запущен и часы включены — текущее время (докладка 2026-09-27). -->
                             <Grid>
@@ -192,32 +216,29 @@
                                 </Viewbox>
                             </Grid>
                             <!-- Режим часов: дата с годом под крупным временем (если дата выключена — места не занимает). -->
-                            <Grid HorizontalAlignment="Center" Margin="0,5,0,0"
-                                  Visibility="{Binding ShowIdleDate, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="88.88.8888" Style="{StaticResource Style.ClockGhost}" />
-                                <TextBlock Text="{Binding FullDateText}" Style="{StaticResource Style.ClockText}" />
-                            </Grid>
+                            <ContentControl Template="{StaticResource CompactDateTemplate}" FontSize="13"
+                                            HorizontalAlignment="Center" Margin="0,5,0,0" Focusable="False"
+                                            Visibility="{Binding ShowIdleDate, Converter={StaticResource BoolToVis}}" />
                             <Border Style="{StaticResource Style.ClockSeparator}" Width="120" Margin="0,5,0,4"
                                     Visibility="{Binding ShowCompactSeparator, Converter={StaticResource BoolToVis}}" />
                             <!-- Режим таймера: часы и дата (с годом) В ОДНУ СТРОКУ по центру. DSEG моноширинный —
                                  при секундах строка не «ездит»; сдвиг возможен только при смене даты. -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                         Visibility="{Binding ShowCompactClockRow, Converter={StaticResource BoolToVis}}">
+                                <!-- Размер как у даты в режиме часов (13), докладка 2026-09-27. -->
                                 <Grid VerticalAlignment="Center" Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
-                                    <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
+                                    <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" FontSize="13" />
+                                    <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="13" />
                                 </Grid>
-                                <Grid VerticalAlignment="Center" Margin="12,0,0,0"
-                                      Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="88.88.8888" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
-                                    <TextBlock Text="{Binding FullDateText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
-                                </Grid>
+                                <ContentControl Template="{StaticResource CompactDateTemplate}" FontSize="13" Focusable="False"
+                                                VerticalAlignment="Center" Margin="12,0,0,0"
+                                                Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Row="1" Height="4" CornerRadius="2" Background="{StaticResource Brush.BorderSubtle}"
-                            Margin="0,8" ClipToBounds="True">
+                            Margin="0,4,0,8" ClipToBounds="True"><!-- сверху 4: дата/строка часов почти вплотную (2026-09-27) -->
                         <Border x:Name="CompactProgressBar" Width="0" HorizontalAlignment="Left"
                                 Background="{StaticResource Brush.Accent}" CornerRadius="2" />
                     </Border>
