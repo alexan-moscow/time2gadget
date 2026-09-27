@@ -51,6 +51,12 @@ public sealed class AppSettings
     /// </summary>
     public int FinishEffectDurationSeconds { get; set; } = 0;
 
+    /// <summary>Показывать текущее время (часы) под статусом «ГОТОВО/ОСТАЛОСЬ» — в обоих режимах.</summary>
+    public bool ShowClock { get; set; } = true;
+
+    /// <summary>Часы с секундами (ЧЧ:ММ:СС) или без (ЧЧ:ММ).</summary>
+    public bool ShowClockSeconds { get; set; } = false;
+
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";
     public string GitHubUrl { get; set; } = "https://github.com/example/Time2Gadget";

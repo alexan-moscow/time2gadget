@@ -55,7 +55,6 @@ public sealed class TrayService : ITrayService
     private static readonly System.Drawing.Color IconPaused = System.Drawing.Color.FromArgb(0x8C, 0xA0, 0xBE);
     private static readonly System.Drawing.Color IconFinish = System.Drawing.Color.FromArgb(0xFF, 0x6B, 0x4A);
     private static readonly System.Drawing.Color IconFinishDim = System.Drawing.Color.FromArgb(0x5A, 0x2A, 0x22);
-    private static readonly System.Drawing.Color IconAmber = System.Drawing.Color.FromArgb(0xFF, 0xD5, 0x4A); // как ColorCycle в MainWindow
     private const int ProgressSteps = 64; // шаг перерисовки дуги — мельче на иконке 16px всё равно не видно
 
     private IntPtr _dynamicIconHandle;
@@ -88,10 +87,12 @@ public sealed class TrayService : ITrayService
             }
             case Models.FinishVisualEffect.ColorCycle:
             {
-                // волна цвета красный → янтарный → красный за 2с, подсветка 0.4
-                double p = t % 2.0;
-                var color = Lerp(IconFinish, IconAmber, p < 1 ? p : 2 - p);
-                return new(color, WithAlpha(color, 0.4), 1f);
+                // радужная волна — та же палитра и темп, что в окне (Models/RainbowPalette); подсветка 0.5.
+                // Время квантуется до 1/10 шага палитры — плавно на глаз, без лишних перерисовок.
+                double step = Models.RainbowPalette.StepSeconds / 10;
+                var (r, g, b) = Models.RainbowPalette.At(Math.Round(t / step) * step);
+                var color = System.Drawing.Color.FromArgb(r, g, b);
+                return new(color, WithAlpha(color, 0.5), 1f);
             }
             default:
                 if (!state.BlinkWhileHidden) return new(IconFinish, System.Drawing.Color.Transparent, 1f);
@@ -105,13 +106,6 @@ public sealed class TrayService : ITrayService
     // Альфа квантуется (16 уровней), чтобы плавные эффекты не перерисовывали иконку на каждом кадре без видимой разницы.
     private static System.Drawing.Color WithAlpha(System.Drawing.Color c, double alpha) =>
         System.Drawing.Color.FromArgb((int)Math.Round(Math.Clamp(alpha, 0, 1) * 15) * 17, c);
-
-    private static System.Drawing.Color Lerp(System.Drawing.Color a, System.Drawing.Color b, double k)
-    {
-        k = Math.Round(Math.Clamp(k, 0, 1) * 24) / 24; // 24 шага цвета — плавно на глаз, без лишних перерисовок
-        return System.Drawing.Color.FromArgb(
-            (int)(a.R + (b.R - a.R) * k), (int)(a.G + (b.G - a.G) * k), (int)(a.B + (b.B - a.B) * k));
-    }
 
     public void Update(Models.TrayIconState state)
     {

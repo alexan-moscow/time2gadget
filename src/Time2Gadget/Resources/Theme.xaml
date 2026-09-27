@@ -86,6 +86,11 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
+    <!-- Текущее время под статусом — тот же шрифт, что «ГОТОВО/ОСТАЛОСЬ», на 2px крупнее (докладка 2026-09-27). -->
+    <Style x:Key="Style.ClockText" TargetType="TextBlock" BasedOn="{StaticResource Style.StatusLabel}">
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
     <!-- Число НЕ участвует в радиус-привязанном Viewbox-масштабировании (см. SectorRingControl.xaml.cs) —
          только подпись "МИН" ужимается под доступное место; число держит свой размер, докладка 2026-09-27
          (пользователь: "МИН — норм, а цифры стали слишком мелкие"). -->

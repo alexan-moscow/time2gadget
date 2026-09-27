@@ -87,6 +87,9 @@
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Style.StatusLabel}" Margin="0,7,0,0" />
+                            <!-- Текущее время — чуть крупнее статуса, тем же шрифтом (докладка 2026-09-27). -->
+                            <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" Margin="0,3,0,0"
+                                       Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -131,7 +134,14 @@
                  COMPACT — скруглённый прямоугольник (не круг), докладка 2026-09-27.
                  ============================================================ -->
             <Border x:Name="CompactContent" CornerRadius="20" Background="{StaticResource Brush.SurfaceSector}"
-                    Width="220" Height="140" Visibility="Collapsed">
+                    Width="220" Height="140" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
+                <Border.RenderTransform>
+                    <ScaleTransform x:Name="CompactScale" ScaleX="1" ScaleY="1" />
+                </Border.RenderTransform>
+                <Grid>
+                <!-- Эффекты отсчёта/завершения в компакте (докладка 2026-09-27: раньше были только на кольце
+                     полного режима и в компакте не было видно). Анимируются вместе с EffectOverlay — см. .xaml.cs. -->
+                <Border x:Name="CompactEffectOverlay" CornerRadius="20" Opacity="0" IsHitTestVisible="False" />
                 <Grid Margin="14">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -151,6 +161,8 @@
                                                               Time="{Binding RemainingTime}" IsColonLit="{Binding IsColonLit}" />
                                 </Grid>
                             </Viewbox>
+                            <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="12" Margin="0,3,0,0"
+                                       Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </Border>
 
@@ -194,6 +206,7 @@
                         </Button>
                     </StackPanel>
                 </Grid>
+                </Grid>
             </Border>
 
             <!-- ============================================================
@@ -215,7 +228,7 @@
                  Выкл — приглушённая иконка, вкл — акцентная. Размер/стиль — как у крестика. -->
             <Button x:Name="AutoCloseButton" Style="{StaticResource Style.CornerIconButton}"
                     Command="{Binding ToggleAutoCloseCommand}" controls:HintService.Key="AutoClose"
-                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,42,0">
+                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,32,0"><!-- вплотную к крестику (зазор иконок ~6px) -->
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
                         <Path Data="{StaticResource Geometry.Power}">

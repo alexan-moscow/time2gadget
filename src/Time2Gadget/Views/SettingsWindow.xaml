@@ -64,6 +64,11 @@
             <Slider Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
                     Value="{Binding FinishEffectDurationIndex}" TickFrequency="1" IsSnapToTickEnabled="True" />
 
+            <!-- ============ Часы под статусом ============ -->
+            <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />
+            <CheckBox Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />
+            <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
+
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding AuthorName}" Margin="0,0,0,6" />

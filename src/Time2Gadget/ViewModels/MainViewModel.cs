@@ -69,7 +69,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         new EnumOption<FinishVisualEffect>(FinishVisualEffect.None, "Отключено"),
         new EnumOption<FinishVisualEffect>(FinishVisualEffect.Pulse, "Пульсация"),
         new EnumOption<FinishVisualEffect>(FinishVisualEffect.Flash, "Строб-вспышка"),
-        new EnumOption<FinishVisualEffect>(FinishVisualEffect.ColorCycle, "Цветовая волна"),
+        new EnumOption<FinishVisualEffect>(FinishVisualEffect.ColorCycle, "Радужная волна"),
     };
 
     public IReadOnlyList<EnumOption<CloseBehavior>> CloseBehaviorOptions { get; } = new[]
@@ -406,6 +406,43 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // ============ Часы под статусом (докладка 2026-09-27) ============
+    public bool ShowClock
+    {
+        get => _settings.ShowClock;
+        set
+        {
+            if (_settings.ShowClock == value) return;
+            _settings.ShowClock = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+        }
+    }
+
+    public bool ShowClockSeconds
+    {
+        get => _settings.ShowClockSeconds;
+        set
+        {
+            if (_settings.ShowClockSeconds == value) return;
+            _settings.ShowClockSeconds = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            RefreshClock();
+        }
+    }
+
+    private string _clockText = string.Empty;
+    /// <summary>Текущее время для подписи под статусом; обновляется на UI-тике, событие — только при смене текста.</summary>
+    public string ClockText
+    {
+        get => _clockText;
+        private set { if (_clockText == value) return; _clockText = value; OnPropertyChanged(); }
+    }
+
+    private void RefreshClock() =>
+        ClockText = DateTime.Now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
+
     /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>
     public static readonly int[] FinishEffectDurationSteps = { 2, 3, 5, 10, 15, 30, 60, 120, 300, 0 };
     public int FinishEffectDurationMaxIndex => FinishEffectDurationSteps.Length - 1;
@@ -718,6 +755,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             ? 0
             : 1 - (RemainingTime.TotalSeconds / total.TotalSeconds);
         RefreshFinishEffectActive();
+        RefreshClock();
         UpdateTray();
     }
 
