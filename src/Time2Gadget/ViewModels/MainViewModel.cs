@@ -437,16 +437,20 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _availableVersion = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsUpdateAvailable));
-            OnPropertyChanged(nameof(UpdateBannerText));
+            OnPropertyChanged(nameof(IsUpdateNotAvailable));
+            OnPropertyChanged(nameof(InstallUpdateButtonText));
         }
     }
 
     public bool IsUpdateAvailable => AvailableVersion is not null;
+    public bool IsUpdateNotAvailable => !IsUpdateAvailable;
 
-    public string UpdateBannerText => IsUpdateAvailable ? $"Найдено обновление {AvailableVersion}. Обновить?" : string.Empty;
-
-    /// <summary>Установленная копия обновляется на месте; портативная — только ссылкой на страницу выпуска.</summary>
-    public string InstallUpdateButtonText => _updateService.CanInstallInPlace ? "Обновить" : "Скачать";
+    /// <summary>
+    /// Кнопка на месте «Проверить обновления», когда версия найдена (докладка 2026-09-27). Установленная копия
+    /// обновляется на месте; одиночный exe — только ссылкой на страницу выпуска.
+    /// </summary>
+    public string InstallUpdateButtonText =>
+        (_updateService.CanInstallInPlace ? "Установить версию " : "Скачать версию ") + AvailableVersion;
 
     private string _updateStatusText = string.Empty;
     /// <summary>Строка рядом с кнопкой «Проверить обновления» — результат ручной проверки/ход установки.</summary>
@@ -498,7 +502,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 case UpdateCheckStatus.Available:
                     _availableReleasePageUrl = result.ReleasePageUrl;
                     AvailableVersion = result.Version;
-                    if (manual) UpdateStatusText = $"Доступна версия {result.Version}";
+                    UpdateStatusText = $"Найдена версия {result.Version}"; // и при автопроверке — рядом с кнопкой установки
                     break;
                 case UpdateCheckStatus.UpToDate:
                     AvailableVersion = null;
@@ -621,7 +625,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     // ---- Размер видов — два ползунка в настройках (докладка 2026-09-27) ----
-    public const double MinViewScale = 0.8, MaxViewScale = 1.6;
+    public const double MinViewScale = 0.6, MaxViewScale = 1.6; // от 60% (докладка 2026-09-27; было 80%)
 
     public double FullViewScale
     {

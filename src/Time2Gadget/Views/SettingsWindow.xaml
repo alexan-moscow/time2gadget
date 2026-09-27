@@ -9,23 +9,8 @@
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
         <StackPanel>
-
-            <!-- ============ Баннер «найдено обновление» — только когда оно есть (docs/UI-CONTRACT.md → Обновления) ============ -->
-            <Border Background="{StaticResource Brush.UpdateBannerBackground}" BorderBrush="{StaticResource Brush.UpdateAccent}"
-                    BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,4,0,6"
-                    Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                    <Button Grid.Column="1" Content="{Binding InstallUpdateButtonText}" Command="{Binding InstallUpdateCommand}"
-                            Style="{StaticResource Style.SettingsButton}" Margin="10,0,0,0" />
-                </Grid>
-            </Border>
 
             <!-- ============ Автозагрузка / закрытие ============ -->
             <TextBlock Text="Запуск и закрытие" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
@@ -107,9 +92,9 @@
             <!-- ============ Размер видов — отдельно полный и компактный (докладка 2026-09-27) ============ -->
             <TextBlock Text="Размер" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding FullViewScaleLabel}" Margin="0,0,0,2" />
-            <Slider Minimum="0.8" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <Slider Minimum="0.6" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
             <TextBlock Text="{Binding CompactViewScaleLabel}" Margin="0,10,0,2" />
-            <Slider Minimum="0.8" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <Slider Minimum="0.6" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
 
             <!-- ============ Часы под статусом ============ -->
             <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />
@@ -118,12 +103,18 @@
             <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
             <!-- ============ Обновления — внизу (автопроверка раз в неделю идёт сама) ============ -->
-            <TextBlock Text="Обновления" Style="{StaticResource Style.SectionHeader}" />
+            <TextBlock x:Name="UpdatesSection" Text="Обновления" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding CurrentVersionText}" Foreground="{StaticResource Brush.TextSecondary}" />
+            <!-- Нашлось обновление — на месте «Проверить обновления» кнопка установки (докладка 2026-09-27: баннер
+                 вверху настроек был неочевиден — закрыв настройки, кнопку легко потерять). -->
             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                <Button Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource Style.SettingsButton}" />
+                <Button Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource Style.SettingsButton}"
+                        Visibility="{Binding IsUpdateNotAvailable, Converter={StaticResource BoolToVis}}" />
+                <Button Content="{Binding InstallUpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource Style.SettingsButton}"
+                        BorderBrush="{StaticResource Brush.UpdateAccent}" Background="{StaticResource Brush.UpdateBannerBackground}"
+                        Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}" />
                 <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
-                           TextWrapping="Wrap" MaxWidth="170" Foreground="{StaticResource Brush.TextSecondary}" />
+                           TextWrapping="Wrap" MaxWidth="150" Foreground="{StaticResource Brush.TextSecondary}" />
             </StackPanel>
 
             <!-- ============ Об авторе ============ -->

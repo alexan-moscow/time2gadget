@@ -78,15 +78,20 @@ public partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        if (_settingsWindow is not null)
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new Views.SettingsWindow(_viewModel) { Owner = this };
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+        }
+        else
         {
             _settingsWindow.Activate();
-            return;
         }
 
-        _settingsWindow = new Views.SettingsWindow(_viewModel) { Owner = this };
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
-        _settingsWindow.Show();
+        // Мигающая шестерёнка = найдено обновление: открываем настройки сразу на разделе с кнопкой установки
+        // (докладка 2026-09-27), иначе пользователь листает до низа сам.
+        if (_viewModel.IsUpdateAvailable) _settingsWindow.ScrollToUpdates();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -118,12 +123,61 @@ public partial class MainWindow : Window
     /// Normal ↔ Compact (docs/UI-CONTRACT.md → Compact Mode, обновлено 2026-09-27: Compact —
     /// скруглённый прямоугольник, не круг). MVP: мгновенное переключение без анимации.
     /// </summary>
+    // Центр циферблата полного вида от верха содержимого: отступ 16 + радиус кольца 112.5 (225/2), см. XAML RingGroup.
+    private const double NormalDialCenterY = 16 + 225 / 2.0;
+
+    private (bool IsCompact, double Scale)? _appliedLayout;
+
+    // Точная (дробная) точка привязки и позиция, которую мы сами выставили. Координаты окна целые, и пересчёт
+    // привязки из округлённой позиции смещал окно на ~1px за каждое «туда-обратно» — при частых переключениях
+    // оно бы ползло. Пока окно не двигали, берём запомненную точку.
+    private Point? _lastAnchorOnScreen;
+    private (double Left, double Top)? _lastSetPosition;
+
+    /// <summary>
+    /// Точка привязки внутри окна: полный вид — центр циферблата, компакт — центр прямоугольника. При смене
+    /// режима/размера окно ставится так, чтобы эта точка осталась на том же месте экрана (докладка 2026-09-27:
+    /// компакт появлялся со смещением от циферблата).
+    /// </summary>
+    private static Point AnchorInWindow(bool isCompact, double scale) => isCompact
+        ? new Point(ChromeMargin + CompactContentWidth * scale / 2, ChromeMargin + CompactContentHeight * scale / 2)
+        : new Point(ChromeMargin + NormalContentWidth * scale / 2, ChromeMargin + NormalDialCenterY * scale);
+
     private void ApplyModeLayout(bool isCompact)
     {
         double scale = isCompact ? _viewModel.CompactViewScale : _viewModel.FullViewScale;
+
+        // Где сейчас точка привязки на экране (DIP) — до изменения размеров; при первой раскладке окна (позиция
+        // уже взята из настроек) не двигаем.
+        Point? anchorOnScreen = null;
+        if (_appliedLayout is { } prev)
+        {
+            bool notMovedSinceLastApply = _lastSetPosition is { } set
+                                          && Math.Abs(set.Left - Left) < 0.5 && Math.Abs(set.Top - Top) < 0.5;
+            if (notMovedSinceLastApply && _lastAnchorOnScreen is { } exact)
+            {
+                anchorOnScreen = exact;
+            }
+            else
+            {
+                var a = AnchorInWindow(prev.IsCompact, prev.Scale);
+                anchorOnScreen = new Point(Left + a.X, Top + a.Y);
+            }
+        }
+
         ViewScale.ScaleX = ViewScale.ScaleY = scale;
         Width = (isCompact ? CompactContentWidth : NormalContentWidth) * scale + 2 * ChromeMargin;
         Height = (isCompact ? CompactContentHeight : NormalContentHeight) * scale + 2 * ChromeMargin;
+
+        if (anchorOnScreen is { } target)
+        {
+            var a = AnchorInWindow(isCompact, scale);
+            Left = target.X - a.X;
+            Top = target.Y - a.Y;
+            _lastAnchorOnScreen = target;
+            _lastSetPosition = (Left, Top);
+        }
+        _appliedLayout = (isCompact, scale);
 
         NormalContent.Visibility = isCompact ? Visibility.Collapsed : Visibility.Visible;
         CompactContent.Visibility = isCompact ? Visibility.Visible : Visibility.Collapsed;
