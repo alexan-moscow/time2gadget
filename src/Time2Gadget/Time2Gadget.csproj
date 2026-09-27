@@ -31,6 +31,10 @@
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
   </ItemGroup>
+  <!-- Месяц/год сборки для «Об авторе» (MainViewModel.AuthorLine) — проставляется автоматически при каждой сборке. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="ReleaseDate" Value="$([System.DateTime]::Now.ToString('yyyy-MM'))" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Velopack" Version="1.2.158" />

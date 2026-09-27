@@ -70,7 +70,6 @@ public sealed class AppSettings
     /// </summary>
     public DateTime? LastUpdateCheckUtc { get; set; }
 
-    // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
-    public string AuthorName { get; set; } = "Автор (заглушка)";
-    public string VirusTotalUrl { get; set; } = "https://www.virustotal.com/gui/file/0000000000000000000000000000000000000000000000000000000000000000";
+    // «Об авторе» больше не настройка (2026-09-27): автор/ссылки — константы в MainViewModel; старые поля
+    // AuthorName/GitHubUrl/VirusTotalUrl в settings.json просто игнорируются.
 }

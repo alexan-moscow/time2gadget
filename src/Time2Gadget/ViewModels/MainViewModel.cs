@@ -127,7 +127,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
         PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p as string));
         OpenGitHubCommand = new RelayCommand(() => OpenUrl(GitHubUrl));
-        OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(_settings.VirusTotalUrl));
+        OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(VirusTotalUrl), () => HasVirusTotalUrl);
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
 
         _trayService.ShowRequested += (_, _) => ShowRequested?.Invoke(this, EventArgs.Empty);
@@ -684,12 +684,34 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                                && (duration == 0 || SecondsSinceFinish < duration);
     }
 
-    // "Об авторе" — только отображение, тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
-    public string AuthorName => _settings.AuthorName;
-    /// <summary>Настоящий репозиторий (2026-09-27) — константа, а не настройка: в settings.json у пользователей
-    /// уже записана прежняя заглушка, и она перекрыла бы новое значение по умолчанию.</summary>
-    public const string GitHubUrl = "https://github.com/alexan-moscow/time2gadget";
-    public string VirusTotalUrl => _settings.VirusTotalUrl;
+    // ============ «Об авторе» (2026-09-27) ============
+    // Константы, а не настройки: в settings.json у пользователей уже записаны прежние заглушки, и они
+    // перекрыли бы новые значения по умолчанию.
+    public const string Author = "alexan-moscow";
+
+    /// <summary>Страница выпусков — пользователю там полезнее всего (скачать новую версию).</summary>
+    public const string GitHubUrl = "https://github.com/alexan-moscow/time2gadget/releases";
+
+    /// <summary>Отчёт VirusTotal по выпуску; пусто — пункт скрыт (ссылку даст автор после загрузки на VirusTotal).</summary>
+    public const string VirusTotalUrl = "";
+
+    public bool HasVirusTotalUrl => !string.IsNullOrEmpty(VirusTotalUrl);
+
+    /// <summary>«alexan-moscow · сентябрь 2026» — месяц/год сборки проставляет сама сборка (AssemblyMetadata ReleaseDate).</summary>
+    public string AuthorLine
+    {
+        get
+        {
+            var raw = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                .OfType<System.Reflection.AssemblyMetadataAttribute>()
+                .FirstOrDefault(a => a.Key == "ReleaseDate")?.Value;
+            return DateTime.TryParseExact(raw, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
+                       System.Globalization.DateTimeStyles.None, out var date)
+                ? $"{Author} · {date.ToString("MMMM yyyy", Russian)}"
+                : Author;
+        }
+    }
 
     public double? InitialWindowLeft => _settings.WindowLeft;
     public double? InitialWindowTop => _settings.WindowTop;
