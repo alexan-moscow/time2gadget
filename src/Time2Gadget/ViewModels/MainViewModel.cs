@@ -476,6 +476,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ClockText = now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
         // «сб, 27 сен.» → «СБ, 27 СЕН»: заглавными, как «ГОТОВО», и без точки сокращения.
         DateText = now.ToString("ddd, d MMM", Russian).Replace(".", string.Empty).ToUpper(Russian);
+        ShortDateText = now.ToString("dd.MM");
+    }
+
+    private string _shortDateText = string.Empty;
+    /// <summary>
+    /// Дата для компакта — тем же сегментным шрифтом, что часы рядом (докладка 2026-09-27). DSEG7 не рисует
+    /// буквы (день недели/месяц словами), поэтому только цифры «ДД.ММ»; подложка — «88.88».
+    /// </summary>
+    public string ShortDateText
+    {
+        get => _shortDateText;
+        private set { if (_shortDateText == value) return; _shortDateText = value; OnPropertyChanged(); }
     }
 
     /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>

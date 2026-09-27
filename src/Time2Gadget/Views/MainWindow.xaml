@@ -90,7 +90,9 @@
                             <!-- Часы (сегментным шрифтом, как таймер) и дата (шрифтом статуса) под тонким
                                  разделителем — каждое по своей настройке (докладка 2026-09-27). -->
                             <StackPanel Visibility="{Binding IsClockAreaVisible, Converter={StaticResource BoolToVis}}">
-                                <Border Style="{StaticResource Style.ClockSeparator}" Width="84" Margin="0,6,0,5" />
+                                <!-- Отступы подобраны по замеру пикселей (2026-09-27): видимый зазор над линией 8px, под ней 7px
+                                     (было 9/6); общее расстояние «ОСТАЛОСЬ» → часы прежнее. -->
+                                <Border Style="{StaticResource Style.ClockSeparator}" Width="84" Margin="0,5,0,6" />
                                 <Grid HorizontalAlignment="Center" Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}">
                                     <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" />
                                     <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" />
@@ -182,9 +184,12 @@
                                         <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
                                         <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
                                     </Grid>
-                                    <TextBlock Text="{Binding DateText}" Style="{StaticResource Style.DateText}" VerticalAlignment="Center"
-                                               FontSize="11" Margin="12,0,0,0"
-                                               Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}" />
+                                    <!-- Дата в компакте — тем же сегментным шрифтом, что часы (цифрами «ДД.ММ»). -->
+                                    <Grid VerticalAlignment="Center" Margin="12,0,0,0"
+                                          Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="88.88" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
+                                        <TextBlock Text="{Binding ShortDateText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
+                                    </Grid>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
