@@ -117,6 +117,18 @@
                            TextWrapping="Wrap" MaxWidth="150" Foreground="{StaticResource Brush.TextSecondary}" />
             </StackPanel>
 
+            <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
+            <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />
+            <CheckBox Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
+            <CheckBox Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
+            <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+
+            <!-- ============ Сброс (докладка 2026-09-28) — с подтверждением, см. MainViewModel.ResetSettings ============ -->
+            <TextBlock Text="Сброс" Style="{StaticResource Style.SectionHeader}" />
+            <Button Content="Сбросить настройки и положение окон" Command="{Binding ResetSettingsCommand}"
+                    Style="{StaticResource Style.SettingsButton}" HorizontalAlignment="Left" />
+
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding AuthorLine, Mode=OneTime}" Margin="0,0,0,6" />

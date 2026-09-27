@@ -48,6 +48,11 @@ public partial class MainWindow : Window
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.SettingsRequested += (_, _) => OpenSettings();
+        _viewModel.SettingsReset += (_, _) =>
+        {
+            OnSettingsReset();
+            _settingsWindow?.CenterOnOwner();
+        };
 
         _hints = new HintController(RootGrid, target => _viewModel.GetHint(HintService.GetKey(target)!, target.Tag));
         Deactivated += (_, _) => _hints.Cancel();
@@ -61,14 +66,14 @@ public partial class MainWindow : Window
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.InitialWindowLeft is { } left && _viewModel.InitialWindowTop is { } top)
-        {
-            Left = left;
-            Top = top;
-            WindowStartupLocation = WindowStartupLocation.Manual;
-        }
+        ApplyModeLayout(_viewModel.IsCompactMode); // сначала размер — чтобы проверить, видно ли окно на экране
 
-        ApplyModeLayout(_viewModel.IsCompactMode);
+        if (_viewModel.GetSavedWindowPosition(_viewModel.IsCompactMode, allowLegacy: true) is { } saved
+            && IsVisibleOnScreen(saved.X, saved.Y, Width, Height))
+        {
+            Left = saved.X;
+            Top = saved.Y;
+        }
         UpdateCompactProgressBar();
         ApplyDialEffect();
     }
@@ -147,21 +152,33 @@ public partial class MainWindow : Window
     {
         double scale = isCompact ? _viewModel.CompactViewScale : _viewModel.FullViewScale;
 
-        // Где сейчас точка привязки на экране (DIP) — до изменения размеров; при первой раскладке окна (позиция
-        // уже взята из настроек) не двигаем.
+        // Смена вида: у целевого вида есть своё сохранённое место (докладка 2026-09-28) — ставим туда. Нет (первое
+        // переключение) — центрируем по точке привязки прежнего вида (циферблат ↔ центр компакта). Смена масштаба
+        // в том же виде — тоже держим центр. Первая раскладка окна при старте — ничего не двигаем.
         Point? anchorOnScreen = null;
+        Point? savedTarget = null;
         if (_appliedLayout is { } prev)
         {
-            bool notMovedSinceLastApply = _lastSetPosition is { } set
-                                          && Math.Abs(set.Left - Left) < 0.5 && Math.Abs(set.Top - Top) < 0.5;
-            if (notMovedSinceLastApply && _lastAnchorOnScreen is { } exact)
+            bool modeChanged = prev.IsCompact != isCompact;
+            if (modeChanged)
             {
-                anchorOnScreen = exact;
+                _viewModel.SaveWindowPosition(prev.IsCompact, Left, Top);
+                savedTarget = _viewModel.GetSavedWindowPosition(isCompact);
             }
-            else
+
+            if (savedTarget is null)
             {
-                var a = AnchorInWindow(prev.IsCompact, prev.Scale);
-                anchorOnScreen = new Point(Left + a.X, Top + a.Y);
+                bool notMovedSinceLastApply = _lastSetPosition is { } set
+                                              && Math.Abs(set.Left - Left) < 0.5 && Math.Abs(set.Top - Top) < 0.5;
+                if (notMovedSinceLastApply && _lastAnchorOnScreen is { } exact)
+                {
+                    anchorOnScreen = exact;
+                }
+                else
+                {
+                    var a = AnchorInWindow(prev.IsCompact, prev.Scale);
+                    anchorOnScreen = new Point(Left + a.X, Top + a.Y);
+                }
             }
         }
 
@@ -169,7 +186,13 @@ public partial class MainWindow : Window
         Width = (isCompact ? CompactContentWidth : NormalContentWidth) * scale + 2 * ChromeMargin;
         Height = (isCompact ? CompactContentHeight : NormalContentHeight) * scale + 2 * ChromeMargin;
 
-        if (anchorOnScreen is { } target)
+        if (savedTarget is { } s && IsVisibleOnScreen(s.X, s.Y, Width, Height))
+        {
+            Left = s.X;
+            Top = s.Y;
+            _lastAnchorOnScreen = null;
+        }
+        else if (anchorOnScreen is { } target)
         {
             var a = AnchorInWindow(isCompact, scale);
             Left = target.X - a.X;
@@ -177,6 +200,7 @@ public partial class MainWindow : Window
             _lastAnchorOnScreen = target;
             _lastSetPosition = (Left, Top);
         }
+        if (_appliedLayout is not null) _viewModel.SaveWindowPosition(isCompact, Left, Top);
         _appliedLayout = (isCompact, scale);
 
         NormalContent.Visibility = isCompact ? Visibility.Collapsed : Visibility.Visible;
@@ -185,6 +209,31 @@ public partial class MainWindow : Window
         SettingsButton.Margin = isCompact ? CompactSettingsMargin : NormalSettingsMargin;
         CloseButton.Margin = isCompact ? CompactCloseMargin : NormalCloseMargin;
         AutoCloseButton.Margin = isCompact ? CompactAutoCloseMargin : NormalAutoCloseMargin;
+    }
+
+    /// <summary>
+    /// Окно хотя бы частично (≥40px) видно на каком-либо экране. Сохранённое место могло оказаться за краем —
+    /// отключили второй монитор, сменили разрешение; тогда позицию не восстанавливаем.
+    /// </summary>
+    internal static bool IsVisibleOnScreen(double left, double top, double width, double height)
+    {
+        var screen = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                              SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+        var visible = Rect.Intersect(screen, new Rect(left, top, width, height));
+        return !visible.IsEmpty && visible.Width >= 40 && visible.Height >= 40;
+    }
+
+    /// <summary>Сброс настроек: вид по умолчанию, окно по центру рабочей области основного экрана.</summary>
+    private void OnSettingsReset()
+    {
+        _appliedLayout = null;
+        _lastAnchorOnScreen = null;
+        ApplyModeLayout(_viewModel.IsCompactMode);
+        var area = SystemParameters.WorkArea;
+        Left = area.Left + (area.Width - Width) / 2;
+        Top = area.Top + (area.Height - Height) / 2;
+        UpdateCompactProgressBar();
+        ApplyDialEffect();
     }
 
     private void UpdateCompactProgressBar()
@@ -382,6 +431,8 @@ public partial class MainWindow : Window
 
         if (!_isDraggingWindow && _mouseDownOnCenter)
             _viewModel.ToggleCompactModeCommand.Execute(null);
+        else if (_isDraggingWindow)
+            _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top); // место вида запоминается сразу после перетаскивания
 
         _mouseDownScreenPos = null;
         _isDraggingWindow = false;
@@ -406,7 +457,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            _viewModel.UpdateWindowPosition(Left, Top);
+            _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top);
             Hide();
         }
     }

@@ -11,8 +11,29 @@ public sealed class AppSettings
     public bool IsMuted { get; set; } = false;
     public bool AlwaysOnTop { get; set; } = true;
     public bool CompactMode { get; set; } = false;
+    /// <summary>Прежняя общая позиция окна (до 2026-09-28) — используется, только пока нет раздельных ниже.</summary>
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
+
+    // Раздельные позиции полного и компактного вида (докладка 2026-09-28): первое переключение центрирует
+    // компакт по циферблату, дальше каждый вид открывается там, где его оставили.
+    public double? FullWindowLeft { get; set; }
+    public double? FullWindowTop { get; set; }
+    public double? CompactWindowLeft { get; set; }
+    public double? CompactWindowTop { get; set; }
+
+    /// <summary>Где было окно настроек (докладка 2026-09-28); null — по центру главного окна.</summary>
+    public double? SettingsWindowLeft { get; set; }
+    public double? SettingsWindowTop { get; set; }
+
+    /// <summary>
+    /// Будить компьютер из сна к моменту окончания таймера (системный таймер пробуждения). По умолчанию да.
+    /// Сработает, только если в схеме питания разрешены таймеры пробуждения.
+    /// </summary>
+    public bool WakeFromSleepOnFinish { get; set; } = true;
+
+    /// <summary>Включать погасшие мониторы, когда таймер закончился (компьютер работает, экраны выключены по простою). По умолчанию да.</summary>
+    public bool WakeDisplayOnFinish { get; set; } = true;
     /// <summary>По умолчанию — да; при первом запуске App включает автозапуск в реестре (см. App.xaml.cs).</summary>
     public bool LaunchAtStartup { get; set; } = true;
 

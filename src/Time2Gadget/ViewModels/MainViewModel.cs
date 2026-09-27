@@ -26,6 +26,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly ISoundService _soundService;
     private readonly ITrayService _trayService;
     private readonly IUpdateService _updateService;
+    private readonly PowerService _power = new();
     private readonly DispatcherTimer _uiTimer;
     private readonly AppSettings _settings;
 
@@ -87,28 +88,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _settings = _settingsService.Load();
         AudioDevices = _soundService.GetOutputDevices();
 
-        _isMuted = _settings.IsMuted;
-        _isAlwaysOnTop = _settings.AlwaysOnTop;
-        _isCompactMode = _settings.CompactMode;
-        _isLaunchAtStartup = _settings.LaunchAtStartup; // App.xaml.cs may reconcile this against the real registry state right after construction
-        _closeBehavior = _settings.CloseBehavior;
-        _autoCloseAfterFinish = _settings.AutoCloseAfterFinish;
-        _alarmVolume = _settings.AlarmVolume;
-        _selectedAudioDevice = AudioDevices.FirstOrDefault(d => d.Id == _settings.AudioDeviceId) ?? AudioDeviceInfo.SystemDefault;
-        // Неизвестный Id (старые настройки/удалённый звонок) — показываем звонок по умолчанию.
-        _selectedRingtoneId = _settings.RingtoneId == RingtoneCatalog.CustomId || RingtoneCatalog.IsBuiltIn(_settings.RingtoneId)
-            ? _settings.RingtoneId
-            : RingtoneCatalog.DefaultId;
-        _customSoundFilePath = _settings.CustomSoundFilePath;
-        _alarmRepeatCount = _settings.AlarmRepeatCount;
-        _runningEffect = _settings.RunningEffect;
-        _finishEffect = _settings.FinishEffect;
-
-        // Подсвечиваем последний использованный сектор, но НЕ скармливаем его время в engine —
-        // при запуске приложения дисплей должен показывать 00:00 (docs/DECISIONS.md, 2026-09-27),
-        // а не длительность последнего пресета. Отсчёт начинается только явным кликом по сектору.
-        var lastMinutes = _settings.LastPresetMinutes;
-        SelectedPreset = Presets.FirstOrDefault(p => p.Minutes == lastMinutes) ?? Presets[4]; // fallback: 30 мин
+        _selectedRingtoneId = RingtoneCatalog.DefaultId;
+        _selectedAudioDevice = AudioDeviceInfo.SystemDefault;
+        LoadCachedFromSettings();
 
         _engine.Finished += OnEngineFinished;
         _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(TryAutoClose);
@@ -624,6 +606,41 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(ShowCompactClockRow));
     }
 
+    // ---- Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ----
+    public bool WakeFromSleepOnFinish
+    {
+        get => _settings.WakeFromSleepOnFinish;
+        set
+        {
+            if (_settings.WakeFromSleepOnFinish == value) return;
+            _settings.WakeFromSleepOnFinish = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            UpdateWakeTimer();
+        }
+    }
+
+    public bool WakeDisplayOnFinish
+    {
+        get => _settings.WakeDisplayOnFinish;
+        set
+        {
+            if (_settings.WakeDisplayOnFinish == value) return;
+            _settings.WakeDisplayOnFinish = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Таймер пробуждения — только пока идёт отсчёт; на момент окончания (сейчас + осталось). Пауза/сброс/
+    /// окончание снимают его; добавление времени — переставляет (PowerService сам игнорирует мелкие расхождения).
+    /// </summary>
+    private void UpdateWakeTimer() =>
+        _power.ScheduleWake(WakeFromSleepOnFinish && Status == TimerStatus.Running
+            ? DateTime.UtcNow + RemainingTime
+            : null);
+
     // ---- Размер видов — два ползунка в настройках (докладка 2026-09-27) ----
     public const double MinViewScale = 0.6, MaxViewScale = 1.6; // от 60% (докладка 2026-09-27; было 80%)
 
@@ -790,19 +807,100 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public double? InitialWindowLeft => _settings.WindowLeft;
-    public double? InitialWindowTop => _settings.WindowTop;
+    // ---- Позиции окон (докладка 2026-09-28): полный и компактный вид — каждый своя; окно настроек — своя ----
 
-    /// <summary>Вызывается View при закрытии/перемещении окна — персистит позицию.</summary>
-    public void UpdateWindowPosition(double left, double top)
+    /// <summary>Сохранённое место вида; null — ещё не было (первое переключение центрирует по циферблату).</summary>
+    /// <param name="allowLegacy">Только при старте: прежняя общая позиция (до раздельных) — для вида, в котором
+    /// программу закрыли. При переключении нельзя: CompactMode к этому моменту уже новый.</param>
+    public System.Windows.Point? GetSavedWindowPosition(bool compact, bool allowLegacy = false)
     {
-        _settings.WindowLeft = left;
-        _settings.WindowTop = top;
+        var (left, top) = compact
+            ? (_settings.CompactWindowLeft, _settings.CompactWindowTop)
+            : (_settings.FullWindowLeft, _settings.FullWindowTop);
+        if (left is null && allowLegacy) (left, top) = (_settings.WindowLeft, _settings.WindowTop);
+        return left is { } l && top is { } t ? new System.Windows.Point(l, t) : null;
+    }
+
+    public void SaveWindowPosition(bool compact, double left, double top)
+    {
+        if (compact) (_settings.CompactWindowLeft, _settings.CompactWindowTop) = (left, top);
+        else (_settings.FullWindowLeft, _settings.FullWindowTop) = (left, top);
+        _settingsService.Save(_settings);
+    }
+
+    public System.Windows.Point? SavedSettingsWindowPosition =>
+        _settings.SettingsWindowLeft is { } l && _settings.SettingsWindowTop is { } t ? new System.Windows.Point(l, t) : null;
+
+    public void SaveSettingsWindowPosition(double left, double top)
+    {
+        (_settings.SettingsWindowLeft, _settings.SettingsWindowTop) = (left, top);
         _settingsService.Save(_settings);
     }
 
     /// <summary>Сохранить текущие настройки как есть (первый запуск — зафиксировать значения по умолчанию).</summary>
     public void PersistSettings() => _settingsService.Save(_settings);
+
+    /// <summary>Поля-кэши свойств — из _settings (при старте и после сброса настроек).</summary>
+    private void LoadCachedFromSettings()
+    {
+        _isMuted = _settings.IsMuted;
+        _isAlwaysOnTop = _settings.AlwaysOnTop;
+        _isCompactMode = _settings.CompactMode;
+        _isLaunchAtStartup = _settings.LaunchAtStartup; // App.xaml.cs при старте сверяет с реестром
+        _closeBehavior = _settings.CloseBehavior;
+        _autoCloseAfterFinish = _settings.AutoCloseAfterFinish;
+        _alarmVolume = _settings.AlarmVolume;
+        _selectedAudioDevice = AudioDevices.FirstOrDefault(d => d.Id == _settings.AudioDeviceId) ?? AudioDeviceInfo.SystemDefault;
+        // Неизвестный Id (старые настройки/удалённый звонок) — показываем звонок по умолчанию.
+        _selectedRingtoneId = _settings.RingtoneId == RingtoneCatalog.CustomId || RingtoneCatalog.IsBuiltIn(_settings.RingtoneId)
+            ? _settings.RingtoneId
+            : RingtoneCatalog.DefaultId;
+        _customSoundFilePath = _settings.CustomSoundFilePath;
+        _alarmRepeatCount = _settings.AlarmRepeatCount;
+        _runningEffect = _settings.RunningEffect;
+        _finishEffect = _settings.FinishEffect;
+
+        // Подсвечиваем последний использованный сектор, но НЕ скармливаем его время в engine —
+        // при запуске приложения дисплей должен показывать 00:00 (docs/DECISIONS.md, 2026-09-27),
+        // а не длительность последнего пресета. Отсчёт начинается только явным кликом по сектору.
+        var lastMinutes = _settings.LastPresetMinutes;
+        SelectedPreset = Presets.FirstOrDefault(p => p.Minutes == lastMinutes) ?? Presets[4]; // fallback: 30 мин
+    }
+
+    /// <summary>Настройки сброшены к значениям по умолчанию — View заново раскладывает и центрирует окна.</summary>
+    public event EventHandler? SettingsReset;
+
+    public RelayCommand ResetSettingsCommand => _resetSettingsCommand ??= new RelayCommand(ResetSettings);
+    private RelayCommand? _resetSettingsCommand;
+
+    /// <summary>
+    /// «Сбросить настройки» (докладка 2026-09-28): все значения по умолчанию, включая положения окон, без
+    /// перезапуска. Идущий таймер не трогаем — это не настройка. Дату последней проверки обновлений
+    /// сохраняем, чтобы сброс не вызывал лишний запрос к GitHub.
+    /// </summary>
+    private void ResetSettings()
+    {
+        if (System.Windows.MessageBox.Show(
+                "Вернуть все настройки к значениям по умолчанию и поставить окна на исходные места?",
+                "Тайм2гаджет — сброс настроек", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question)
+            != System.Windows.MessageBoxResult.Yes)
+            return;
+
+        var lastUpdateCheck = _settings.LastUpdateCheckUtc;
+        var defaults = new AppSettings();
+        foreach (var p in typeof(AppSettings).GetProperties().Where(p => p.CanRead && p.CanWrite))
+            p.SetValue(_settings, p.GetValue(defaults));
+        _settings.LastUpdateCheckUtc = lastUpdateCheck;
+
+        LoadCachedFromSettings();
+        AutostartService.SetEnabled(_settings.LaunchAtStartup);
+        _settingsService.Save(_settings);
+
+        OnPropertyChanged(string.Empty); // все привязки перечитать
+        RefreshIdleClock();
+        RaiseCompactLayoutChanges();
+        SettingsReset?.Invoke(this, EventArgs.Empty);
+    }
 
     public void InitializeTray()
     {
@@ -988,6 +1086,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _trayEffectTimer ??= CreateTrayEffectTimer();
         _trayEffectTimer.Start();
 
+        // Мониторы погасли по простою (или компьютер только что проснулся по таймеру пробуждения — тогда
+        // Windows держит экраны выключенными) — включаем, чтобы окончание увидели.
+        if (WakeDisplayOnFinish) _power.WakeDisplay();
+
         if (!IsMuted)
         {
             _soundService.PlayAlarm(_settings); // автозакрытие — по AlarmCompleted, когда звонок отыграет
@@ -1049,6 +1151,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         RefreshFinishEffectActive();
         RefreshClock();
         RefreshIdleClock();
+        UpdateWakeTimer();
         UpdateTray();
     }
 
@@ -1059,6 +1162,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _silentAutoCloseTimer?.Stop();
             _trayEffectTimer?.Stop();
             _finishedAtUtc = null;
+            _power.ReleaseDisplay(); // окончание «погашено» (сброс/новый запуск) — экран больше не держим
         }
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(StatusLabel));
@@ -1076,6 +1180,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _trayEffectTimer?.Stop();
         _silentAutoCloseTimer?.Stop();
         _updateTimer?.Stop();
+        _power.Dispose();
         _soundService.StopAlarm();
         _trayService.Dispose();
     }

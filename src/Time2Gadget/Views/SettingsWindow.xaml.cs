@@ -16,6 +16,25 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+
+        // Окно настроек открывается там, где его оставили (докладка 2026-09-28), если это место видно на экране;
+        // иначе — по центру главного окна (CenterOwner из XAML).
+        if (_viewModel.SavedSettingsWindowPosition is { } saved
+            && MainWindow.IsVisibleOnScreen(saved.X, saved.Y, Width, Height))
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = saved.X;
+            Top = saved.Y;
+        }
+        Closing += (_, _) => _viewModel.SaveSettingsWindowPosition(Left, Top);
+    }
+
+    /// <summary>После «Сбросить настройки» — на исходное место: по центру главного окна.</summary>
+    public void CenterOnOwner()
+    {
+        if (Owner is null) return;
+        Left = Owner.Left + (Owner.Width - Width) / 2;
+        Top = Owner.Top + (Owner.Height - Height) / 2;
     }
 
     /// <summary>
