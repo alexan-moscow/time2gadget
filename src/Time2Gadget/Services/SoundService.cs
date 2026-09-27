@@ -159,6 +159,57 @@ public sealed class SoundService : ISoundService, IDisposable
         return tcs.Task;
     }
 
+    // Свои звуки — в папке программы (решение пользователя, 2026-09-27): приложение портативное, всё
+    // своё лежит рядом с exe. Если туда нельзя писать (например, exe положили в Program Files) —
+    // откат в %APPDATA%\Time2Gadget\Sounds, чтобы выбор звука не ломался.
+    private static readonly string AppSoundsDir = Path.Combine(AppContext.BaseDirectory, "Sounds");
+    private static readonly string FallbackSoundsDir =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Time2Gadget", "Sounds");
+
+    public string? ImportCustomSound(string sourcePath, string? previousImportedPath)
+    {
+        StopAlarm(); // перезапись файла, который сейчас играет, упала бы на блокировке
+
+        foreach (var dir in new[] { AppSoundsDir, FallbackSoundsDir })
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                var dest = Path.Combine(dir, Path.GetFileName(sourcePath));
+                if (!string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
+                    File.Copy(sourcePath, dest, overwrite: true);
+
+                DeleteOldImport(previousImportedPath, dest);
+                return dest;
+            }
+            catch
+            {
+                // нет прав на запись / файл занят — пробуем следующую папку
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Удаляет прежнюю копию — только если она лежит в НАШЕЙ папке звуков (чужие файлы не трогаем).</summary>
+    private static void DeleteOldImport(string? previousPath, string newPath)
+    {
+        if (string.IsNullOrEmpty(previousPath)) return;
+        try
+        {
+            var prev = Path.GetFullPath(previousPath);
+            if (string.Equals(prev, Path.GetFullPath(newPath), StringComparison.OrdinalIgnoreCase)) return;
+
+            var prevDir = Path.GetDirectoryName(prev);
+            bool isOurs = string.Equals(prevDir, Path.GetFullPath(AppSoundsDir), StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(prevDir, Path.GetFullPath(FallbackSoundsDir), StringComparison.OrdinalIgnoreCase);
+            if (isOurs && File.Exists(prev)) File.Delete(prev);
+        }
+        catch
+        {
+            // не удалилось — не критично, просто лишний файл в папке
+        }
+    }
+
     private static MMDevice? ResolveDeviceOrNull(string deviceId)
     {
         if (string.IsNullOrEmpty(deviceId)) return null;

@@ -537,7 +537,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         };
         if (dialog.ShowDialog() == true)
         {
-            CustomSoundFilePath = dialog.FileName;
+            // Играем копию из папки программы, а не оригинал (докладка 2026-09-27); если скопировать
+            // не удалось — хотя бы оригинал, чтобы выбор не потерялся.
+            CustomSoundFilePath = _soundService.ImportCustomSound(dialog.FileName, CustomSoundFilePath) ?? dialog.FileName;
             SelectedRingtone = RingtoneChoice.Custom;
         }
     }

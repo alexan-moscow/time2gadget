@@ -19,4 +19,11 @@ public interface ISoundService
 
     /// <summary>Немедленно останавливает любое текущее воспроизведение звонка.</summary>
     void StopAlarm();
+
+    /// <summary>
+    /// Копирует выбранный пользователем звуковой файл в папку Sounds рядом с программой и возвращает
+    /// путь к копии — звонок не ломается, если оригинал удалят/переместят. Предыдущая импортированная
+    /// копия удаляется. null — если скопировать не удалось.
+    /// </summary>
+    string? ImportCustomSound(string sourcePath, string? previousImportedPath);
 }
