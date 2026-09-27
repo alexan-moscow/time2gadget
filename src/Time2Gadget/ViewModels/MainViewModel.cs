@@ -35,6 +35,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public event EventHandler? ShowRequested;
     /// <summary>Событие "открыть настройки" (шестерёнка в окне / пункт трея) — обрабатывается MainWindow.</summary>
     public event EventHandler? SettingsRequested;
+    /// <summary>Автозакрытие после отработавшего таймера — View выполняет как обычное закрытие окна
+    /// (свернуть в трей или выйти — по <see cref="CloseBehavior"/>).</summary>
+    public event EventHandler? AutoCloseRequested;
+
+    /// <summary>Сколько ждать после окончания, если звонка нет (выключен звук) — чтобы финал успели увидеть.</summary>
+    private static readonly TimeSpan SilentFinishAutoCloseDelay = TimeSpan.FromSeconds(3);
+    private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
+    private DispatcherTimer? _silentAutoCloseTimer;
 
     public ObservableCollection<TimerPreset> Presets { get; } = new(TimerPreset.All);
     public IReadOnlyList<AudioDeviceInfo> AudioDevices { get; }
@@ -85,6 +93,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _isCompactMode = _settings.CompactMode;
         _isLaunchAtStartup = _settings.LaunchAtStartup; // App.xaml.cs may reconcile this against the real registry state right after construction
         _closeBehavior = _settings.CloseBehavior;
+        _autoCloseAfterFinish = _settings.AutoCloseAfterFinish;
         _alarmVolume = _settings.AlarmVolume;
         _selectedAudioDevice = AudioDevices.FirstOrDefault(d => d.Id == _settings.AudioDeviceId) ?? AudioDeviceInfo.SystemDefault;
         _selectedRingtone = _settings.SelectedRingtone;
@@ -100,6 +109,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         SelectedPreset = Presets.FirstOrDefault(p => p.Minutes == lastMinutes) ?? Presets[4]; // fallback: 30 мин
 
         _engine.Finished += OnEngineFinished;
+        _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(TryAutoClose);
         _engine.StatusChanged += (_, _) => RaiseStatusDependentChanges();
 
         SelectPresetCommand = new RelayCommand(p => SelectPreset((TimerPreset)p!));
@@ -109,6 +119,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         AdjustTimeCommand = new RelayCommand(p => AdjustTime((int)p!));
         ToggleAlwaysOnTopCommand = new RelayCommand(() => IsAlwaysOnTop = !IsAlwaysOnTop);
         ToggleCompactModeCommand = new RelayCommand(() => IsCompactMode = !IsCompactMode);
+        ToggleAutoCloseCommand = new RelayCommand(() => AutoCloseAfterFinish = !AutoCloseAfterFinish);
         OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty));
         BrowseCustomSoundCommand = new RelayCommand(BrowseCustomSound);
         PreviewRingtoneCommand = new RelayCommand(() => _soundService.PlayPreview(_settings));
@@ -138,6 +149,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand AdjustTimeCommand { get; }
     public RelayCommand ToggleAlwaysOnTopCommand { get; }
     public RelayCommand ToggleCompactModeCommand { get; }
+    public RelayCommand ToggleAutoCloseCommand { get; }
     public RelayCommand OpenSettingsCommand { get; }
     public RelayCommand BrowseCustomSoundCommand { get; }
     public RelayCommand PreviewRingtoneCommand { get; }
@@ -260,6 +272,29 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settingsService.Save(_settings);
             OnPropertyChanged();
         }
+    }
+
+    private bool _autoCloseAfterFinish;
+    /// <summary>Переключатель слева от крестика — см. <see cref="AppSettings.AutoCloseAfterFinish"/>.</summary>
+    public bool AutoCloseAfterFinish
+    {
+        get => _autoCloseAfterFinish;
+        set
+        {
+            if (_autoCloseAfterFinish == value) return;
+            _autoCloseAfterFinish = value;
+            _settings.AutoCloseAfterFinish = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+        }
+    }
+
+    private bool _isWindowHidden;
+    /// <summary>Окно скрыто (свёрнуто в трей) — тогда законченный таймер мигает иконкой трея. Ставит View.</summary>
+    public bool IsWindowHidden
+    {
+        get => _isWindowHidden;
+        set { if (_isWindowHidden == value) return; _isWindowHidden = value; UpdateTray(); }
     }
 
     private double _alarmVolume;
@@ -422,6 +457,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         "Volume" => $"Громкость звонка: {Math.Round(AlarmVolume * 100)}%",
         "Settings" => "Настройки",
         "Close" => CloseBehavior == CloseBehavior.Exit ? "Закрыть приложение" : "Свернуть в трей",
+        "AutoClose" => AutoCloseAfterFinish
+            ? $"Автозакрытие ВКЛ: после звонка приложение {(CloseBehavior == CloseBehavior.Exit ? "закроется" : "свернётся в трей")}\nКлик — выключить"
+            : $"Автозакрытие выкл\nКлик — после звонка {(CloseBehavior == CloseBehavior.Exit ? "закрывать приложение" : "сворачивать в трей")}",
         _ => null
     };
 
@@ -558,8 +596,47 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void OnEngineFinished(object? sender, EventArgs e)
     {
-        if (!IsMuted) _soundService.PlayAlarm(_settings);
+        if (!IsMuted)
+        {
+            _soundService.PlayAlarm(_settings); // автозакрытие — по AlarmCompleted, когда звонок отыграет
+        }
+        else
+        {
+            _silentAutoCloseTimer?.Stop();
+            _silentAutoCloseTimer = new DispatcherTimer { Interval = SilentFinishAutoCloseDelay };
+            _silentAutoCloseTimer.Tick += (_, _) => { _silentAutoCloseTimer?.Stop(); TryAutoClose(); };
+            _silentAutoCloseTimer.Start();
+        }
         RaiseStatusDependentChanges();
+    }
+
+    /// <summary>
+    /// Закрыть/свернуть после отработавшего таймера — только если переключатель включён и таймер всё ещё
+    /// в Finished (пользователь не успел сбросить/перезапустить, пока звенело).
+    /// </summary>
+    private void TryAutoClose()
+    {
+        if (AutoCloseAfterFinish && Status == TimerStatus.Finished)
+            AutoCloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Иконка трея повторяет кольцо таймера (docs/UI-CONTRACT.md → Tray). Зовётся на каждом UI-тике;
+    /// TrayService сам перерисовывает иконку только при видимом изменении.
+    /// </summary>
+    private void UpdateTray()
+    {
+        var tooltip = Status switch
+        {
+            TimerStatus.Running => $"Тайм2гаджет — осталось {Converters.TimeSpanToStringConverter.Format(RemainingTime)}",
+            TimerStatus.Paused => $"Тайм2гаджет — пауза, {Converters.TimeSpanToStringConverter.Format(RemainingTime)}",
+            TimerStatus.Finished => "Тайм2гаджет — время вышло!",
+            _ => "Тайм2гаджет"
+        };
+        // Мигание красным — только когда таймер закончился, а окна не видно (иначе и так всё видно).
+        bool blinking = Status == TimerStatus.Finished && IsWindowHidden;
+        bool blinkOn = blinking && DateTime.Now.Millisecond < 500;
+        _trayService.Update(new TrayIconState(Status, ProgressFraction, blinking, blinkOn, tooltip));
     }
 
     private void RefreshFromEngine()
@@ -570,10 +647,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ProgressFraction = total.TotalSeconds <= 0
             ? 0
             : 1 - (RemainingTime.TotalSeconds / total.TotalSeconds);
+        UpdateTray();
     }
 
     private void RaiseStatusDependentChanges()
     {
+        if (Status != TimerStatus.Finished) _silentAutoCloseTimer?.Stop();
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(StatusLabel));
         OnPropertyChanged(nameof(IsRunning));

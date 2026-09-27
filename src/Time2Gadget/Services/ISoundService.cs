@@ -4,6 +4,12 @@ namespace Time2Gadget.Services;
 
 public interface ISoundService
 {
+    /// <summary>
+    /// Звонок завершения отыграл все повторы сам (не остановлен вручную). Может прийти из фонового
+    /// потока — подписчик сам переходит в UI-поток.
+    /// </summary>
+    event EventHandler? AlarmCompleted;
+
     /// <summary>Список доступных устройств вывода звука, первый элемент — "системное по умолчанию".</summary>
     IReadOnlyList<AudioDeviceInfo> GetOutputDevices();
 

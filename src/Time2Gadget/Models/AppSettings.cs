@@ -17,6 +17,12 @@ public sealed class AppSettings
     /// <summary>Поведение при закрытии окна — сворачивать (по умолчанию) или закрывать приложение.</summary>
     public CloseBehavior CloseBehavior { get; set; } = CloseBehavior.MinimizeToTray;
 
+    /// <summary>
+    /// Переключатель слева от крестика: после отработавшего таймера (когда звонок отыграл) само
+    /// закрыть/свернуть приложение — что именно, решает <see cref="CloseBehavior"/>. По умолчанию выключен.
+    /// </summary>
+    public bool AutoCloseAfterFinish { get; set; } = false;
+
     /// <summary>Громкость звонка, 0..1 (слайдер слева от кнопки Mute / в Settings).</summary>
     public double AlarmVolume { get; set; } = 0.5;
 

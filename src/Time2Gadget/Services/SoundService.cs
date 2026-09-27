@@ -54,7 +54,11 @@ public sealed class SoundService : ISoundService, IDisposable
     {
         StopAlarm();
         var path = ResolveSoundPath(settings);
-        if (path is null) return;
+        if (path is null)
+        {
+            AlarmCompleted?.Invoke(this, EventArgs.Empty); // звонить нечем (файл пропал) — «отыграл» сразу
+            return;
+        }
 
         _ringCts = new CancellationTokenSource();
         _ = RingLoopAsync(path, settings.AudioDeviceId, settings.AlarmVolume,
@@ -111,7 +115,10 @@ public sealed class SoundService : ISoundService, IDisposable
             try { await Task.Delay(GapBetweenRepeats, token); }
             catch (TaskCanceledException) { break; }
         }
+        if (!token.IsCancellationRequested) AlarmCompleted?.Invoke(this, EventArgs.Empty);
     }
+
+    public event EventHandler? AlarmCompleted;
 
     private Task PlayOnceAsync(string path, string deviceId, double volume, CancellationToken token)
     {

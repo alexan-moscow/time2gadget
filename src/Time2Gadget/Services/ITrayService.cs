@@ -13,4 +13,7 @@ public interface ITrayService : IDisposable
 
     void Initialize();
     void ShowBalloon(string title, string text);
+
+    /// <summary>Перерисовать иконку/подсказку трея. Дёшево вызывать часто — перерисовка только при видимом изменении.</summary>
+    void Update(Models.TrayIconState state);
 }

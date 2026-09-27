@@ -42,6 +42,12 @@ public partial class MainWindow : Window
 
         _hints = new HintController(RootGrid, target => _viewModel.GetHint(HintService.GetKey(target)!, target.Tag));
         Deactivated += (_, _) => _hints.Cancel();
+
+        // Автозакрытие после таймера — ровно как нажатие крестика (свернуть в трей или выйти по настройке).
+        _viewModel.AutoCloseRequested += (_, _) => HandleCloseRequest();
+        // Скрытое окно + законченный таймер → иконка трея мигает красным (MainViewModel.UpdateTray).
+        IsVisibleChanged += (_, _) => UpdateHiddenState();
+        StateChanged += (_, _) => UpdateHiddenState(); // свёрнуто на панель задач (Win+D) — тоже «не видно»
     }
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -57,6 +63,9 @@ public partial class MainWindow : Window
         UpdateCompactProgressBar();
         ApplyDialEffect();
     }
+
+    private void UpdateHiddenState() =>
+        _viewModel.IsWindowHidden = !IsVisible || WindowState == WindowState.Minimized;
 
     private void OpenSettings()
     {
