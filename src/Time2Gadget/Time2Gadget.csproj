@@ -14,7 +14,7 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- Версия приложения — её же получает установщик Velopack (vpk pack packVersion); повышать при каждом выпуске. -->
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <!-- Своя точка входа (Program.cs): Velopack должен отработать до старта WPF — docs/DECISIONS.md, 2026-09-27. -->
     <StartupObject>Time2Gadget.Program</StartupObject>
     <!-- Portable single-file публикация (docs/ARCHITECTURE.md → Packaging). -->
