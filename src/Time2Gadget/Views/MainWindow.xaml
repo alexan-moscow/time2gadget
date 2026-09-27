@@ -24,6 +24,11 @@
     </Window.InputBindings>
 
     <Border x:Name="Chrome" CornerRadius="28" Background="{StaticResource Brush.Background}" Margin="8">
+        <!-- Масштаб вида — ползунки «Размер полного/компактного вида» (MainWindow.xaml.cs → ApplyModeLayout).
+             LayoutTransform: вся вёрстка векторная, при увеличении остаётся чёткой. -->
+        <Border.LayoutTransform>
+            <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
+        </Border.LayoutTransform>
         <Border.Effect>
             <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
         </Border.Effect>
@@ -156,7 +161,7 @@
                 <!-- Эффекты отсчёта/завершения в компакте (докладка 2026-09-27: раньше были только на кольце
                      полного режима и в компакте не было видно). Анимируются вместе с EffectOverlay — см. .xaml.cs. -->
                 <Border x:Name="CompactEffectOverlay" CornerRadius="20" Opacity="0" IsHitTestVisible="False" />
-                <Grid Margin="14">
+                <Grid Margin="12,10,12,10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
@@ -166,48 +171,65 @@
                     <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent" controls:HintService.Key="CompactCenter"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <!-- Тот же сегментный циферблат; фиксированная высота — ширины в компакте хватает и на H:MM:SS. -->
-                            <Viewbox x:Name="CompactTimeText" Height="30" HorizontalAlignment="Center">
-                                <Grid>
-                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentGhost}" IsGhost="True"
-                                                              Time="{Binding RemainingTime}" />
-                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentDigits}"
-                                                              Time="{Binding RemainingTime}" IsColonLit="{Binding IsColonLit}" />
+                            <!-- Крупный блок на всю ширину между угловыми кнопками (146px, пропорции шрифта сохраняются):
+                                 таймер, либо — когда таймер не запущен и часы включены — текущее время (докладка 2026-09-27). -->
+                            <Grid>
+                                <Viewbox x:Name="CompactTimeText" Width="146" MaxHeight="46" Stretch="Uniform"
+                                         Visibility="{Binding IsTimerDisplay, Converter={StaticResource BoolToVis}}">
+                                    <Grid>
+                                        <controls:SegmentTimeText Style="{StaticResource Style.SegmentGhost}" IsGhost="True"
+                                                                  Time="{Binding RemainingTime}" />
+                                        <controls:SegmentTimeText Style="{StaticResource Style.SegmentDigits}"
+                                                                  Time="{Binding RemainingTime}" IsColonLit="{Binding IsColonLit}" />
+                                    </Grid>
+                                </Viewbox>
+                                <Viewbox Width="146" MaxHeight="46" Stretch="Uniform"
+                                         Visibility="{Binding IsIdleClock, Converter={StaticResource BoolToVis}}">
+                                    <Grid>
+                                        <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.SegmentGhost}" />
+                                        <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.SegmentDigits}" />
+                                    </Grid>
+                                </Viewbox>
+                            </Grid>
+                            <!-- Режим часов: дата с годом под крупным временем (если дата выключена — места не занимает). -->
+                            <Grid HorizontalAlignment="Center" Margin="0,5,0,0"
+                                  Visibility="{Binding ShowIdleDate, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="88.88.8888" Style="{StaticResource Style.ClockGhost}" />
+                                <TextBlock Text="{Binding FullDateText}" Style="{StaticResource Style.ClockText}" />
+                            </Grid>
+                            <Border Style="{StaticResource Style.ClockSeparator}" Width="120" Margin="0,5,0,4"
+                                    Visibility="{Binding ShowCompactSeparator, Converter={StaticResource BoolToVis}}" />
+                            <!-- Режим таймера: часы и дата (с годом) В ОДНУ СТРОКУ по центру. DSEG моноширинный —
+                                 при секундах строка не «ездит»; сдвиг возможен только при смене даты. -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                        Visibility="{Binding ShowCompactClockRow, Converter={StaticResource BoolToVis}}">
+                                <Grid VerticalAlignment="Center" Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
+                                    <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
                                 </Grid>
-                            </Viewbox>
-                            <!-- Компакт: разделитель, затем часы и дата В ОДНУ СТРОКУ по центру. Часы моноширинные
-                                 (DSEG) — при секундах строка не «ездит»; сдвиг возможен только при смене даты. -->
-                            <StackPanel Visibility="{Binding IsClockAreaVisible, Converter={StaticResource BoolToVis}}">
-                                <Border Style="{StaticResource Style.ClockSeparator}" Width="120" Margin="0,5,0,4" />
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Grid VerticalAlignment="Center" Visibility="{Binding ShowClock, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="{Binding ClockGhostText}" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
-                                        <TextBlock Text="{Binding ClockText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
-                                    </Grid>
-                                    <!-- Дата в компакте — тем же сегментным шрифтом, что часы (цифрами «ДД.ММ»). -->
-                                    <Grid VerticalAlignment="Center" Margin="12,0,0,0"
-                                          Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="88.88" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
-                                        <TextBlock Text="{Binding ShortDateText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
-                                    </Grid>
-                                </StackPanel>
+                                <Grid VerticalAlignment="Center" Margin="12,0,0,0"
+                                      Visibility="{Binding ShowDate, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="88.88.8888" Style="{StaticResource Style.ClockGhost}" FontSize="11" />
+                                    <TextBlock Text="{Binding FullDateText}" Style="{StaticResource Style.ClockText}" FontSize="11" />
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Row="1" Height="4" CornerRadius="2" Background="{StaticResource Brush.BorderSubtle}"
-                            Margin="0,10" ClipToBounds="True">
+                            Margin="0,8" ClipToBounds="True">
                         <Border x:Name="CompactProgressBar" Width="0" HorizontalAlignment="Left"
                                 Background="{StaticResource Brush.Accent}" CornerRadius="2" />
                     </Border>
 
-                    <!-- Как в полном режиме: Play/Pause по центру, Mute/Reset по бокам, громкость снаружи слева. -->
+                    <!-- Как в полном режиме: Play/Pause по центру, Mute/Reset по бокам, громкость снаружи слева.
+                         Кнопки — компактные скруглённые прямоугольники (докладка 2026-09-27), иконки прежние. -->
                     <Grid Grid.Row="2" HorizontalAlignment="Center">
                     <Slider Style="{StaticResource Style.ThinVolumeSliderVertical}" Minimum="0" Maximum="1"
-                            Value="{Binding AlarmVolume}" Height="32" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            Margin="-24,0,0,0" controls:HintService.Key="Volume" />
+                            Value="{Binding AlarmVolume}" Height="26" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Margin="-22,0,0,0" controls:HintService.Key="Volume" />
                     <StackPanel Orientation="Horizontal">
-                            <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center"
+                            <Button Style="{StaticResource Style.RectButton}" Margin="0,0,8,0" VerticalAlignment="Center"
                                     Command="{Binding ToggleMuteCommand}" controls:HintService.Key="Mute">
                                 <Viewbox Width="16" Height="16">
                                     <Canvas Width="24" Height="24">
@@ -216,16 +238,16 @@
                                     </Canvas>
                                 </Viewbox>
                             </Button>
-                        <Button Style="{StaticResource Style.PrimaryCircleButton}" Width="40" Height="40"
-                                Command="{Binding StartPauseCommand}" Margin="0,0,10,0" controls:HintService.Key="StartPause">
-                            <Viewbox Width="20" Height="20">
+                        <Button Style="{StaticResource Style.PrimaryRectButton}"
+                                Command="{Binding StartPauseCommand}" Margin="0,0,8,0" controls:HintService.Key="StartPause">
+                            <Viewbox Width="18" Height="18">
                                 <Canvas Width="24" Height="24">
                                     <Path Data="{Binding IsRunning, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.Pause|Geometry.Play}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                 </Canvas>
                             </Viewbox>
                         </Button>
-                        <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32"
+                        <Button Style="{StaticResource Style.RectButton}" VerticalAlignment="Center"
                                 Command="{Binding ResetCommand}" controls:HintService.Key="Reset">
                             <Viewbox Width="16" Height="16">
                                 <Canvas Width="24" Height="24">

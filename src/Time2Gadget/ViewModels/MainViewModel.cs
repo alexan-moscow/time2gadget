@@ -558,6 +558,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settingsService.Save(_settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsClockAreaVisible));
+            RefreshIdleClock();
+            RaiseCompactLayoutChanges();
         }
     }
 
@@ -571,11 +573,78 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settingsService.Save(_settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsClockAreaVisible));
+            RaiseCompactLayoutChanges();
         }
     }
 
     /// <summary>Часы или дата включены — тогда между таймером и ними тонкий разделитель.</summary>
     public bool IsClockAreaVisible => ShowClock || ShowDate;
+
+    // ---- Компакт как виджет часов (докладка 2026-09-27): таймер не запущен (00:00) и часы включены —
+    // крупно идёт текущее время вместо нулей, под ним дата с годом (если включена), затем разделитель.
+    // Идёт/на паузе/закончился — крупно таймер, под разделителем строка «часы + дата», как раньше. ----
+    private bool _isIdleClock;
+    public bool IsIdleClock
+    {
+        get => _isIdleClock;
+        private set
+        {
+            if (_isIdleClock == value) return;
+            _isIdleClock = value;
+            RaiseCompactLayoutChanges();
+        }
+    }
+
+    public bool IsTimerDisplay => !IsIdleClock;
+    public bool ShowIdleDate => IsIdleClock && ShowDate;
+    public bool ShowCompactSeparator => IsIdleClock || IsClockAreaVisible;
+    public bool ShowCompactClockRow => !IsIdleClock && IsClockAreaVisible;
+
+    private void RefreshIdleClock() =>
+        IsIdleClock = ShowClock && Status == TimerStatus.Ready && _engine.TotalDuration <= TimeSpan.Zero;
+
+    private void RaiseCompactLayoutChanges()
+    {
+        OnPropertyChanged(nameof(IsIdleClock));
+        OnPropertyChanged(nameof(IsTimerDisplay));
+        OnPropertyChanged(nameof(ShowIdleDate));
+        OnPropertyChanged(nameof(ShowCompactSeparator));
+        OnPropertyChanged(nameof(ShowCompactClockRow));
+    }
+
+    // ---- Размер видов — два ползунка в настройках (докладка 2026-09-27) ----
+    public const double MinViewScale = 0.8, MaxViewScale = 1.6;
+
+    public double FullViewScale
+    {
+        get => _settings.FullViewScale;
+        set
+        {
+            var v = Math.Round(Math.Clamp(value, MinViewScale, MaxViewScale), 2);
+            if (Math.Abs(_settings.FullViewScale - v) < 0.001) return;
+            _settings.FullViewScale = v;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FullViewScaleLabel));
+        }
+    }
+
+    public double CompactViewScale
+    {
+        get => _settings.CompactViewScale;
+        set
+        {
+            var v = Math.Round(Math.Clamp(value, MinViewScale, MaxViewScale), 2);
+            if (Math.Abs(_settings.CompactViewScale - v) < 0.001) return;
+            _settings.CompactViewScale = v;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CompactViewScaleLabel));
+        }
+    }
+
+    public string FullViewScaleLabel => $"Размер полного вида: {Math.Round(FullViewScale * 100)}%";
+    public string CompactViewScaleLabel => $"Размер компактного вида: {Math.Round(CompactViewScale * 100)}%";
 
     /// <summary>«Подложка» погасших сегментов для часов — как у главного циферблата.</summary>
     public string ClockGhostText => ShowClockSeconds ? "88:88:88" : "88:88";
@@ -618,18 +687,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ClockText = now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
         // «сб, 27 сен.» → «СБ, 27 СЕН»: заглавными, как «ГОТОВО», и без точки сокращения.
         DateText = now.ToString("ddd, d MMM", Russian).Replace(".", string.Empty).ToUpper(Russian);
-        ShortDateText = now.ToString("dd.MM");
+        FullDateText = now.ToString("dd.MM.yyyy");
     }
 
-    private string _shortDateText = string.Empty;
+    private string _fullDateText = string.Empty;
     /// <summary>
-    /// Дата для компакта — тем же сегментным шрифтом, что часы рядом (докладка 2026-09-27). DSEG7 не рисует
-    /// буквы (день недели/месяц словами), поэтому только цифры «ДД.ММ»; подложка — «88.88».
+    /// Дата для компакта — полная, с годом (докладка 2026-09-27), тем же сегментным шрифтом, что часы.
+    /// DSEG7 не рисует буквы, поэтому только цифры «ДД.ММ.ГГГГ»; подложка — «88.88.8888».
     /// </summary>
-    public string ShortDateText
+    public string FullDateText
     {
-        get => _shortDateText;
-        private set { if (_shortDateText == value) return; _shortDateText = value; OnPropertyChanged(); }
+        get => _fullDateText;
+        private set { if (_fullDateText == value) return; _fullDateText = value; OnPropertyChanged(); }
     }
 
     /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>
@@ -965,6 +1034,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             : 1 - (RemainingTime.TotalSeconds / total.TotalSeconds);
         RefreshFinishEffectActive();
         RefreshClock();
+        RefreshIdleClock();
         UpdateTray();
     }
 

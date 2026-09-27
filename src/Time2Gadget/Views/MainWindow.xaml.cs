@@ -16,8 +16,17 @@ namespace Time2Gadget.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const double NormalWindowWidth = 273, NormalWindowHeight = 341;   // 16(top)+225(кольцо)+16(зазор)+52(кнопки)+16(bottom) + 2*8 Chrome margin — везде одинаковый отступ 16 (докладка 2026-09-27)
-    private const double CompactWindowWidth = 236, CompactWindowHeight = 172; // содержимое 220x156 + 2*8 margin (156 — со строкой часов/даты)
+    // Размеры СОДЕРЖИМОГО (без 2*8 Chrome margin) при масштабе 1.0; окно = содержимое * масштаб + 16
+    // (LayoutTransform на Chrome масштабирует содержимое, внешний margin — нет).
+    private const double NormalContentWidth = 257, NormalContentHeight = 325;  // 16(top)+225(кольцо)+16(зазор)+52(кнопки)+16(bottom) — везде одинаковый отступ 16 (докладка 2026-09-27)
+    private const double CompactContentWidth = 220, CompactContentHeight = 156; // 156 — со строкой часов/даты
+    private const double ChromeMargin = 8;
+
+    // Угловые кнопки. В компакте — ближе к углам, автозакрытие — ПОД крестиком (докладка 2026-09-27: больше
+    // места под крупный таймер/часы); вертикальный шаг = прежнему горизонтальному (22px между центрами).
+    private static readonly Thickness NormalSettingsMargin = new(10), CompactSettingsMargin = new(5);
+    private static readonly Thickness NormalCloseMargin = new(0, 10, 10, 0), CompactCloseMargin = new(0, 5, 5, 0);
+    private static readonly Thickness NormalAutoCloseMargin = new(0, 10, 32, 0), CompactAutoCloseMargin = new(0, 27, 5, 0);
 
     private readonly MainViewModel _viewModel;
     private Views.SettingsWindow? _settingsWindow;
@@ -85,6 +94,8 @@ public partial class MainWindow : Window
         switch (e.PropertyName)
         {
             case nameof(MainViewModel.IsCompactMode):
+            case nameof(MainViewModel.FullViewScale):
+            case nameof(MainViewModel.CompactViewScale):
                 ApplyModeLayout(_viewModel.IsCompactMode);
                 break;
             case nameof(MainViewModel.ProgressFraction):
@@ -109,18 +120,24 @@ public partial class MainWindow : Window
     /// </summary>
     private void ApplyModeLayout(bool isCompact)
     {
-        Width = isCompact ? CompactWindowWidth : NormalWindowWidth;
-        Height = isCompact ? CompactWindowHeight : NormalWindowHeight;
+        double scale = isCompact ? _viewModel.CompactViewScale : _viewModel.FullViewScale;
+        ViewScale.ScaleX = ViewScale.ScaleY = scale;
+        Width = (isCompact ? CompactContentWidth : NormalContentWidth) * scale + 2 * ChromeMargin;
+        Height = (isCompact ? CompactContentHeight : NormalContentHeight) * scale + 2 * ChromeMargin;
 
         NormalContent.Visibility = isCompact ? Visibility.Collapsed : Visibility.Visible;
         CompactContent.Visibility = isCompact ? Visibility.Visible : Visibility.Collapsed;
+
+        SettingsButton.Margin = isCompact ? CompactSettingsMargin : NormalSettingsMargin;
+        CloseButton.Margin = isCompact ? CompactCloseMargin : NormalCloseMargin;
+        AutoCloseButton.Margin = isCompact ? CompactAutoCloseMargin : NormalAutoCloseMargin;
     }
 
     private void UpdateCompactProgressBar()
     {
         if (!_viewModel.IsCompactMode) return;
 
-        double trackWidth = 220 - 2 * 14; // Border.Width - 2*Grid.Margin (см. XAML)
+        double trackWidth = 220 - 2 * 12; // Border.Width - 2*Grid.Margin (см. XAML)
         double fraction = Math.Clamp(_viewModel.ProgressFraction, 0.0, 1.0);
         CompactProgressBar.Width = trackWidth * fraction;
         CompactProgressBar.Background = _viewModel.IsFinished

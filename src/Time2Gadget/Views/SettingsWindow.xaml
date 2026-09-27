@@ -104,6 +104,13 @@
             <Slider Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
                     Value="{Binding FinishEffectDurationIndex}" TickFrequency="1" IsSnapToTickEnabled="True" />
 
+            <!-- ============ Размер видов — отдельно полный и компактный (докладка 2026-09-27) ============ -->
+            <TextBlock Text="Размер" Style="{StaticResource Style.SectionHeader}" />
+            <TextBlock Text="{Binding FullViewScaleLabel}" Margin="0,0,0,2" />
+            <Slider Minimum="0.8" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <TextBlock Text="{Binding CompactViewScaleLabel}" Margin="0,10,0,2" />
+            <Slider Minimum="0.8" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+
             <!-- ============ Часы под статусом ============ -->
             <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />
             <CheckBox Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />

@@ -70,6 +70,12 @@ public sealed class AppSettings
     /// </summary>
     public DateTime? LastUpdateCheckUtc { get; set; }
 
+    /// <summary>Масштаб полного вида (ползунок в настройках), 1.0 = исходный размер.</summary>
+    public double FullViewScale { get; set; } = 1.0;
+
+    /// <summary>Масштаб компактного вида — отдельно от полного.</summary>
+    public double CompactViewScale { get; set; } = 1.0;
+
     // «Об авторе» больше не настройка (2026-09-27): автор/ссылки — константы в MainViewModel; старые поля
     // AuthorName/GitHubUrl/VirusTotalUrl в settings.json просто игнорируются.
 }

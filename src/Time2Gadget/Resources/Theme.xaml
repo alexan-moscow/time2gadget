@@ -175,6 +175,50 @@
         </Setter>
     </Style>
 
+    <!-- ============ Прямоугольные кнопки компакта (докладка 2026-09-27: ниже круглых — больше места под
+         крупные часы/таймер). Те же цвета и подсветка, что у круглых; иконки — те же Path. ============ -->
+    <Style x:Key="Style.RectButton" TargetType="Button">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+        <Setter Property="Background" Value="{StaticResource Brush.ButtonSurface}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="7">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Style.PrimaryRectButton" TargetType="Button" BasedOn="{StaticResource Style.RectButton}">
+        <Setter Property="Width" Value="52" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Background" Value="{StaticResource Brush.Accent}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="8">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.AccentHover}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ============ Угловые иконки-кнопки (шестерёнка/крестик) — docs/UI-CONTRACT.md ============ -->
     <Style x:Key="Style.CornerIconButton" TargetType="Button">
         <Setter Property="Width" Value="28" />

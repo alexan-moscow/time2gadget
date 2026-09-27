@@ -79,7 +79,8 @@ public sealed class HintController
     private readonly Popup _popup;
     private readonly Border _bubble;
     private readonly TextBlock _text;
-    private Point? _restPoint;
+    private Point? _restPoint;        // в координатах host — для поиска элемента под курсором
+    private Point _restPointInWindow;  // в координатах окна — для места подсказки (host может быть масштабирован)
 
     public HintController(FrameworkElement host, Func<FrameworkElement, string?> resolveText)
     {
@@ -116,6 +117,11 @@ public sealed class HintController
             return;
 
         _restPoint = p;
+        if (Window.GetWindow(_host) is { } window)
+        {
+            _restPointInWindow = e.GetPosition(window);
+            _popup.PlacementTarget = window; // смещение Popup считается в координатах цели без учёта масштаба вида
+        }
         Hide();
         _delayTimer.Stop();
         _delayTimer.Start();
@@ -139,8 +145,8 @@ public sealed class HintController
         if (string.IsNullOrEmpty(text)) return;
 
         _text.Text = text;
-        _popup.HorizontalOffset = p.X + CursorOffset / 2;
-        _popup.VerticalOffset = p.Y + CursorOffset;
+        _popup.HorizontalOffset = _restPointInWindow.X + CursorOffset / 2;
+        _popup.VerticalOffset = _restPointInWindow.Y + CursorOffset;
         _popup.IsOpen = true;
         _bubble.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, FadeIn) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
