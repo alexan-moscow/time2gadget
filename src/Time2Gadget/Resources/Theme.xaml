@@ -42,6 +42,11 @@
     <SolidColorBrush x:Key="Brush.Finish" Color="{StaticResource Color.Finish}" />
     <SolidColorBrush x:Key="Brush.ButtonSurface" Color="{StaticResource Color.SurfaceSector}" Opacity="0.55" />
 
+    <!-- Обновления (2026-09-27): жёлтый — «есть что-то новое», не тревога (красный занят завершением таймера). -->
+    <Color x:Key="Color.UpdateAccent">#FFC940</Color>
+    <SolidColorBrush x:Key="Brush.UpdateAccent" Color="{StaticResource Color.UpdateAccent}" />
+    <SolidColorBrush x:Key="Brush.UpdateBannerBackground" Color="{StaticResource Color.UpdateAccent}" Opacity="0.12" />
+
     <!-- ============ ТИПОГРАФИКА (docs/DESIGN-SYSTEM.md → Типографика) ============ -->
     <FontFamily x:Key="Font.Primary">Segoe UI Variable, Segoe UI</FontFamily>
 
@@ -400,6 +405,29 @@
         <Setter Property="Padding" Value="12,6" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Margin" Value="0,4" />
+        <!-- Свой шаблон: стандартный рисовал системную светло-голубую подсветку при наведении/нажатии,
+             выпадавшую из тёмной темы (заметили на «Проверить обновления», 2026-09-27). -->
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="Style.LinkButton" TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">

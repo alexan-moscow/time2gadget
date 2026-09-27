@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Time2Gadget.Models;
@@ -24,6 +25,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ISoundService _soundService;
     private readonly ITrayService _trayService;
+    private readonly IUpdateService _updateService;
     private readonly DispatcherTimer _uiTimer;
     private readonly AppSettings _settings;
 
@@ -73,12 +75,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         new EnumOption<CloseBehavior>(CloseBehavior.Exit, "Закрывать приложение"),
     };
 
-    public MainViewModel(ITimerEngine engine, ISettingsService settingsService, ISoundService soundService, ITrayService trayService)
+    public MainViewModel(ITimerEngine engine, ISettingsService settingsService, ISoundService soundService, ITrayService trayService,
+        IUpdateService updateService)
     {
         _engine = engine;
         _settingsService = settingsService;
         _soundService = soundService;
         _trayService = trayService;
+        _updateService = updateService;
 
         _settings = _settingsService.Load();
         AudioDevices = _soundService.GetOutputDevices();
@@ -136,6 +140,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         };
         _uiTimer.Tick += (_, _) => RefreshFromEngine();
         _uiTimer.Start();
+
+        InitializeUpdates();
 
         RefreshFromEngine();
     }
@@ -405,6 +411,141 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // ============ Обновления (docs/DECISIONS.md, 2026-09-27) ============
+    // Автопроверка раз в неделю: через минуту после запуска и дальше каждые 6 ч смотрим, прошло ли 7 дней с
+    // последней УСПЕШНОЙ проверки (дата — в settings.json, переживает перезапуски). Проверка тихая: нашлось —
+    // баннер в настройках и жёлтое мигание шестерёнки; ошибка сети — ничего не показываем.
+    private static readonly TimeSpan UpdateCheckPeriod = TimeSpan.FromDays(7);
+    private static readonly TimeSpan FirstUpdateCheckDelay = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan UpdateScheduleTick = TimeSpan.FromHours(6);
+    private DispatcherTimer? _updateTimer;
+    private string? _availableReleasePageUrl;
+
+    public RelayCommand CheckUpdatesCommand { get; private set; } = null!;
+    public RelayCommand InstallUpdateCommand { get; private set; } = null!;
+
+    public string CurrentVersionText => $"Версия {_updateService.CurrentVersion}";
+
+    private string? _availableVersion;
+    public string? AvailableVersion
+    {
+        get => _availableVersion;
+        private set
+        {
+            if (_availableVersion == value) return;
+            _availableVersion = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsUpdateAvailable));
+            OnPropertyChanged(nameof(UpdateBannerText));
+        }
+    }
+
+    public bool IsUpdateAvailable => AvailableVersion is not null;
+
+    public string UpdateBannerText => IsUpdateAvailable ? $"Найдено обновление {AvailableVersion}. Обновить?" : string.Empty;
+
+    /// <summary>Установленная копия обновляется на месте; портативная — только ссылкой на страницу выпуска.</summary>
+    public string InstallUpdateButtonText => _updateService.CanInstallInPlace ? "Обновить" : "Скачать";
+
+    private string _updateStatusText = string.Empty;
+    /// <summary>Строка рядом с кнопкой «Проверить обновления» — результат ручной проверки/ход установки.</summary>
+    public string UpdateStatusText
+    {
+        get => _updateStatusText;
+        private set { if (_updateStatusText == value) return; _updateStatusText = value; OnPropertyChanged(); }
+    }
+
+    private bool _isUpdateBusy;
+    private bool IsUpdateBusy
+    {
+        get => _isUpdateBusy;
+        set { _isUpdateBusy = value; CommandManager.InvalidateRequerySuggested(); }
+    }
+
+    private void InitializeUpdates()
+    {
+        CheckUpdatesCommand = new RelayCommand(() => _ = CheckUpdatesAsync(manual: true), () => !IsUpdateBusy);
+        InstallUpdateCommand = new RelayCommand(() => _ = InstallUpdateAsync(), () => IsUpdateAvailable && !IsUpdateBusy);
+
+        _updateTimer = new DispatcherTimer { Interval = FirstUpdateCheckDelay };
+        _updateTimer.Tick += (_, _) =>
+        {
+            _updateTimer.Interval = UpdateScheduleTick;
+            var last = _settings.LastUpdateCheckUtc;
+            if (last is null || DateTime.UtcNow - last.Value >= UpdateCheckPeriod)
+                _ = CheckUpdatesAsync(manual: false);
+        };
+        _updateTimer.Start();
+    }
+
+    private async Task CheckUpdatesAsync(bool manual)
+    {
+        if (IsUpdateBusy) return;
+        IsUpdateBusy = true;
+        if (manual) UpdateStatusText = "Проверяем…";
+        try
+        {
+            var result = await _updateService.CheckAsync();
+            if (result.Status != UpdateCheckStatus.Failed)
+            {
+                _settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                _settingsService.Save(_settings);
+            }
+
+            switch (result.Status)
+            {
+                case UpdateCheckStatus.Available:
+                    _availableReleasePageUrl = result.ReleasePageUrl;
+                    AvailableVersion = result.Version;
+                    if (manual) UpdateStatusText = $"Доступна версия {result.Version}";
+                    break;
+                case UpdateCheckStatus.UpToDate:
+                    AvailableVersion = null;
+                    if (manual) UpdateStatusText = "Установлена последняя версия";
+                    break;
+                default:
+                    if (manual) UpdateStatusText = "Не удалось проверить — нет связи с GitHub";
+                    break;
+            }
+        }
+        finally
+        {
+            IsUpdateBusy = false;
+        }
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (!_updateService.CanInstallInPlace)
+        {
+            if (_availableReleasePageUrl is not null) OpenUrl(_availableReleasePageUrl); // портативная копия — страница выпуска
+            return;
+        }
+
+        if (Status is TimerStatus.Running or TimerStatus.Paused
+            && System.Windows.MessageBox.Show("Идёт отсчёт таймера. Обновление перезапустит программу и сбросит таймер. Продолжить?",
+                   "Тайм2гаджет", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question)
+               != System.Windows.MessageBoxResult.Yes)
+            return;
+
+        IsUpdateBusy = true;
+        UpdateStatusText = "Скачиваем обновление…";
+        try
+        {
+            _soundService.StopAlarm();
+            await _updateService.DownloadAndRestartAsync(p => _dispatcher.BeginInvoke(() => UpdateStatusText = $"Скачиваем обновление… {p}%"));
+            // сюда при успехе не доходим: процесс завершается и Velopack запускает новую версию
+        }
+        catch
+        {
+            UpdateStatusText = "Не удалось установить обновление — попробуйте позже";
+        }
+        finally
+        {
+            IsUpdateBusy = false;
+        }
+    }
+
     // ============ Часы под статусом (докладка 2026-09-27) ============
     public bool ShowClock
     {
@@ -595,7 +736,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         "CompactCenter" => "Клик — вернуться к полному виду",
         "Mute" => IsMuted ? "Включить звук звонка" : "Выключить звук звонка",
         "Volume" => $"Громкость звонка: {Math.Round(AlarmVolume * 100)}%",
-        "Settings" => "Настройки",
+        "Settings" => IsUpdateAvailable ? $"Настройки — доступно обновление {AvailableVersion}" : "Настройки",
         "Close" => CloseBehavior == CloseBehavior.Exit ? "Закрыть приложение" : "Свернуть в трей",
         "AutoClose" => AutoCloseAfterFinish
             ? $"Автозакрытие ВКЛ: после звонка приложение {(CloseBehavior == CloseBehavior.Exit ? "закроется" : "свернётся в трей")}\nКлик — выключить"
@@ -831,6 +972,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _uiTimer.Stop();
         _trayEffectTimer?.Stop();
         _silentAutoCloseTimer?.Stop();
+        _updateTimer?.Stop();
         _soundService.StopAlarm();
         _trayService.Dispose();
     }

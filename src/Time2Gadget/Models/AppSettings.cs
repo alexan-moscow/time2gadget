@@ -64,6 +64,12 @@ public sealed class AppSettings
     /// <summary>Показывать дату (под часами в полном режиме, справа от часов в компакте).</summary>
     public bool ShowDate { get; set; } = true;
 
+    /// <summary>
+    /// Когда последний раз УСПЕШНО проверяли обновления (UTC). Автопроверка — если прошло ≥7 дней;
+    /// неудачная проверка (нет сети) дату не двигает — повторим при следующей возможности.
+    /// </summary>
+    public DateTime? LastUpdateCheckUtc { get; set; }
+
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";
     public string VirusTotalUrl { get; set; } = "https://www.virustotal.com/gui/file/0000000000000000000000000000000000000000000000000000000000000000";

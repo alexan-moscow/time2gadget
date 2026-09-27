@@ -12,6 +12,21 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
         <StackPanel>
 
+            <!-- ============ Баннер «найдено обновление» — только когда оно есть (docs/UI-CONTRACT.md → Обновления) ============ -->
+            <Border Background="{StaticResource Brush.UpdateBannerBackground}" BorderBrush="{StaticResource Brush.UpdateAccent}"
+                    BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,4,0,6"
+                    Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <Button Grid.Column="1" Content="{Binding InstallUpdateButtonText}" Command="{Binding InstallUpdateCommand}"
+                            Style="{StaticResource Style.SettingsButton}" Margin="10,0,0,0" />
+                </Grid>
+            </Border>
+
             <!-- ============ Автозагрузка / закрытие ============ -->
             <TextBlock Text="Запуск и закрытие" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
             <CheckBox Content="Запускать вместе с Windows" IsChecked="{Binding IsLaunchAtStartup}" />
@@ -95,12 +110,21 @@
             <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
             <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
+            <!-- ============ Обновления — внизу (автопроверка раз в неделю идёт сама) ============ -->
+            <TextBlock Text="Обновления" Style="{StaticResource Style.SectionHeader}" />
+            <TextBlock Text="{Binding CurrentVersionText}" Foreground="{StaticResource Brush.TextSecondary}" />
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource Style.SettingsButton}" />
+                <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
+                           TextWrapping="Wrap" MaxWidth="170" Foreground="{StaticResource Brush.TextSecondary}" />
+            </StackPanel>
+
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding AuthorName}" Margin="0,0,0,6" />
             <Button Content="GitHub" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
             <Button Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
-            <TextBlock Text="(ссылки — тестовые заглушки)" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11" Margin="0,6,0,0" />
+            <TextBlock Text="(имя автора и VirusTotal — пока заглушки)" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11" Margin="0,6,0,0" />
 
         </StackPanel>
     </ScrollViewer>

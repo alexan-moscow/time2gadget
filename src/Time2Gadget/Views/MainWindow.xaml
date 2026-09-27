@@ -249,8 +249,30 @@
                     HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
-                        <Path Data="{StaticResource Geometry.Gear}"
-                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                        <!-- Найдено обновление — шестерёнка жёлтая и мигает, пока его не поставят (2026-09-27). -->
+                        <Path Data="{StaticResource Geometry.Gear}">
+                            <Path.Style>
+                                <Style TargetType="Path">
+                                    <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsUpdateAvailable}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource Brush.UpdateAccent}" />
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard x:Name="UpdateBlink">
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3"
+                                                                         Duration="0:0:0.7" AutoReverse="True" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="UpdateBlink" />
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Path.Style>
+                        </Path>
                     </Canvas>
                 </Viewbox>
             </Button>

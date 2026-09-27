@@ -49,8 +49,9 @@ public partial class App : Application
         ISettingsService settingsService = new SettingsService();
         ISoundService soundService = new SoundService();
         ITrayService trayService = new TrayService();
+        IUpdateService updateService = new UpdateService();
 
-        _viewModel = new MainViewModel(engine, settingsService, soundService, trayService);
+        _viewModel = new MainViewModel(engine, settingsService, soundService, trayService, updateService);
         _viewModel.IsLaunchAtStartup = AutostartService.IsEnabled();
 
         var window = new MainWindow(_viewModel);
