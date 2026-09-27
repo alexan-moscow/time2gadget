@@ -15,8 +15,8 @@ public static class RingtoneCatalog
     /// <summary>Особый Id — «свой файл» пользователя (путь в AppSettings.CustomSoundFilePath).</summary>
     public const string CustomId = "custom";
 
-    /// <summary>Звонок по умолчанию — «Таймер завершён» (решение пользователя 2026-09-27).</summary>
-    public const string DefaultId = "timer-finished";
+    /// <summary>Звонок по умолчанию — «Рингтон 42» (решение пользователя 2026-09-27; до этого — «Таймер завершён»).</summary>
+    public const string DefaultId = "ringtone-42";
 
     public static readonly IReadOnlyList<Ringtone> BuiltIn = new Ringtone[]
     {

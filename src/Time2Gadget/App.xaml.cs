@@ -52,7 +52,18 @@ public partial class App : Application
         IUpdateService updateService = new UpdateService();
 
         _viewModel = new MainViewModel(engine, settingsService, soundService, trayService, updateService);
-        _viewModel.IsLaunchAtStartup = AutostartService.IsEnabled();
+        if (settingsService.IsFirstRun)
+        {
+            // Первый запуск: автозапуск по умолчанию ВКЛ (решение пользователя 2026-09-27) — сразу прописываем
+            // в реестр и сохраняем настройки, чтобы следующий запуск уже не считался первым (иначе отключённый
+            // вручную, например в Диспетчере задач, автозапуск включался бы снова).
+            if (_viewModel.IsLaunchAtStartup) AutostartService.SetEnabled(true);
+            _viewModel.PersistSettings();
+        }
+        else
+        {
+            _viewModel.IsLaunchAtStartup = AutostartService.IsEnabled(); // реестр — источник истины
+        }
 
         var window = new MainWindow(_viewModel);
 

@@ -2,7 +2,8 @@ namespace Time2Gadget.Models;
 
 /// <summary>
 /// Персистентные настройки приложения. Сериализуется в %APPDATA%\Time2Gadget\settings.json.
-/// См. docs/ARCHITECTURE.md → Settings.
+/// См. docs/ARCHITECTURE.md → Settings. Значения по умолчанию утверждены пользователем 2026-09-27
+/// (действуют для новых установок / без settings.json; сохранённые настройки не перезаписываются).
 /// </summary>
 public sealed class AppSettings
 {
@@ -12,7 +13,8 @@ public sealed class AppSettings
     public bool CompactMode { get; set; } = false;
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
-    public bool LaunchAtStartup { get; set; } = false;
+    /// <summary>По умолчанию — да; при первом запуске App включает автозапуск в реестре (см. App.xaml.cs).</summary>
+    public bool LaunchAtStartup { get; set; } = true;
 
     /// <summary>Поведение при закрытии окна — сворачивать (по умолчанию) или закрывать приложение.</summary>
     public CloseBehavior CloseBehavior { get; set; } = CloseBehavior.MinimizeToTray;
@@ -24,7 +26,7 @@ public sealed class AppSettings
     public bool AutoCloseAfterFinish { get; set; } = false;
 
     /// <summary>Громкость звонка, 0..1 (слайдер слева от кнопки Mute / в Settings).</summary>
-    public double AlarmVolume { get; set; } = 0.5;
+    public double AlarmVolume { get; set; } = 0.6;
 
     /// <summary>Id устройства вывода звука (NAudio MMDevice.ID) или "" для системного по умолчанию.</summary>
     public string AudioDeviceId { get; set; } = string.Empty;
@@ -41,7 +43,7 @@ public sealed class AppSettings
     /// полное проигрывание звука от начала до конца (докладка 2026-09-27: заменяет прежнюю пару
     /// "длительность в секундах" + "интервал в мс", которая не привязывалась к реальной длине звука).
     /// </summary>
-    public int AlarmRepeatCount { get; set; } = 3;
+    public int AlarmRepeatCount { get; set; } = 2;
 
     /// <summary>Визуальный эффект циферблата во время отсчёта. По умолчанию отключён.</summary>
     public RunningVisualEffect RunningEffect { get; set; } = RunningVisualEffect.None;
@@ -62,7 +64,7 @@ public sealed class AppSettings
     public bool ShowClockSeconds { get; set; } = false;
 
     /// <summary>Показывать дату (под часами в полном режиме, справа от часов в компакте).</summary>
-    public bool ShowDate { get; set; } = true;
+    public bool ShowDate { get; set; } = false;
 
     /// <summary>
     /// Когда последний раз УСПЕШНО проверяли обновления (UTC). Автопроверка — если прошло ≥7 дней;

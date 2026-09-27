@@ -18,11 +18,14 @@ public sealed class SettingsService : ISettingsService
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
+    public bool IsFirstRun { get; private set; }
+
     public AppSettings Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return new AppSettings();
+            IsFirstRun = !File.Exists(FilePath);
+            if (IsFirstRun) return new AppSettings();
             var json = File.ReadAllText(FilePath);
             return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
         }

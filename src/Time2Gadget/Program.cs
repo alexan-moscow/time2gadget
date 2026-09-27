@@ -13,7 +13,11 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        VelopackApp.Build().Run();
+        VelopackApp.Build()
+            // Удаление через «Приложения»: убрать запись автозапуска из реестра, иначе она осталась бы
+            // ссылкой на удалённый exe (автозапуск включён по умолчанию, 2026-09-27).
+            .OnBeforeUninstallFastCallback(_ => Services.AutostartService.SetEnabled(false))
+            .Run();
 
         var app = new App();
         app.InitializeComponent();

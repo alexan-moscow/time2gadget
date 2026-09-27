@@ -597,6 +597,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsTimerDisplay => !IsIdleClock;
     public bool ShowIdleDate => IsIdleClock && ShowDate;
+
+    /// <summary>
+    /// Часы в покое без даты — центрируются по вертикали (докладка 2026-09-27: прижатые к полоске хода, они
+    /// «прилипали» к ней). С датой/при таймере блок остаётся прижатым к полоске.
+    /// </summary>
+    public bool CenterCompactDisplay => IsIdleClock && !ShowDate;
     // В покое разделителя нет — его роль играет полоска хода таймера сразу под датой (докладка 2026-09-27).
     public bool ShowCompactSeparator => !IsIdleClock && IsClockAreaVisible;
     public bool ShowCompactClockRow => !IsIdleClock && IsClockAreaVisible;
@@ -609,6 +615,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(IsIdleClock));
         OnPropertyChanged(nameof(IsTimerDisplay));
         OnPropertyChanged(nameof(ShowIdleDate));
+        OnPropertyChanged(nameof(CenterCompactDisplay));
         OnPropertyChanged(nameof(ShowCompactSeparator));
         OnPropertyChanged(nameof(ShowCompactClockRow));
     }
@@ -789,6 +796,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _settings.WindowTop = top;
         _settingsService.Save(_settings);
     }
+
+    /// <summary>Сохранить текущие настройки как есть (первый запуск — зафиксировать значения по умолчанию).</summary>
+    public void PersistSettings() => _settingsService.Save(_settings);
 
     public void InitializeTray()
     {

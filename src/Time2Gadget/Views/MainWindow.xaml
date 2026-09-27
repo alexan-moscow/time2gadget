@@ -193,8 +193,19 @@
 
                     <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent" controls:HintService.Key="CompactCenter"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                        <!-- Прижато к полоске хода: дата/строка часов стоит сразу над ней (докладка 2026-09-27). -->
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                        <!-- Прижато к полоске хода: дата/строка часов стоит сразу над ней (докладка 2026-09-27).
+                             Часы в покое без даты — посередине свободной высоты (иначе «прилипают» к полоске). -->
+                        <StackPanel HorizontalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="VerticalAlignment" Value="Bottom" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CenterCompactDisplay}" Value="True">
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
                             <!-- Крупный блок на всю ширину между угловыми кнопками (146px, пропорции шрифта сохраняются):
                                  таймер, либо — когда таймер не запущен и часы включены — текущее время (докладка 2026-09-27). -->
                             <Grid>
