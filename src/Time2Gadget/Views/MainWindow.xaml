@@ -80,21 +80,10 @@
                                  Viewbox DownOnly — длинный формат H:MM:SS ужимается в ту же ширину. -->
                             <Viewbox x:Name="TimeText" MaxWidth="118" StretchDirection="DownOnly" HorizontalAlignment="Center">
                                 <Grid>
-                                    <TextBlock Style="{StaticResource Style.SegmentGhost}">
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}" ConverterParameter="Ghost">
-                                                <Binding Path="RemainingTime" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
-                                    <TextBlock Style="{StaticResource Style.SegmentDigits}">
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}">
-                                                <Binding Path="RemainingTime" />
-                                                <Binding Path="IsColonLit" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
+                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentGhost}" IsGhost="True"
+                                                              Time="{Binding RemainingTime}" />
+                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentDigits}"
+                                                              Time="{Binding RemainingTime}" IsColonLit="{Binding IsColonLit}" />
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Style.StatusLabel}" Margin="0,7,0,0" />
@@ -135,21 +124,10 @@
                             <!-- Тот же сегментный циферблат; фиксированная высота — ширины в компакте хватает и на H:MM:SS. -->
                             <Viewbox x:Name="CompactTimeText" Height="30" HorizontalAlignment="Center">
                                 <Grid>
-                                    <TextBlock Style="{StaticResource Style.SegmentGhost}">
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}" ConverterParameter="Ghost">
-                                                <Binding Path="RemainingTime" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
-                                    <TextBlock Style="{StaticResource Style.SegmentDigits}">
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}">
-                                                <Binding Path="RemainingTime" />
-                                                <Binding Path="IsColonLit" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
+                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentGhost}" IsGhost="True"
+                                                              Time="{Binding RemainingTime}" />
+                                    <controls:SegmentTimeText Style="{StaticResource Style.SegmentDigits}"
+                                                              Time="{Binding RemainingTime}" IsColonLit="{Binding IsColonLit}" />
                                 </Grid>
                             </Viewbox>
                         </StackPanel>
