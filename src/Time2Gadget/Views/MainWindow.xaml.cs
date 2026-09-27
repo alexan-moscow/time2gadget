@@ -249,7 +249,7 @@ public partial class MainWindow : Window
     {
         var source = e.OriginalSource as DependencyObject;
         bool onBackground = ReferenceEquals(source, RootGrid) || ReferenceEquals(source, NormalContent) || ReferenceEquals(source, CompactContent);
-        bool onCenter = IsDescendantOf(source, CenterDisplay) || IsDescendantOf(source, CompactCenterDisplay);
+        bool onCenter = TreeHelper.IsDescendantOf(source, CenterDisplay) || TreeHelper.IsDescendantOf(source, CompactCenterDisplay);
         if (!onBackground && !onCenter) return; // клик на секторе/кнопке — не наше дело, событие продолжит идти к ним
 
         _mouseDownScreenPos = PointToScreen(e.GetPosition(this));
@@ -286,16 +286,6 @@ public partial class MainWindow : Window
         _mouseDownScreenPos = null;
         _isDraggingWindow = false;
         _mouseDownOnCenter = false;
-    }
-
-    private static bool IsDescendantOf(DependencyObject? element, DependencyObject ancestor)
-    {
-        while (element is not null)
-        {
-            if (ReferenceEquals(element, ancestor)) return true;
-            element = VisualTreeHelper.GetParent(element);
-        }
-        return false;
     }
 
     /// <summary>

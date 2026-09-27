@@ -31,11 +31,33 @@ public static class HintService
         while (element is not null)
         {
             if (element is FrameworkElement fe && GetKey(fe) is not null) return fe;
-            element = element is Visual or System.Windows.Media.Media3D.Visual3D
-                ? VisualTreeHelper.GetParent(element)
-                : LogicalTreeHelper.GetParent(element);
+            element = TreeHelper.GetParent(element);
         }
         return null;
+    }
+}
+
+/// <summary>Подъём по дереву от источника событий мыши.</summary>
+public static class TreeHelper
+{
+    /// <summary>
+    /// Родитель для любого элемента. OriginalSource клика может быть не-визуальным (Run внутри
+    /// SegmentTimeText при клике точно по цифре) — VisualTreeHelper.GetParent на нём бросает
+    /// исключение и роняет приложение (реальный краш 2026-09-27), поэтому для них берём логического.
+    /// </summary>
+    public static DependencyObject? GetParent(DependencyObject element) =>
+        element is Visual or System.Windows.Media.Media3D.Visual3D
+            ? VisualTreeHelper.GetParent(element)
+            : LogicalTreeHelper.GetParent(element);
+
+    public static bool IsDescendantOf(DependencyObject? element, DependencyObject ancestor)
+    {
+        while (element is not null)
+        {
+            if (ReferenceEquals(element, ancestor)) return true;
+            element = GetParent(element);
+        }
+        return false;
     }
 }
 
