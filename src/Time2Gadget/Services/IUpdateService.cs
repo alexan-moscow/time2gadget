@@ -21,6 +21,13 @@ public interface IUpdateService
     Task<UpdateCheckResult> CheckAsync();
 
     /// <summary>
+    /// Ссылка на отчёт VirusTotal по установщику ТЕКУЩЕЙ версии: SHA-256 берётся из GitHub Release
+    /// (поле digest ассета Setup.exe). Вшить ссылку в сам exe нельзя — файл не может содержать собственный
+    /// хэш. null — нет связи/выпуска; тогда открывается страница выпусков.
+    /// </summary>
+    Task<string?> GetVirusTotalUrlAsync();
+
+    /// <summary>
     /// Скачать найденное обновление, поставить и перезапустить программу (процесс завершится).
     /// Только если CanInstallInPlace и последняя проверка вернула Available.
     /// </summary>

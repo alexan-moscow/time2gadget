@@ -127,7 +127,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
         PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p as string));
         OpenGitHubCommand = new RelayCommand(() => OpenUrl(GitHubUrl));
-        OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(VirusTotalUrl), () => HasVirusTotalUrl);
+        // Отчёт VirusTotal по установщику ИМЕННО этой версии (хэш — из GitHub Release); нет связи — страница выпусков.
+        OpenVirusTotalCommand = new RelayCommand(async () => OpenUrl(await _updateService.GetVirusTotalUrlAsync() ?? GitHubUrl));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
 
         _trayService.ShowRequested += (_, _) => ShowRequested?.Invoke(this, EventArgs.Empty);
@@ -692,10 +693,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Страница выпусков — пользователю там полезнее всего (скачать новую версию).</summary>
     public const string GitHubUrl = "https://github.com/alexan-moscow/time2gadget/releases";
 
-    /// <summary>Отчёт VirusTotal по выпуску; пусто — пункт скрыт (ссылку даст автор после загрузки на VirusTotal).</summary>
-    public const string VirusTotalUrl = "";
-
-    public bool HasVirusTotalUrl => !string.IsNullOrEmpty(VirusTotalUrl);
 
     /// <summary>«alexan-moscow · сентябрь 2026» — месяц/год сборки проставляет сама сборка (AssemblyMetadata ReleaseDate).</summary>
     public string AuthorLine

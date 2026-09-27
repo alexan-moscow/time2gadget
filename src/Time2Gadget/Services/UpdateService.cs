@@ -10,7 +10,8 @@ namespace Time2Gadget.Services;
 public sealed class UpdateService : IUpdateService
 {
     private const string RepoUrl = "https://github.com/alexan-moscow/time2gadget";
-    private const string LatestReleaseApi = "https://api.github.com/repos/alexan-moscow/time2gadget/releases/latest";
+    private const string ReleasesApi = "https://api.github.com/repos/alexan-moscow/time2gadget/releases";
+    private const string LatestReleaseApi = ReleasesApi + "/latest";
 
     private readonly UpdateManager _manager = new(new GithubSource(RepoUrl, accessToken: null, prerelease: false));
     private UpdateInfo? _pending;
@@ -46,13 +47,45 @@ public sealed class UpdateService : IUpdateService
         return new UpdateCheckResult(UpdateCheckStatus.Available, version, $"{RepoUrl}/releases/tag/v{version}");
     }
 
+    private HttpClient CreateGitHubClient()
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("Time2Gadget/" + CurrentVersion); // без User-Agent GitHub API отвечает 403
+        http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        return http;
+    }
+
+    private const string SetupAssetName = "Time2Gadget-win-Setup.exe";
+
+    public async Task<string?> GetVirusTotalUrlAsync()
+    {
+        try
+        {
+            using var http = CreateGitHubClient();
+            using var response = await http.GetAsync($"{ReleasesApi}/tags/v{CurrentVersion}");
+            if (!response.IsSuccessStatusCode) return null;
+
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            foreach (var asset in json.RootElement.GetProperty("assets").EnumerateArray())
+            {
+                if (asset.GetProperty("name").GetString() != SetupAssetName) continue;
+                var digest = asset.TryGetProperty("digest", out var d) ? d.GetString() : null; // "sha256:<hex>"
+                return digest is not null && digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)
+                    ? "https://www.virustotal.com/gui/file/" + digest["sha256:".Length..]
+                    : null;
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>Портативный exe: смотрим последний выпуск через GitHub API и сравниваем с версией сборки.</summary>
     private async Task<UpdateCheckResult> CheckPortableAsync()
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("Time2Gadget/" + CurrentVersion); // без User-Agent GitHub API отвечает 403
-        http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
-
+        using var http = CreateGitHubClient();
         using var response = await http.GetAsync(LatestReleaseApi);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return new UpdateCheckResult(UpdateCheckStatus.UpToDate); // выпусков ещё нет

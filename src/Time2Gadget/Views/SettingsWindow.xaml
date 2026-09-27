@@ -123,9 +123,8 @@
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding AuthorLine, Mode=OneTime}" Margin="0,0,0,6" />
             <Button Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
-            <!-- Появится, когда в MainViewModel.VirusTotalUrl будет ссылка на отчёт. -->
-            <Button Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0"
-                    Visibility="{Binding HasVirusTotalUrl, Converter={StaticResource BoolToVis}, Mode=OneTime}" />
+            <!-- Отчёт по установщику текущей версии: хэш берётся из GitHub Release (UpdateService.GetVirusTotalUrlAsync). -->
+            <Button Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
 
         </StackPanel>
     </ScrollViewer>
