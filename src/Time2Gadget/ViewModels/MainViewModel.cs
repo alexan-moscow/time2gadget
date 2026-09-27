@@ -191,7 +191,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _ => string.Empty
     };
 
-    public string StartPauseGlyph => Status == TimerStatus.Running ? "Ⅱ" : "▶"; // Ⅱ / ▶
     public bool IsRunning => Status == TimerStatus.Running;
     public bool IsFinished => Status == TimerStatus.Finished;
 
@@ -416,7 +415,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             TimerStatus.Finished => "Запустить этот таймер ещё раз  (Пробел)",
             _ => _engine.TotalDuration > TimeSpan.Zero
                 ? "Запустить отсчёт  (Пробел)"
-                : "Сначала выберите время на кольце"
+                : SelectedPreset is not null
+                    ? $"Запустить таймер на {FormatMinutes(SelectedPreset.Minutes)}  (Пробел)"
+                    : "Сначала выберите время на кольце"
         },
         "Reset" => Status == TimerStatus.Finished
             ? "Выключить звонок и сбросить на 00:00  (R)"
@@ -497,6 +498,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         else
         {
             _soundService.StopAlarm();
+            // После сброса (и при запуске приложения) на экране 00:00 — Play запускает подсвеченный
+            // на кольце пресет (докладка 2026-09-27: «после сброса Play не запускает текущий таймер»).
+            if (Status == TimerStatus.Ready && _engine.TotalDuration <= TimeSpan.Zero && SelectedPreset is not null)
+                _engine.SetDuration(TimeSpan.FromMinutes(SelectedPreset.Minutes));
             _engine.Start();
         }
         RaiseStatusDependentChanges();
@@ -577,7 +582,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(StatusLabel));
-        OnPropertyChanged(nameof(StartPauseGlyph));
         OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(IsFinished));
         RefreshFromEngine();

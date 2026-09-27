@@ -41,9 +41,9 @@
 
 | Кнопка | Позиция | Иконка/состояния | Действие |
 |---|---|---|---|
-| Mute | левая | 🔊 / 🔇 (перечёркнут при `IsMuted=true`) | `ToggleMuteCommand`, персистентно (см. Settings) |
-| Start/Pause | центральная, визуально крупнее/акцентнее двух других | `▶` (`Ready`/`Finished`) → `Ⅱ` (`Running`) → `▶` (`Paused`→resume тоже `▶`, т.к. это тот же toggle) | `StartPauseCommand` |
-| Reset | правая | `↻` | `ResetCommand` — возврат к `Ready` с 00:00 (2026-09-27; раньше — к последнему пресету) |
+| Mute | левая | векторные `Geometry.VolumeUp` / `Geometry.VolumeOff` (при `IsMuted=true`) | `ToggleMuteCommand`, персистентно (см. Settings) |
+| Start/Pause | центральная, визуально крупнее/акцентнее двух других | `Geometry.Play` (не `Running`) / `Geometry.Pause` (`Running`) | `StartPauseCommand`. Из `Ready` с 00:00 (после сброса/при запуске) — запускает подсвеченный на кольце пресет (2026-09-27) |
+| Reset | правая | `Geometry.Refresh` | `ResetCommand` — возврат к `Ready` с 00:00 (2026-09-27; раньше — к последнему пресету) |
 
 ## Мышь / клавиатура (глобально для окна, MVP = локально)
 

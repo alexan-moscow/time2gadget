@@ -96,13 +96,34 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
                         <Slider Style="{StaticResource Style.ThinVolumeSliderVertical}" Minimum="0" Maximum="1"
                                 Value="{Binding AlarmVolume}" Height="40" Margin="0,0,6,0" controls:HintService.Key="Volume" />
-                        <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ToggleMuteCommand}"
-                                Content="{Binding IsMuted, Converter={StaticResource MuteGlyphConverter}}" controls:HintService.Key="Mute" />
+                        <!-- Иконки — векторные Path в Canvas 24x24 внутри Viewbox (как угловые кнопки):
+                             точный центр в круге при любом размере. Иконка ≈ половина диаметра кнопки. -->
+                        <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ToggleMuteCommand}" controls:HintService.Key="Mute">
+                            <Viewbox Width="20" Height="20">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{Binding IsMuted, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.VolumeOff|Geometry.VolumeUp}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
                     </StackPanel>
                     <Button Style="{StaticResource Style.PrimaryCircleButton}" Command="{Binding StartPauseCommand}"
-                            Content="{Binding StartPauseGlyph}" Margin="0,0,14,0" controls:HintService.Key="StartPause" />
-                    <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ResetCommand}"
-                            Content="&#8635;" controls:HintService.Key="Reset" />
+                            Margin="0,0,14,0" controls:HintService.Key="StartPause">
+                        <Viewbox Width="26" Height="26">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{Binding IsRunning, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.Pause|Geometry.Play}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                    <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ResetCommand}" controls:HintService.Key="Reset">
+                        <Viewbox Width="20" Height="20">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{StaticResource Geometry.Refresh}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -143,15 +164,34 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <Slider Style="{StaticResource Style.ThinVolumeSliderVertical}" Minimum="0" Maximum="1"
                                     Value="{Binding AlarmVolume}" Height="32" Margin="0,0,6,0" controls:HintService.Key="Volume" />
-                            <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32" FontSize="13"
-                                    Command="{Binding ToggleMuteCommand}" controls:HintService.Key="Mute"
-                                    Content="{Binding IsMuted, Converter={StaticResource MuteGlyphConverter}}" />
+                            <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32"
+                                    Command="{Binding ToggleMuteCommand}" controls:HintService.Key="Mute">
+                                <Viewbox Width="16" Height="16">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Data="{Binding IsMuted, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.VolumeOff|Geometry.VolumeUp}"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Button>
                         </StackPanel>
-                        <Button Style="{StaticResource Style.PrimaryCircleButton}" Width="40" Height="40" FontSize="16"
-                                Command="{Binding StartPauseCommand}" Content="{Binding StartPauseGlyph}" Margin="0,0,10,0"
-                                controls:HintService.Key="StartPause" />
-                        <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32" FontSize="13"
-                                Command="{Binding ResetCommand}" Content="&#8635;" controls:HintService.Key="Reset" />
+                        <Button Style="{StaticResource Style.PrimaryCircleButton}" Width="40" Height="40"
+                                Command="{Binding StartPauseCommand}" Margin="0,0,10,0" controls:HintService.Key="StartPause">
+                            <Viewbox Width="20" Height="20">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{Binding IsRunning, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.Pause|Geometry.Play}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+                        <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32"
+                                Command="{Binding ResetCommand}" controls:HintService.Key="Reset">
+                            <Viewbox Width="16" Height="16">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{StaticResource Geometry.Refresh}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
