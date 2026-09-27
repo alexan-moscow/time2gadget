@@ -13,6 +13,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Версия приложения — её же получает установщик Velopack (vpk pack packVersion); повышать при каждом выпуске. -->
+    <Version>1.0.0</Version>
+    <!-- Своя точка входа (Program.cs): Velopack должен отработать до старта WPF — docs/DECISIONS.md, 2026-09-27. -->
+    <StartupObject>Time2Gadget.Program</StartupObject>
     <!-- Portable single-file публикация (docs/ARCHITECTURE.md → Packaging). -->
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -29,6 +33,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Velopack" Version="1.2.158" />
   </ItemGroup>
   <!-- Сегментный шрифт циферблата DSEG7 (SIL OFL 1.1, Assets/Fonts/DSEG-LICENSE.txt) — docs/DECISIONS.md, 2026-09-27. -->
   <ItemGroup>

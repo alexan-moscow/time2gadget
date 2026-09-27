@@ -168,18 +168,30 @@ public sealed class SoundService : ISoundService, IDisposable
         return tcs.Task;
     }
 
-    // Свои звуки — в папке программы (решение пользователя, 2026-09-27): приложение портативное, всё
-    // своё лежит рядом с exe. Если туда нельзя писать (например, exe положили в Program Files) —
-    // откат в %APPDATA%\Time2Gadget\Sounds, чтобы выбор звука не ломался.
+    // Свои звуки — в папке программы (решение пользователя, 2026-09-27) для портативной версии. Если туда
+    // нельзя писать (например, exe положили в Program Files) или программа установлена через Velopack —
+    // %APPDATA%\Time2Gadget\Sounds, чтобы звук не терялся.
     private static readonly string AppSoundsDir = Path.Combine(AppContext.BaseDirectory, "Sounds");
     private static readonly string FallbackSoundsDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Time2Gadget", "Sounds");
+
+    /// <summary>
+    /// Установлено через Velopack: рядом с папкой программы («current») лежит Update.exe. Тогда папку
+    /// программы при каждом обновлении заменяют целиком — свои звуки там пропали бы, поэтому для
+    /// установленной версии они живут только в %APPDATA% (docs/DECISIONS.md, 2026-09-27).
+    /// </summary>
+    private static bool IsInstalledByVelopack()
+    {
+        var parent = Directory.GetParent(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
+        return parent is not null && File.Exists(Path.Combine(parent.FullName, "Update.exe"));
+    }
 
     public string? ImportCustomSound(string sourcePath, string? previousImportedPath)
     {
         StopAlarm(); // перезапись файла, который сейчас играет, упала бы на блокировке
 
-        foreach (var dir in new[] { AppSoundsDir, FallbackSoundsDir })
+        var dirs = IsInstalledByVelopack() ? new[] { FallbackSoundsDir } : new[] { AppSoundsDir, FallbackSoundsDir };
+        foreach (var dir in dirs)
         {
             try
             {
