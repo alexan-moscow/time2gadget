@@ -1,0 +1,71 @@
+<Window x:Class="Time2Gadget.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="Настройки — Тайм2гаджет"
+        Width="380" Height="620"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
+        <StackPanel>
+
+            <!-- ============ Автозагрузка / закрытие ============ -->
+            <TextBlock Text="Запуск и закрытие" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
+            <CheckBox Content="Запускать вместе с Windows" IsChecked="{Binding IsLaunchAtStartup}" />
+            <CheckBox Content="Поверх всех окон после запуска" IsChecked="{Binding IsAlwaysOnTop}" />
+
+            <TextBlock Text="При закрытии окна:" Margin="0,10,0,4" />
+            <ComboBox ItemsSource="{Binding CloseBehaviorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                      SelectedValue="{Binding CloseBehavior}" />
+
+            <!-- ============ Звук ============ -->
+            <TextBlock Text="Звук" Style="{StaticResource Style.SectionHeader}" />
+
+            <TextBlock Text="Устройство вывода:" Margin="0,0,0,4" />
+            <ComboBox ItemsSource="{Binding AudioDevices}" DisplayMemberPath="FriendlyName"
+                      SelectedItem="{Binding SelectedAudioDevice}" />
+
+            <TextBlock Text="Громкость по умолчанию:" Margin="0,10,0,2" />
+            <Slider Minimum="0" Maximum="1" Value="{Binding AlarmVolume}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+
+            <TextBlock Text="Звонок:" Margin="0,10,0,4" />
+            <ComboBox ItemsSource="{Binding RingtoneOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                      SelectedValue="{Binding SelectedRingtone}" />
+
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding IsCustomRingtoneSelected, Converter={StaticResource BoolToVis}}">
+                <Button Content="Обзор…" Style="{StaticResource Style.SettingsButton}" Command="{Binding BrowseCustomSoundCommand}" />
+                <TextBlock Text="{Binding CustomSoundFilePath}" VerticalAlignment="Center" Margin="10,0,0,0"
+                           TextTrimming="CharacterEllipsis" MaxWidth="200" />
+            </StackPanel>
+
+            <Button Content="▶ Прослушать" Style="{StaticResource Style.SettingsButton}" Command="{Binding PreviewRingtoneCommand}" Margin="0,10,0,0" />
+
+            <!-- ============ Поведение при завершении ============ -->
+            <TextBlock Text="Поведение таймера при завершении" Style="{StaticResource Style.SectionHeader}" />
+
+            <TextBlock Text="{Binding AlarmRepeatCount, StringFormat='Сколько раз звонить: {0}'}" Margin="0,0,0,2" />
+            <Slider Minimum="1" Maximum="10" Value="{Binding AlarmRepeatCount}" TickFrequency="1" IsSnapToTickEnabled="True" />
+
+            <!-- ============ Визуальные эффекты ============ -->
+            <TextBlock Text="Визуальный эффект во время отсчёта" Style="{StaticResource Style.SectionHeader}" />
+            <ComboBox ItemsSource="{Binding RunningEffectOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                      SelectedValue="{Binding RunningEffect}" />
+
+            <TextBlock Text="Визуальный эффект при завершении" Style="{StaticResource Style.SectionHeader}" />
+            <ComboBox ItemsSource="{Binding FinishEffectOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                      SelectedValue="{Binding FinishEffect}" />
+
+            <!-- ============ Об авторе ============ -->
+            <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
+            <TextBlock Text="{Binding AuthorName}" Margin="0,0,0,6" />
+            <Button Content="GitHub" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
+            <Button Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
+            <TextBlock Text="(ссылки — тестовые заглушки)" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11" Margin="0,6,0,0" />
+
+        </StackPanel>
+    </ScrollViewer>
+</Window>

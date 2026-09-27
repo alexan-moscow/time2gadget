@@ -17,7 +17,7 @@
 | PHASE 7 — Settings Persistence | **DONE, КОСВЕННО ПОДТВЕРЖДЕНО** — выбранный при первом запуске пресет "5 мин" корректно восстановился при повторном запуске приложения (settings.json реально работает между процессами) |
 | PHASE 8 — Compact Mode | **DONE, НЕ ПРОВЕРЕНО ВИЗУАЛЬНО** — реализовано (переключение размера/видимости), не осмотрено вживую |
 | PHASE 9 — Finish-State Polish | **DONE, НЕ ПРОВЕРЕНО ВИЗУАЛЬНО** — пульсация/цвет реализованы в `ProgressRingControl`/`Style`, состояние `Finished` не воспроизведено вживую (потребовалось бы ждать реального истечения таймера) |
-| PHASE 10 — Packaging | **DONE, ПРОВЕРЕНО** — `dotnet publish -c Release` (single-file, framework-dependent) успешно создал `TimerGadget.exe` (~208 КБ) |
+| PHASE 10 — Packaging | **DONE, ПРОВЕРЕНО** — `dotnet publish -c Release` (single-file, framework-dependent) успешно создал `Time2Gadget.exe` (~208 КБ) |
 | PHASE 11/12 — Визуальный QA / финальный QA | **НЕ НАЧАТО** — требует ревью пользователем на реальном Windows 10 |
 
 ## Завершённые фазы

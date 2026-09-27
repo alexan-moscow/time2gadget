@@ -5,9 +5,9 @@
 ## Структура решения
 
 ```
-TimerGadget.sln
-src/TimerGadget/
-  TimerGadget.csproj        # net8.0-windows, UseWPF=true, UseWindowsForms=true (для трея)
+Time2Gadget.sln
+src/Time2Gadget/
+  Time2Gadget.csproj        # net8.0-windows, UseWPF=true, UseWindowsForms=true (для трея)
   App.xaml / App.xaml.cs    # entry point, DI-контейнер не используется (проект мал) — простая
                              # ручная композиция сервисов в App.xaml.cs
   Views/
@@ -78,7 +78,7 @@ TimeSpan GetRemaining() =>
 
 ## Settings — персистентность
 
-Файл: `%APPDATA%\TimerGadget\settings.json`, `System.Text.Json`, без внешних зависимостей и без БД.
+Файл: `%APPDATA%\Time2Gadget\settings.json`, `System.Text.Json`, без внешних зависимостей и без БД.
 
 ```csharp
 public class AppSettings {
@@ -96,7 +96,7 @@ public class AppSettings {
 
 ## Autostart
 
-`HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, значение `TimerGadget` = путь к исполняемому файлу (`Process.GetCurrentProcess().MainModule.FileName`). Включение/выключение — запись/удаление значения. Штатный Windows-механизм, никаких Task Scheduler/сторонних библиотек.
+`HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, значение `Time2Gadget` = путь к исполняемому файлу (`Process.GetCurrentProcess().MainModule.FileName`). Включение/выключение — запись/удаление значения. Штатный Windows-механизм, никаких Task Scheduler/сторонних библиотек.
 
 ## Tray
 

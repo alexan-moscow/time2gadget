@@ -1,6 +1,6 @@
 # DESIGN-SYSTEM.md
 
-Дизайн-токены проекта — WPF-эквивалент CSS custom properties из КЛЮЧ24. Источник истины для `src/TimerGadget/Resources/Theme.xaml`. Значения ниже — начальная, разумная отправная точка; финальная визуальная подгонка — по факту визуального ревью пользователем (см. `BRIEF.md` §23 UI FREEZE).
+Дизайн-токены проекта — WPF-эквивалент CSS custom properties из КЛЮЧ24. Источник истины для `src/Time2Gadget/Resources/Theme.xaml`. Значения ниже — начальная, разумная отправная точка; финальная визуальная подгонка — по факту визуального ревью пользователем (см. `BRIEF.md` §23 UI FREEZE).
 
 ## Цвета
 
@@ -46,8 +46,7 @@
 | `Type.TimeDisplay` | 44px | SemiBold | центральное время (`23:47`) |
 | `Type.TimeDisplayCompact` | 30px | SemiBold | время в Compact-режиме |
 | `Type.StatusLabel` | 12px, letter-spacing 1.5 | Medium, UPPERCASE | `ОСТАЛОСЬ` / `ГОТОВ` |
-| `Type.SectorValue` | 15px | SemiBold | число в секторе (`5`) |
-| `Type.SectorUnit` | 9px, letter-spacing 0.5 | Medium, UPPERCASE | `МИН` |
+| `Type.SectorValue` | размер вычисляется Viewbox по геометрии сектора (см. Геометрия выше) | SemiBold | число в секторе (`5`) — БЕЗ подписи "МИН" (убрана целиком, докладка 2026-09-27: не помещалась рядом с крупной цифрой в 24px-кольце) |
 
 Шрифт — системный `Segoe UI Variable` (доступен в Windows 10 через компонент, fallback `Segoe UI`), без внешних веб-шрифтов.
 
