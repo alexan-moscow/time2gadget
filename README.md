@@ -34,6 +34,19 @@ dotnet publish src/Time2Gadget/Time2Gadget.csproj -c Release -r win-x64 --self-c
 vpk pack --packId Time2Gadget --packVersion <версия> --packDir publish --mainExe Time2Gadget.exe --framework net8.0-x64-desktop -o Releases
 ```
 
+## Как выпустить новую версию
+
+1. Поднять `<Version>` в `src/Time2Gadget/Time2Gadget.csproj`, закоммитить и отправить.
+2. В папке `Releases/` должен лежать `full.nupkg` предыдущей версии — тогда Velopack соберёт дельта-обновление
+   (иначе сначала `vpk download github --repoUrl https://github.com/alexan-moscow/time2gadget -o Releases`).
+3. Собрать (команды выше, `--packVersion` = новая версия, звонки должны лежать в `Assets/Ringtones/`).
+4. Опубликовать: `vpk upload github --outputDir Releases --repoUrl https://github.com/alexan-moscow/time2gadget --token <токен gh> --publish --releaseName "Тайм2гаджет X.Y.Z" --tag vX.Y.Z --targetCommitish main`,
+   затем добавить описание выпуска (`gh release edit vX.Y.Z --notes-file …`).
+5. Загрузить `Time2Gadget-win-Setup.exe` нового выпуска на VirusTotal — кнопка в программе найдёт отчёт сама
+   по отпечатку файла из выпуска.
+
+Установленные копии найдут выпуск сами (раз в неделю) или по кнопке «Проверить обновления».
+
 ## Документация
 
 Архитектура, решения и контракт интерфейса — в папке [`docs/`](docs/).
