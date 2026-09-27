@@ -15,3 +15,6 @@
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Папка, куда пользователь кладёт исходные mp3 со своими именами; в проекте они лежат в src/Time2Gadget/Assets/Ringtones
+/mp3/

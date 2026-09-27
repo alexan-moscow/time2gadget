@@ -29,7 +29,11 @@ public sealed class AppSettings
     /// <summary>Id устройства вывода звука (NAudio MMDevice.ID) или "" для системного по умолчанию.</summary>
     public string AudioDeviceId { get; set; } = string.Empty;
 
-    public RingtoneChoice SelectedRingtone { get; set; } = RingtoneChoice.SoftChime;
+    /// <summary>
+    /// Id звонка из Models/RingtoneCatalog (или RingtoneCatalog.CustomId — свой файл). С 2026-09-27 вместо
+    /// прежнего enum SelectedRingtone (синтезированные звонки убраны); старое поле в settings.json просто игнорируется.
+    /// </summary>
+    public string RingtoneId { get; set; } = RingtoneCatalog.DefaultId;
     public string? CustomSoundFilePath { get; set; }
 
     /// <summary>
@@ -42,20 +46,23 @@ public sealed class AppSettings
     /// <summary>Визуальный эффект циферблата во время отсчёта. По умолчанию отключён.</summary>
     public RunningVisualEffect RunningEffect { get; set; } = RunningVisualEffect.None;
 
-    /// <summary>Визуальный эффект циферблата при завершении (пока звонит будильник). По умолчанию — строб-вспышка (2026-09-27).</summary>
-    public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.Flash;
+    /// <summary>Визуальный эффект циферблата при завершении. По умолчанию — «Радужная волна» (решение пользователя 2026-09-27).</summary>
+    public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.ColorCycle;
 
     /// <summary>
     /// Сколько секунд играет эффект завершения (в окне и в трее); 0 — бесконечно, до сброса/перезапуска
-    /// таймера (так было до появления настройки, поэтому это и значение по умолчанию). Шкала — MainViewModel.FinishEffectDurationSteps.
+    /// таймера. По умолчанию 10 с (решение пользователя 2026-09-27). Шкала — MainViewModel.FinishEffectDurationSteps.
     /// </summary>
-    public int FinishEffectDurationSeconds { get; set; } = 0;
+    public int FinishEffectDurationSeconds { get; set; } = 10;
 
     /// <summary>Показывать текущее время (часы) под статусом «ГОТОВО/ОСТАЛОСЬ» — в обоих режимах.</summary>
     public bool ShowClock { get; set; } = true;
 
     /// <summary>Часы с секундами (ЧЧ:ММ:СС) или без (ЧЧ:ММ).</summary>
     public bool ShowClockSeconds { get; set; } = false;
+
+    /// <summary>Показывать дату (под часами в полном режиме, справа от часов в компакте).</summary>
+    public bool ShowDate { get; set; } = true;
 
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";

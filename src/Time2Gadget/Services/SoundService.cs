@@ -10,8 +10,8 @@ namespace Time2Gadget.Services;
 /// <remarks>
 /// NAudio (WASAPI) — единственный способ в .NET реально выбрать конкретное устройство вывода
 /// (System.Media/MediaPlayer всегда играют через системное устройство по умолчанию), см.
-/// docs/DECISIONS.md, 2026-09-27. Встроенные звонки — процедурно синтезированы (RingtoneGenerator),
-/// кэшируются как .wav в %APPDATA%\Time2Gadget\Ringtones\. Пользовательский файл — .wav/.mp3,
+/// docs/DECISIONS.md, 2026-09-27. Встроенные звонки — mp3-ресурсы exe (Models/RingtoneCatalog),
+/// распаковываются в %APPDATA%\Time2Gadget\Ringtones\. Пользовательский файл — .wav/.mp3,
 /// AudioFileReader декодирует оба формата и даёт Volume-контроль.
 /// </remarks>
 public sealed class SoundService : ISoundService, IDisposable
@@ -65,10 +65,12 @@ public sealed class SoundService : ISoundService, IDisposable
             Math.Clamp(settings.AlarmRepeatCount, 1, 10), _ringCts.Token);
     }
 
-    public void PlayPreview(AppSettings settings)
+    public void PlayPreview(AppSettings settings, string? ringtoneId = null)
     {
         StopAlarm();
-        var path = ResolveSoundPath(settings);
+        var path = ringtoneId is null
+            ? ResolveSoundPath(settings)
+            : ResolveSoundPath(ringtoneId, settings.CustomSoundFilePath);
         if (path is not null) _ = PlayOnceAsync(path, settings.AudioDeviceId, settings.AlarmVolume, CancellationToken.None);
     }
 
@@ -231,23 +233,47 @@ public sealed class SoundService : ISoundService, IDisposable
         }
     }
 
-    private static string? ResolveSoundPath(AppSettings settings)
-    {
-        if (settings.SelectedRingtone == RingtoneChoice.Custom)
-        {
-            return !string.IsNullOrWhiteSpace(settings.CustomSoundFilePath) && File.Exists(settings.CustomSoundFilePath)
-                ? settings.CustomSoundFilePath
-                : null;
-        }
+    private static string? ResolveSoundPath(AppSettings settings) =>
+        ResolveSoundPath(settings.RingtoneId, settings.CustomSoundFilePath);
 
-        Directory.CreateDirectory(RingtoneDir);
-        var cachedPath = Path.Combine(RingtoneDir, $"{settings.SelectedRingtone}.wav");
-        if (!File.Exists(cachedPath))
+    /// <summary>
+    /// Путь к файлу звонка. Встроенный — распаковывается из ресурсов exe в кэш %APPDATA%\Time2Gadget\Ringtones
+    /// при первом использовании (NAudio играет с диска). Неизвестный Id (например, из старых настроек) —
+    /// звонок по умолчанию, чтобы таймер не остался беззвучным.
+    /// </summary>
+    private static string? ResolveSoundPath(string? ringtoneId, string? customPath)
+    {
+        if (ringtoneId == RingtoneCatalog.CustomId)
+            return !string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath) ? customPath : null;
+
+        var id = RingtoneCatalog.IsBuiltIn(ringtoneId) ? ringtoneId! : RingtoneCatalog.DefaultId;
+        try
         {
-            var bytes = RingtoneGenerator.Generate(settings.SelectedRingtone);
-            File.WriteAllBytes(cachedPath, bytes);
+            Directory.CreateDirectory(RingtoneDir);
+            RemoveLegacyGeneratedRingtones();
+            var cachedPath = Path.Combine(RingtoneDir, id + ".mp3");
+            if (!File.Exists(cachedPath))
+            {
+                using var resource = typeof(SoundService).Assembly.GetManifestResourceStream($"Ringtones.{id}.mp3");
+                if (resource is null) return null;
+                using var file = File.Create(cachedPath);
+                resource.CopyTo(file);
+            }
+            return cachedPath;
         }
-        return cachedPath;
+        catch
+        {
+            return null; // кэш недоступен для записи — не ронять приложение (AlarmCompleted всё равно придёт)
+        }
+    }
+
+    /// <summary>Удаляет из кэша .wav прежних синтезированных звонков (убраны 2026-09-27) — один раз, дальше их нет.</summary>
+    private static void RemoveLegacyGeneratedRingtones()
+    {
+        foreach (var wav in Directory.EnumerateFiles(RingtoneDir, "*.wav"))
+        {
+            try { File.Delete(wav); } catch { /* занят/нет прав — не критично */ }
+        }
     }
 
     public void Dispose() => StopAlarm();

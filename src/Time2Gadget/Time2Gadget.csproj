@@ -34,5 +34,9 @@
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
+  <!-- Встроенные звонки (mp3 с Pixabay, выбраны пользователем) — Models/RingtoneCatalog.cs. Имя ресурса = Ringtones.{id}.mp3. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Ringtones\*.mp3" LogicalName="Ringtones.%(Filename)%(Extension)" />
+  </ItemGroup>
 
 </Project>

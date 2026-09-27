@@ -17,7 +17,7 @@ namespace Time2Gadget.Views;
 public partial class MainWindow : Window
 {
     private const double NormalWindowWidth = 273, NormalWindowHeight = 341;   // 16(top)+225(кольцо)+16(зазор)+52(кнопки)+16(bottom) + 2*8 Chrome margin — везде одинаковый отступ 16 (докладка 2026-09-27)
-    private const double CompactWindowWidth = 236, CompactWindowHeight = 156; // содержимое 220x140 + 2*8 margin
+    private const double CompactWindowWidth = 236, CompactWindowHeight = 172; // содержимое 220x156 + 2*8 margin (156 — со строкой часов/даты)
 
     private readonly MainViewModel _viewModel;
     private Views.SettingsWindow? _settingsWindow;

@@ -47,14 +47,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<TimerPreset> Presets { get; } = new(TimerPreset.All);
     public IReadOnlyList<AudioDeviceInfo> AudioDevices { get; }
 
-    public IReadOnlyList<EnumOption<RingtoneChoice>> RingtoneOptions { get; } = new[]
-    {
-        new EnumOption<RingtoneChoice>(RingtoneChoice.ClassicBell, "Классический звонок"),
-        new EnumOption<RingtoneChoice>(RingtoneChoice.DigitalBeep, "Цифровой сигнал"),
-        new EnumOption<RingtoneChoice>(RingtoneChoice.SoftChime, "Мягкий перезвон"),
-        new EnumOption<RingtoneChoice>(RingtoneChoice.AlarmBuzz, "Будильник"),
-        new EnumOption<RingtoneChoice>(RingtoneChoice.Custom, "Свой файл…"),
-    };
+    /// <summary>Встроенные звонки + «Свой файл…» последним пунктом.</summary>
+    public IReadOnlyList<Ringtone> RingtoneOptions { get; } =
+        RingtoneCatalog.BuiltIn.Append(new Ringtone(RingtoneCatalog.CustomId, "Свой файл…")).ToList();
 
     public IReadOnlyList<EnumOption<RunningVisualEffect>> RunningEffectOptions { get; } = new[]
     {
@@ -96,7 +91,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _autoCloseAfterFinish = _settings.AutoCloseAfterFinish;
         _alarmVolume = _settings.AlarmVolume;
         _selectedAudioDevice = AudioDevices.FirstOrDefault(d => d.Id == _settings.AudioDeviceId) ?? AudioDeviceInfo.SystemDefault;
-        _selectedRingtone = _settings.SelectedRingtone;
+        // Неизвестный Id (старые настройки/удалённый звонок) — показываем звонок по умолчанию.
+        _selectedRingtoneId = _settings.RingtoneId == RingtoneCatalog.CustomId || RingtoneCatalog.IsBuiltIn(_settings.RingtoneId)
+            ? _settings.RingtoneId
+            : RingtoneCatalog.DefaultId;
         _customSoundFilePath = _settings.CustomSoundFilePath;
         _alarmRepeatCount = _settings.AlarmRepeatCount;
         _runningEffect = _settings.RunningEffect;
@@ -122,7 +120,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ToggleAutoCloseCommand = new RelayCommand(() => AutoCloseAfterFinish = !AutoCloseAfterFinish);
         OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty));
         BrowseCustomSoundCommand = new RelayCommand(BrowseCustomSound);
-        PreviewRingtoneCommand = new RelayCommand(() => _soundService.PlayPreview(_settings));
+        // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
+        PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p as string));
         OpenGitHubCommand = new RelayCommand(() => OpenUrl(_settings.GitHubUrl));
         OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(_settings.VirusTotalUrl));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
@@ -327,22 +326,22 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private RingtoneChoice _selectedRingtone;
-    public RingtoneChoice SelectedRingtone
+    private string _selectedRingtoneId;
+    public string SelectedRingtoneId
     {
-        get => _selectedRingtone;
+        get => _selectedRingtoneId;
         set
         {
-            if (_selectedRingtone == value) return;
-            _selectedRingtone = value;
-            _settings.SelectedRingtone = value;
+            if (_selectedRingtoneId == value || value is null) return;
+            _selectedRingtoneId = value;
+            _settings.RingtoneId = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsCustomRingtoneSelected));
         }
     }
 
-    public bool IsCustomRingtoneSelected => SelectedRingtone == RingtoneChoice.Custom;
+    public bool IsCustomRingtoneSelected => SelectedRingtoneId == RingtoneCatalog.CustomId;
 
     private string? _customSoundFilePath;
     public string? CustomSoundFilePath
@@ -416,7 +415,35 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.ShowClock = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsClockAreaVisible));
         }
+    }
+
+    public bool ShowDate
+    {
+        get => _settings.ShowDate;
+        set
+        {
+            if (_settings.ShowDate == value) return;
+            _settings.ShowDate = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsClockAreaVisible));
+        }
+    }
+
+    /// <summary>Часы или дата включены — тогда между таймером и ними тонкий разделитель.</summary>
+    public bool IsClockAreaVisible => ShowClock || ShowDate;
+
+    /// <summary>«Подложка» погасших сегментов для часов — как у главного циферблата.</summary>
+    public string ClockGhostText => ShowClockSeconds ? "88:88:88" : "88:88";
+
+    private string _dateText = string.Empty;
+    /// <summary>Дата коротко («СБ, 27 СЕН») — чтобы помещалась в круг под часами.</summary>
+    public string DateText
+    {
+        get => _dateText;
+        private set { if (_dateText == value) return; _dateText = value; OnPropertyChanged(); }
     }
 
     public bool ShowClockSeconds
@@ -428,6 +455,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.ShowClockSeconds = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ClockGhostText));
             RefreshClock();
         }
     }
@@ -440,8 +468,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         private set { if (_clockText == value) return; _clockText = value; OnPropertyChanged(); }
     }
 
-    private void RefreshClock() =>
-        ClockText = DateTime.Now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
+    private static readonly System.Globalization.CultureInfo Russian = new("ru-RU");
+
+    private void RefreshClock()
+    {
+        var now = DateTime.Now;
+        ClockText = now.ToString(ShowClockSeconds ? "HH:mm:ss" : "HH:mm");
+        // «сб, 27 сен.» → «СБ, 27 СЕН»: заглавными, как «ГОТОВО», и без точки сокращения.
+        DateText = now.ToString("ddd, d MMM", Russian).Replace(".", string.Empty).ToUpper(Russian);
+    }
 
     /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>
     public static readonly int[] FinishEffectDurationSteps = { 2, 3, 5, 10, 15, 30, 60, 120, 300, 0 };
@@ -669,7 +704,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             // Играем копию из папки программы, а не оригинал (докладка 2026-09-27); если скопировать
             // не удалось — хотя бы оригинал, чтобы выбор не потерялся.
             CustomSoundFilePath = _soundService.ImportCustomSound(dialog.FileName, CustomSoundFilePath) ?? dialog.FileName;
-            SelectedRingtone = RingtoneChoice.Custom;
+            SelectedRingtoneId = RingtoneCatalog.CustomId;
         }
     }
 

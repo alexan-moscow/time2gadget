@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="Resources/Theme.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <conv:TimeSpanToStringConverter x:Key="TimeSpanConverter" />            <conv:BoolToGeometryConverter x:Key="BoolToGeometry" />
+            <conv:RingtonePreviewVisibilityConverter x:Key="RingtonePreviewVisibility" />
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
         </ResourceDictionary>
     </Application.Resources>

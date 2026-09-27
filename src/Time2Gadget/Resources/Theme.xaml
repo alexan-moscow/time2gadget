@@ -77,6 +77,16 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.SegmentGhost}" />
     </Style>
 
+    <!-- Часы — тем же сегментным шрифтом, что главный таймер, мельче и приглушённее (вторичная информация).
+         DSEG моноширинный: секунды не сдвигают строку. -->
+    <Style x:Key="Style.ClockText" TargetType="TextBlock" BasedOn="{StaticResource Style.SegmentDigits}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+    </Style>
+    <Style x:Key="Style.ClockGhost" TargetType="TextBlock" BasedOn="{StaticResource Style.ClockText}">
+        <Setter Property="Foreground" Value="{StaticResource Brush.SegmentGhost}" />
+    </Style>
+
     <Style x:Key="Style.StatusLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
         <Setter Property="FontSize" Value="12" />
@@ -86,9 +96,14 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
-    <!-- Текущее время под статусом — тот же шрифт, что «ГОТОВО/ОСТАЛОСЬ», на 2px крупнее (докладка 2026-09-27). -->
-    <Style x:Key="Style.ClockText" TargetType="TextBlock" BasedOn="{StaticResource Style.StatusLabel}">
-        <Setter Property="FontSize" Value="14" />
+    <!-- Дата под часами — тем же шрифтом, что «ГОТОВО/ОСТАЛОСЬ» (докладка 2026-09-27). -->
+    <Style x:Key="Style.DateText" TargetType="TextBlock" BasedOn="{StaticResource Style.StatusLabel}" />
+
+    <!-- Тонкий разделитель между таймером со статусом и часами/датой (видим, если включено хоть одно). -->
+    <Style x:Key="Style.ClockSeparator" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{StaticResource Brush.BorderSubtle}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>
 
     <!-- Число НЕ участвует в радиус-привязанном Viewbox-масштабировании (см. SectorRingControl.xaml.cs) —
@@ -296,11 +311,12 @@
         <Setter Property="Background" Value="{StaticResource Brush.Background}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
         <Setter Property="Padding" Value="8,6" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" /> <!-- ▶ в строке звонка — у правого края -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBoxItem">
                     <Border x:Name="Bg" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter />
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
@@ -356,7 +372,7 @@
                             <Border Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}"
                                     BorderThickness="1" CornerRadius="4"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ComboBox}}"
-                                    MaxHeight="240" Margin="0,2,0,0">
+                                    MaxHeight="340" Margin="0,2,0,0">
                                 <ScrollViewer SnapsToDevicePixels="True">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
                                 </ScrollViewer>

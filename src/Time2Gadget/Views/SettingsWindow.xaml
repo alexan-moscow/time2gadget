@@ -32,8 +32,33 @@
             <Slider Minimum="0" Maximum="1" Value="{Binding AlarmVolume}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
 
             <TextBlock Text="Звонок:" Margin="0,10,0,4" />
-            <ComboBox ItemsSource="{Binding RingtoneOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                      SelectedValue="{Binding SelectedRingtone}" />
+            <!-- В каждой строке раскрытого списка — ▶: слушать звонок прямо в списке, не выбирая его
+                 (докладка 2026-09-27). В закрытом поле ▶ не показывается (там кнопка всё равно не нажимается). -->
+            <ComboBox ItemsSource="{Binding RingtoneOptions}" SelectedValuePath="Id"
+                      SelectedValue="{Binding SelectedRingtoneId}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="▶" Margin="10,0,0,0" Padding="8,1" FontSize="11"
+                                    Style="{StaticResource Style.SettingsButton}" Tag="{Binding Id}"
+                                    PreviewMouseLeftButtonDown="OnRingtonePreviewMouseDown"
+                                    PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp">
+                                <Button.Visibility>
+                                    <MultiBinding Converter="{StaticResource RingtonePreviewVisibility}">
+                                        <Binding RelativeSource="{RelativeSource AncestorType=ComboBoxItem}" />
+                                        <Binding Path="Id" />
+                                    </MultiBinding>
+                                </Button.Visibility>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                         Visibility="{Binding IsCustomRingtoneSelected, Converter={StaticResource BoolToVis}}">
@@ -68,6 +93,7 @@
             <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />
             <CheckBox Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />
             <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
+            <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />

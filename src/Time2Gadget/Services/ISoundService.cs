@@ -20,8 +20,11 @@ public interface ISoundService
     /// </summary>
     void PlayAlarm(AppSettings settings);
 
-    /// <summary>Короткое прослушивание в настройках — играет выбранный звук один раз.</summary>
-    void PlayPreview(AppSettings settings);
+    /// <summary>
+    /// Прослушивание в настройках — играет звук один раз. ringtoneId — конкретный звонок из списка
+    /// (кнопка ▶ прямо в выпадающем списке, без выбора); null — текущий выбранный.
+    /// </summary>
+    void PlayPreview(AppSettings settings, string? ringtoneId = null);
 
     /// <summary>Немедленно останавливает любое текущее воспроизведение звонка.</summary>
     void StopAlarm();
