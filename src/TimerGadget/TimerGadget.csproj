@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Только для системного трея (NotifyIcon) — docs/DECISIONS.md, 2026-09-26. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>TimerGadget</AssemblyName>
+    <RootNamespace>TimerGadget</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Portable single-file публикация (docs/ARCHITECTURE.md → Packaging). -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <!-- UseWindowsForms добавляет глобальные implicit usings System.Windows.Forms/System.Drawing,
+       которые конфликтуют с WPF-типами (Point/UserControl/Application) проектно-широко.
+       WinForms нужен только в Services/TrayService.cs, где уже есть явный using — см.
+       docs/DECISIONS.md, 2026-09-26. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+</Project>

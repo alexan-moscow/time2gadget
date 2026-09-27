@@ -1,0 +1,17 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+# NuGet
+*.nupkg
+**/packages/*
+
+# OS junk
+Thumbs.db
+.DS_Store
