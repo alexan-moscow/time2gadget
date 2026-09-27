@@ -97,6 +97,7 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.IsRunning):
             case nameof(MainViewModel.RunningEffect):
             case nameof(MainViewModel.FinishEffect):
+            case nameof(MainViewModel.IsFinishEffectActive):
                 ApplyDialEffect();
                 break;
         }
@@ -148,7 +149,7 @@ public partial class MainWindow : Window
             EffectOverlay.Fill = (Brush)FindResource("Brush.Accent");
             sb = BuildRunningEffectStoryboard(_viewModel.RunningEffect);
         }
-        else if (_viewModel.IsFinished && _viewModel.FinishEffect != FinishVisualEffect.None)
+        else if (_viewModel.IsFinishEffectActive) // Finished + эффект выбран + длительность не истекла
         {
             sb = BuildFinishEffectStoryboard(_viewModel.FinishEffect);
         }
@@ -194,6 +195,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// ВАЖНО: те же эффекты (периоды и цвета) повторены в трее — Services/TrayService.GetFinishLook; менять вместе.
     /// Эффекты завершения — красно-оранжевая гамма (Brush.Finish), докладка 2026-09-27: "в основном
     /// эффект изменения цвета, цикличность, вспышки, красные эффекты". Pulse/Flash — те же приёмы,
     /// что и у running-эффектов, но быстрее и заметнее (сигнал "звонит будильник", а не фоновый

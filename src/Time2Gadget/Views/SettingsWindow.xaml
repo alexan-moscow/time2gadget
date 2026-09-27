@@ -58,6 +58,11 @@
             <TextBlock Text="Визуальный эффект при завершении" Style="{StaticResource Style.SectionHeader}" />
             <ComboBox ItemsSource="{Binding FinishEffectOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
                       SelectedValue="{Binding FinishEffect}" />
+            <!-- Шкала 2 с … 5 мин и последним шагом «бесконечно» (MainViewModel.FinishEffectDurationSteps);
+                 действует и на окно, и на трей. -->
+            <TextBlock Text="{Binding FinishEffectDurationLabel}" Margin="0,10,0,2" />
+            <Slider Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
+                    Value="{Binding FinishEffectDurationIndex}" TickFrequency="1" IsSnapToTickEnabled="True" />
 
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />

@@ -402,7 +402,61 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.FinishEffect = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            RefreshFinishEffectActive();
         }
+    }
+
+    /// <summary>Шкала ползунка длительности эффекта завершения, секунды; 0 — бесконечно (последний шаг).</summary>
+    public static readonly int[] FinishEffectDurationSteps = { 2, 3, 5, 10, 15, 30, 60, 120, 300, 0 };
+    public int FinishEffectDurationMaxIndex => FinishEffectDurationSteps.Length - 1;
+
+    /// <summary>Позиция ползунка (индекс в <see cref="FinishEffectDurationSteps"/>).</summary>
+    public int FinishEffectDurationIndex
+    {
+        get
+        {
+            int i = Array.IndexOf(FinishEffectDurationSteps, _settings.FinishEffectDurationSeconds);
+            return i >= 0 ? i : FinishEffectDurationMaxIndex; // неизвестное значение в settings.json — считаем «бесконечно»
+        }
+        set
+        {
+            var seconds = FinishEffectDurationSteps[Math.Clamp(value, 0, FinishEffectDurationMaxIndex)];
+            if (_settings.FinishEffectDurationSeconds == seconds) return;
+            _settings.FinishEffectDurationSeconds = seconds;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FinishEffectDurationLabel));
+            RefreshFinishEffectActive();
+        }
+    }
+
+    public string FinishEffectDurationLabel => _settings.FinishEffectDurationSeconds switch
+    {
+        0 => "Длительность эффекта: бесконечно (до сброса)",
+        < 60 and var s => $"Длительность эффекта: {s} с",
+        var s => $"Длительность эффекта: {s / 60} мин"
+    };
+
+    private DateTime? _finishedAtUtc;
+    private bool _isFinishEffectActive;
+    /// <summary>
+    /// Эффект завершения сейчас играет: таймер в Finished, эффект выбран и его длительность не истекла.
+    /// Единый источник и для окна (MainWindow.ApplyDialEffect), и для трея.
+    /// </summary>
+    public bool IsFinishEffectActive
+    {
+        get => _isFinishEffectActive;
+        private set { if (_isFinishEffectActive == value) return; _isFinishEffectActive = value; OnPropertyChanged(); }
+    }
+
+    private double SecondsSinceFinish => _finishedAtUtc is { } t ? (DateTime.UtcNow - t).TotalSeconds : 0;
+
+    private void RefreshFinishEffectActive()
+    {
+        int duration = _settings.FinishEffectDurationSeconds;
+        IsFinishEffectActive = Status == TimerStatus.Finished
+                               && FinishEffect != FinishVisualEffect.None
+                               && (duration == 0 || SecondsSinceFinish < duration);
     }
 
     // "Об авторе" — только отображение, тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
@@ -594,8 +648,17 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // Эффект завершения в трее — те же вспышки/пульсации, что в окне; строб короче обычного UI-тика
+    // (150мс), поэтому пока таймер в Finished, трей обновляется чаще (TrayService перерисовывает только при изменении).
+    private static readonly TimeSpan TrayEffectFrameInterval = TimeSpan.FromMilliseconds(40);
+    private DispatcherTimer? _trayEffectTimer;
+
     private void OnEngineFinished(object? sender, EventArgs e)
     {
+        _finishedAtUtc = DateTime.UtcNow;
+        _trayEffectTimer ??= CreateTrayEffectTimer();
+        _trayEffectTimer.Start();
+
         if (!IsMuted)
         {
             _soundService.PlayAlarm(_settings); // автозакрытие — по AlarmCompleted, когда звонок отыграет
@@ -633,10 +696,17 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             TimerStatus.Finished => "Тайм2гаджет — время вышло!",
             _ => "Тайм2гаджет"
         };
-        // Мигание красным — только когда таймер закончился, а окна не видно (иначе и так всё видно).
-        bool blinking = Status == TimerStatus.Finished && IsWindowHidden;
-        bool blinkOn = blinking && DateTime.Now.Millisecond < 500;
-        _trayService.Update(new TrayIconState(Status, ProgressFraction, blinking, blinkOn, tooltip));
+        var activeEffect = IsFinishEffectActive ? FinishEffect : FinishVisualEffect.None;
+        // Эффекта нет (выключен/истёк), а окна не видно — простое мигание, чтобы окончание не пропустили.
+        bool blinkWhileHidden = Status == TimerStatus.Finished && IsWindowHidden && activeEffect == FinishVisualEffect.None;
+        _trayService.Update(new TrayIconState(Status, ProgressFraction, activeEffect, SecondsSinceFinish, blinkWhileHidden, tooltip));
+    }
+
+    private DispatcherTimer CreateTrayEffectTimer()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TrayEffectFrameInterval };
+        timer.Tick += (_, _) => { RefreshFinishEffectActive(); UpdateTray(); };
+        return timer;
     }
 
     private void RefreshFromEngine()
@@ -647,12 +717,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ProgressFraction = total.TotalSeconds <= 0
             ? 0
             : 1 - (RemainingTime.TotalSeconds / total.TotalSeconds);
+        RefreshFinishEffectActive();
         UpdateTray();
     }
 
     private void RaiseStatusDependentChanges()
     {
-        if (Status != TimerStatus.Finished) _silentAutoCloseTimer?.Stop();
+        if (Status != TimerStatus.Finished)
+        {
+            _silentAutoCloseTimer?.Stop();
+            _trayEffectTimer?.Stop();
+            _finishedAtUtc = null;
+        }
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(StatusLabel));
         OnPropertyChanged(nameof(IsRunning));
@@ -666,6 +742,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public void Dispose()
     {
         _uiTimer.Stop();
+        _trayEffectTimer?.Stop();
+        _silentAutoCloseTimer?.Stop();
         _soundService.StopAlarm();
         _trayService.Dispose();
     }

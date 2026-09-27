@@ -45,6 +45,12 @@ public sealed class AppSettings
     /// <summary>Визуальный эффект циферблата при завершении (пока звонит будильник). По умолчанию — строб-вспышка (2026-09-27).</summary>
     public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.Flash;
 
+    /// <summary>
+    /// Сколько секунд играет эффект завершения (в окне и в трее); 0 — бесконечно, до сброса/перезапуска
+    /// таймера (так было до появления настройки, поэтому это и значение по умолчанию). Шкала — MainViewModel.FinishEffectDurationSteps.
+    /// </summary>
+    public int FinishEffectDurationSeconds { get; set; } = 0;
+
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";
     public string GitHubUrl { get; set; } = "https://github.com/example/Time2Gadget";

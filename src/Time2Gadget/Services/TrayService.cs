@@ -31,8 +31,6 @@ public sealed class TrayService : ITrayService
 
         _notifyIcon = new NotifyIcon
         {
-            Icon = _appIcon ??= LoadAppIcon(),
-            Visible = true,
             Text = "Тайм2гаджет",
             ContextMenuStrip = menu
         };
@@ -41,26 +39,11 @@ public sealed class TrayService : ITrayService
         {
             if (e.Button == MouseButtons.Left) ShowRequested?.Invoke(this, EventArgs.Empty);
         };
-    }
 
-    /// <summary>
-    /// Берёт иконку прямо из Win32-ресурсов уже запущенного .exe (встроена туда сборкой через
-    /// &lt;ApplicationIcon&gt;Assets\app.ico&lt;/ApplicationIcon&gt; в .csproj) — "уменьшенная копия"
-    /// приложения без отдельного WPF pack-resource, см. docs/DECISIONS.md, 2026-09-27.
-    /// </summary>
-    private static System.Drawing.Icon LoadAppIcon()
-    {
-        try
-        {
-            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-            if (!string.IsNullOrEmpty(exePath))
-            {
-                var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
-                if (icon is not null) return icon;
-            }
-        }
-        catch { /* откат ниже */ }
-        return System.Drawing.SystemIcons.Application;
+        // Пустое кольцо рисуется ДО показа иконки — раньше сначала на долю секунды появлялась иконка
+        // приложения (кольцо на ~70%), а потом её заменяло пустое кольцо (докладка 2026-09-27: «промаргивает»).
+        Update(new Models.TrayIconState(Models.TimerStatus.Ready, 0, Models.FinishVisualEffect.None, 0, false, "Тайм2гаджет"));
+        _notifyIcon.Visible = true;
     }
 
     // ============ Живая иконка: кольцо прогресса (docs/UI-CONTRACT.md → Tray, 2026-09-27) ============
@@ -72,11 +55,63 @@ public sealed class TrayService : ITrayService
     private static readonly System.Drawing.Color IconPaused = System.Drawing.Color.FromArgb(0x8C, 0xA0, 0xBE);
     private static readonly System.Drawing.Color IconFinish = System.Drawing.Color.FromArgb(0xFF, 0x6B, 0x4A);
     private static readonly System.Drawing.Color IconFinishDim = System.Drawing.Color.FromArgb(0x5A, 0x2A, 0x22);
+    private static readonly System.Drawing.Color IconAmber = System.Drawing.Color.FromArgb(0xFF, 0xD5, 0x4A); // как ColorCycle в MainWindow
     private const int ProgressSteps = 64; // шаг перерисовки дуги — мельче на иконке 16px всё равно не видно
 
-    private System.Drawing.Icon? _appIcon;
     private IntPtr _dynamicIconHandle;
-    private (Models.TimerStatus, int, bool, bool)? _renderedKey;
+    private (Models.TimerStatus, int, int, int, int)? _renderedKey;
+
+    /// <summary>Как выглядит законченный таймер в этот момент: цвет кольца, заливка середины (с альфой), множитель толщины.</summary>
+    private readonly record struct FinishLook(System.Drawing.Color Ring, System.Drawing.Color Fill, float ThicknessScale);
+
+    /// <summary>
+    /// Эффекты завершения в трее — те же, что на циферблате (MainWindow.BuildFinishEffectStoryboard), с теми
+    /// же периодами: заливка середины иконки играет роль EffectOverlay, толщина кольца — роль масштаба.
+    /// </summary>
+    private static FinishLook GetFinishLook(Models.TrayIconState state)
+    {
+        double t = state.EffectSeconds;
+        switch (state.ActiveEffect)
+        {
+            case Models.FinishVisualEffect.Flash:
+            {
+                // строб: 0 → 0.65 за 70мс → 0 к 160мс → пауза до 500мс
+                double p = t % 0.5;
+                double intensity = p < 0.07 ? p / 0.07 : p < 0.16 ? 1 - (p - 0.07) / 0.09 : 0;
+                return new(IconFinish, WithAlpha(IconFinish, 0.9 * intensity), 1f);
+            }
+            case Models.FinishVisualEffect.Pulse:
+            {
+                // пульсация: период 0.9с (0.45 туда + 0.45 обратно), подсветка 0.15 → 0.55, «раздувание» кольца
+                double v = 0.5 - 0.5 * Math.Cos(2 * Math.PI * (t % 0.9) / 0.9);
+                return new(IconFinish, WithAlpha(IconFinish, 0.15 + 0.4 * v), 1f + 0.7f * (float)v);
+            }
+            case Models.FinishVisualEffect.ColorCycle:
+            {
+                // волна цвета красный → янтарный → красный за 2с, подсветка 0.4
+                double p = t % 2.0;
+                var color = Lerp(IconFinish, IconAmber, p < 1 ? p : 2 - p);
+                return new(color, WithAlpha(color, 0.4), 1f);
+            }
+            default:
+                if (!state.BlinkWhileHidden) return new(IconFinish, System.Drawing.Color.Transparent, 1f);
+                bool on = t % 1.0 < 0.5; // простое мигание: 0.5с горит с заливкой, 0.5с тускло
+                return on
+                    ? new(IconFinish, WithAlpha(IconFinish, 0.85), 1f)
+                    : new(IconFinishDim, System.Drawing.Color.Transparent, 1f);
+        }
+    }
+
+    // Альфа квантуется (16 уровней), чтобы плавные эффекты не перерисовывали иконку на каждом кадре без видимой разницы.
+    private static System.Drawing.Color WithAlpha(System.Drawing.Color c, double alpha) =>
+        System.Drawing.Color.FromArgb((int)Math.Round(Math.Clamp(alpha, 0, 1) * 15) * 17, c);
+
+    private static System.Drawing.Color Lerp(System.Drawing.Color a, System.Drawing.Color b, double k)
+    {
+        k = Math.Round(Math.Clamp(k, 0, 1) * 24) / 24; // 24 шага цвета — плавно на глаз, без лишних перерисовок
+        return System.Drawing.Color.FromArgb(
+            (int)(a.R + (b.R - a.R) * k), (int)(a.G + (b.G - a.G) * k), (int)(a.B + (b.B - a.B) * k));
+    }
 
     public void Update(Models.TrayIconState state)
     {
@@ -85,7 +120,9 @@ public sealed class TrayService : ITrayService
         var tooltip = state.Tooltip.Length > 63 ? state.Tooltip[..63] : state.Tooltip; // лимит NotifyIcon.Text
         if (_notifyIcon.Text != tooltip) _notifyIcon.Text = tooltip;
 
-        var key = (state.Status, (int)Math.Round(Math.Clamp(state.ProgressFraction, 0, 1) * ProgressSteps), state.IsBlinking, state.BlinkOn);
+        var look = state.Status == Models.TimerStatus.Finished ? GetFinishLook(state) : default;
+        var key = (state.Status, (int)Math.Round(Math.Clamp(state.ProgressFraction, 0, 1) * ProgressSteps),
+            look.Ring.ToArgb(), look.Fill.ToArgb(), (int)Math.Round(look.ThicknessScale * 10));
         if (_renderedKey == key) return;
         _renderedKey = key;
 
@@ -118,16 +155,16 @@ public sealed class TrayService : ITrayService
                     break;
 
                 case Models.TimerStatus.Finished:
-                    // Красное кольцо; если окно скрыто — мигает: яркая фаза с красной серединой, тусклая без.
-                    bool dimPhase = state.IsBlinking && !state.BlinkOn;
-                    using (var arc = new System.Drawing.Pen(dimPhase ? IconFinishDim : IconFinish, thickness))
-                        g.DrawEllipse(arc, ring);
-                    if (state.IsBlinking && state.BlinkOn)
+                    // Кольцо + заливка середины по текущему кадру эффекта (GetFinishLook).
+                    if (look.Fill.A > 0)
                     {
-                        float dot = size * 0.34f;
-                        using var core = new System.Drawing.SolidBrush(IconFinish);
-                        g.FillEllipse(core, (size - dot) / 2, (size - dot) / 2, dot, dot);
+                        using var fill = new System.Drawing.SolidBrush(look.Fill);
+                        g.FillEllipse(fill, ring);
                     }
+                    float finishThickness = thickness * look.ThicknessScale;
+                    var finishRing = System.Drawing.RectangleF.Inflate(ring, (thickness - finishThickness) / 2, (thickness - finishThickness) / 2);
+                    using (var arc = new System.Drawing.Pen(look.Ring, finishThickness))
+                        g.DrawEllipse(arc, finishRing);
                     break;
             }
         }
