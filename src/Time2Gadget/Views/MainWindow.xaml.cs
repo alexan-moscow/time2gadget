@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using Time2Gadget.Controls;
 using Time2Gadget.Models;
 using Time2Gadget.ViewModels;
 
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private bool _mouseDownOnCenter;
 
     private Storyboard? _dialEffectStoryboard;
+    private readonly HintController _hints;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -37,6 +39,9 @@ public partial class MainWindow : Window
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.SettingsRequested += (_, _) => OpenSettings();
+
+        _hints = new HintController(RootGrid, target => _viewModel.GetHint(HintService.GetKey(target)!, target.Tag));
+        Deactivated += (_, _) => _hints.Cancel();
     }
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)

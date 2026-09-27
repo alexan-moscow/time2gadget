@@ -120,6 +120,8 @@ public partial class SectorRingControl : UserControl
                 Cursor = Cursors.Hand,
                 Tag = preset
             };
+            HintService.SetKey(path, "Preset"); // текст по Tag выдаёт MainViewModel.GetHint
+
             path.MouseEnter += (_, _) => { if (!preset.Equals(SelectedPreset)) path.Fill = hoverBrush; };
             path.MouseLeave += (_, _) => { if (!preset.Equals(SelectedPreset)) path.Fill = sectorBrush; };
             path.MouseLeftButtonUp += (_, _) => SelectCommand?.Execute(preset);

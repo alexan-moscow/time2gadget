@@ -73,7 +73,7 @@
                     <!-- Кликабельная зона центра — строго внутри "дыры" колец (не перекрывает сектора).
                          Клик без движения мыши переключает Compact-режим (docs/UI-CONTRACT.md, обновлено
                          2026-09-27); движение мыши от этой же точки — перетаскивание окна, см. .xaml.cs. -->
-                    <Border x:Name="CenterDisplay" Width="142" Height="142" Background="Transparent"
+                    <Border x:Name="CenterDisplay" Width="142" Height="142" Background="Transparent" controls:HintService.Key="Center"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock x:Name="TimeText" Style="{StaticResource Style.TimeDisplay}"
@@ -87,14 +87,14 @@
                 <StackPanel x:Name="ControlsRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
                         <Slider Style="{StaticResource Style.ThinVolumeSliderVertical}" Minimum="0" Maximum="1"
-                                Value="{Binding AlarmVolume}" Height="40" Margin="0,0,6,0" ToolTip="Громкость звонка" />
+                                Value="{Binding AlarmVolume}" Height="40" Margin="0,0,6,0" controls:HintService.Key="Volume" />
                         <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ToggleMuteCommand}"
-                                Content="{Binding IsMuted, Converter={StaticResource MuteGlyphConverter}}" ToolTip="Звук" />
+                                Content="{Binding IsMuted, Converter={StaticResource MuteGlyphConverter}}" controls:HintService.Key="Mute" />
                     </StackPanel>
                     <Button Style="{StaticResource Style.PrimaryCircleButton}" Command="{Binding StartPauseCommand}"
-                            Content="{Binding StartPauseGlyph}" Margin="0,0,14,0" ToolTip="Start / Pause" />
+                            Content="{Binding StartPauseGlyph}" Margin="0,0,14,0" controls:HintService.Key="StartPause" />
                     <Button Style="{StaticResource Style.CircleButton}" Command="{Binding ResetCommand}"
-                            Content="&#8635;" ToolTip="Reset" />
+                            Content="&#8635;" controls:HintService.Key="Reset" />
                 </StackPanel>
             </Grid>
 
@@ -110,7 +110,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent"
+                    <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent" controls:HintService.Key="CompactCenter"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock x:Name="CompactTimeText" Style="{StaticResource Style.TimeDisplayCompact}"
@@ -127,15 +127,16 @@
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <Slider Style="{StaticResource Style.ThinVolumeSliderVertical}" Minimum="0" Maximum="1"
-                                    Value="{Binding AlarmVolume}" Height="32" Margin="0,0,6,0" ToolTip="Громкость звонка" />
+                                    Value="{Binding AlarmVolume}" Height="32" Margin="0,0,6,0" controls:HintService.Key="Volume" />
                             <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32" FontSize="13"
-                                    Command="{Binding ToggleMuteCommand}"
+                                    Command="{Binding ToggleMuteCommand}" controls:HintService.Key="Mute"
                                     Content="{Binding IsMuted, Converter={StaticResource MuteGlyphConverter}}" />
                         </StackPanel>
                         <Button Style="{StaticResource Style.PrimaryCircleButton}" Width="40" Height="40" FontSize="16"
-                                Command="{Binding StartPauseCommand}" Content="{Binding StartPauseGlyph}" Margin="0,0,10,0" />
+                                Command="{Binding StartPauseCommand}" Content="{Binding StartPauseGlyph}" Margin="0,0,10,0"
+                                controls:HintService.Key="StartPause" />
                         <Button Style="{StaticResource Style.CircleButton}" Width="32" Height="32" FontSize="13"
-                                Command="{Binding ResetCommand}" Content="&#8635;" />
+                                Command="{Binding ResetCommand}" Content="&#8635;" controls:HintService.Key="Reset" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -145,7 +146,7 @@
                  шестерёнка (настройки) слева, закрыть/свернуть справа.
                  ============================================================ -->
             <Button x:Name="SettingsButton" Style="{StaticResource Style.CornerIconButton}"
-                    Command="{Binding OpenSettingsCommand}" ToolTip="Настройки"
+                    Command="{Binding OpenSettingsCommand}" controls:HintService.Key="Settings"
                     HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
@@ -156,7 +157,7 @@
             </Button>
 
             <Button x:Name="CloseButton" Style="{StaticResource Style.CornerIconButton}"
-                    Click="OnCloseButtonClick" ToolTip="Закрыть"
+                    Click="OnCloseButtonClick" controls:HintService.Key="Close"
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10">
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">

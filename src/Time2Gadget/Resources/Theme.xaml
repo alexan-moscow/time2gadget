@@ -191,6 +191,39 @@
         </Setter>
     </Style>
 
+    <!-- ============ Всплывающие подсказки (Controls/HintService.cs, docs/UI-CONTRACT.md → Подсказки).
+         Минималистичный «пузырь»: фон окна, тонкая рамка с переходом от акцента к нейтральной,
+         мягкая тень. Margin оставляет место под тень внутри прозрачного Popup. ============ -->
+    <Style x:Key="Style.HintBubble" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Brush.Background}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="{StaticResource Color.Accent}" Offset="0" />
+                    <GradientStop Color="{StaticResource Color.BorderSubtle}" Offset="0.85" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="9,5" />
+        <Setter Property="Margin" Value="6" />
+        <Setter Property="MaxWidth" Value="260" />
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="Black" Opacity="0.45" BlurRadius="10" ShadowDepth="0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Style.HintText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="15" />
+    </Style>
+
     <!-- ============ Тёмная тема для стандартных контролов SettingsWindow (docs/UI-CONTRACT.md).
          Без x:Key — применяются автоматически ко всем контролам этого типа; MainWindow's Button'ы
          уже имеют явные Style (выше приоритетом), поэтому эти defaults их не затрагивают. ============ -->

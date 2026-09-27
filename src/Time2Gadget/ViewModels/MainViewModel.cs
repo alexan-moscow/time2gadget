@@ -391,6 +391,56 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _trayService.SetLaunchAtStartupChecked(IsLaunchAtStartup);
     }
 
+    // ============ Подсказки (Controls/HintService.cs, docs/UI-CONTRACT.md → Подсказки) ============
+
+    /// <summary>
+    /// Текст подсказки по ключу элемента — описывает, что произойдёт при действии ИМЕННО СЕЙЧАС
+    /// (зависит от состояния таймера), поэтому живёт рядом с логикой команд, а не в XAML.
+    /// </summary>
+    public string? GetHint(string key, object? tag = null) => key switch
+    {
+        "Preset" when tag is TimerPreset preset => GetPresetHint(preset),
+        "StartPause" => Status switch
+        {
+            TimerStatus.Running => "Пауза  (Пробел)",
+            TimerStatus.Paused => "Продолжить отсчёт  (Пробел)",
+            TimerStatus.Finished => "Запустить этот таймер ещё раз  (Пробел)",
+            _ => _engine.TotalDuration > TimeSpan.Zero
+                ? "Запустить отсчёт  (Пробел)"
+                : "Сначала выберите время на кольце"
+        },
+        "Reset" => Status == TimerStatus.Finished
+            ? "Выключить звонок и сбросить на 00:00  (R)"
+            : "Сбросить таймер на 00:00  (R)",
+        "Center" => Status is TimerStatus.Running or TimerStatus.Paused
+            ? "Клик — компактный режим\nПотяните — переместить окно"
+            : "Клик — компактный режим\nКолесо мыши — ±1 минута",
+        "CompactCenter" => "Клик — вернуться к полному виду",
+        "Mute" => IsMuted ? "Включить звук звонка" : "Выключить звук звонка",
+        "Volume" => $"Громкость звонка: {Math.Round(AlarmVolume * 100)}%",
+        "Settings" => "Настройки",
+        "Close" => CloseBehavior == CloseBehavior.Exit ? "Закрыть приложение" : "Свернуть в трей",
+        _ => null
+    };
+
+    /// <summary>Повторяет ветки <see cref="SelectPreset"/> — подсказка обязана совпадать с тем, что сделает клик.</summary>
+    private string GetPresetHint(TimerPreset preset)
+    {
+        var label = FormatMinutes(preset.Minutes);
+        if (Status is TimerStatus.Ready or TimerStatus.Finished)
+            return $"Запустить таймер на {label}";
+        if (SelectedPreset is not null && SelectedPreset.Equals(preset))
+            return $"Добавить {label} к текущему таймеру";
+        return $"Сбросить и запустить заново на {label}";
+    }
+
+    private static string FormatMinutes(int minutes) => minutes switch
+    {
+        60 => "1 час",
+        90 => "1,5 часа",
+        _ => $"{minutes} минут"
+    };
+
     // ============ Логика ============
 
     /// <summary>
