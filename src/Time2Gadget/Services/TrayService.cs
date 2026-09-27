@@ -89,12 +89,6 @@ public sealed class TrayService : ITrayService
         if (_renderedKey == key) return;
         _renderedKey = key;
 
-        if (state.Status == Models.TimerStatus.Ready)
-        {
-            SetIcon(_appIcon ??= LoadAppIcon(), IntPtr.Zero); // таймер не идёт — обычная иконка приложения
-            return;
-        }
-
         int size = SystemInformation.SmallIconSize.Width; // 16 при 100%, больше при высоком DPI — рисуем без масштабирования
         using var bmp = new System.Drawing.Bitmap(size, size);
         using (var g = System.Drawing.Graphics.FromImage(bmp))
@@ -102,7 +96,8 @@ public sealed class TrayService : ITrayService
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.Transparent);
 
-            float thickness = Math.Max(2f, size * 0.2f);
+            // Толщина — как у кольца в иконке приложения (~11% размера), 2026-09-27: 20% читалось грубо.
+            float thickness = Math.Max(1.5f, size * 0.11f);
             var ring = new System.Drawing.RectangleF(thickness / 2 + 0.5f, thickness / 2 + 0.5f,
                 size - thickness - 1f, size - thickness - 1f);
 
@@ -111,6 +106,8 @@ public sealed class TrayService : ITrayService
             using (var track = new System.Drawing.Pen(IconTrack, thickness))
                 g.DrawEllipse(track, ring);
 
+            // Ready — только пустая дорожка, «незаполненный круг» (2026-09-27): иконка приложения — кольцо,
+            // заполненное на ~70%, и в трее выглядела как уже идущий таймер.
             switch (state.Status)
             {
                 case Models.TimerStatus.Running:

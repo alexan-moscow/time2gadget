@@ -42,8 +42,8 @@ public sealed class AppSettings
     /// <summary>Визуальный эффект циферблата во время отсчёта. По умолчанию отключён.</summary>
     public RunningVisualEffect RunningEffect { get; set; } = RunningVisualEffect.None;
 
-    /// <summary>Визуальный эффект циферблата при завершении (пока звонит будильник). По умолчанию отключён.</summary>
-    public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.None;
+    /// <summary>Визуальный эффект циферблата при завершении (пока звонит будильник). По умолчанию — строб-вспышка (2026-09-27).</summary>
+    public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.Flash;
 
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";
