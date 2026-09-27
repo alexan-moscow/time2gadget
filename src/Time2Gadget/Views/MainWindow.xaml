@@ -76,9 +76,28 @@
                     <Border x:Name="CenterDisplay" Width="142" Height="142" Background="Transparent" controls:HintService.Key="Center"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock x:Name="TimeText" Style="{StaticResource Style.TimeDisplay}"
-                                       Text="{Binding RemainingTime, Converter={StaticResource TimeSpanConverter}}" />
-                            <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Style.StatusLabel}" Margin="0,2,0,0" />
+                            <!-- Сегментный циферблат: подложка из погасших сегментов + горящие цифры.
+                                 Viewbox DownOnly — длинный формат H:MM:SS ужимается в ту же ширину. -->
+                            <Viewbox x:Name="TimeText" MaxWidth="118" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Style.SegmentGhost}">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}" ConverterParameter="Ghost">
+                                                <Binding Path="RemainingTime" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource Style.SegmentDigits}">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}">
+                                                <Binding Path="RemainingTime" />
+                                                <Binding Path="IsColonLit" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Style.StatusLabel}" Margin="0,7,0,0" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -113,8 +132,26 @@
                     <Border x:Name="CompactCenterDisplay" Grid.Row="0" Background="Transparent" controls:HintService.Key="CompactCenter"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock x:Name="CompactTimeText" Style="{StaticResource Style.TimeDisplayCompact}"
-                                       Text="{Binding RemainingTime, Converter={StaticResource TimeSpanConverter}}" />
+                            <!-- Тот же сегментный циферблат; фиксированная высота — ширины в компакте хватает и на H:MM:SS. -->
+                            <Viewbox x:Name="CompactTimeText" Height="30" HorizontalAlignment="Center">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Style.SegmentGhost}">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}" ConverterParameter="Ghost">
+                                                <Binding Path="RemainingTime" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource Style.SegmentDigits}">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{StaticResource SegmentTimeConverter}">
+                                                <Binding Path="RemainingTime" />
+                                                <Binding Path="IsColonLit" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </Grid>
+                            </Viewbox>
                         </StackPanel>
                     </Border>
 

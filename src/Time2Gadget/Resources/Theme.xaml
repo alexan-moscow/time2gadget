@@ -45,6 +45,26 @@
         <Setter Property="FontSize" Value="30" />
     </Style>
 
+    <!-- ============ Сегментный циферблат (LCD-стиль, докладка 2026-09-27; референс — электронные часы
+         с видимыми погасшими сегментами). Шрифт DSEG7 Classic встроен в сборку (Assets/Fonts, SIL OFL 1.1).
+         Два слоя в одной ячейке: «подложка» 88:88 цветом Color.SegmentGhost + горящие цифры поверх —
+         см. Converters/SegmentTimeConverter.cs. ============ -->
+    <Color x:Key="Color.SegmentGhost">#222E47</Color>
+    <SolidColorBrush x:Key="Brush.SegmentGhost" Color="{StaticResource Color.SegmentGhost}" />
+    <FontFamily x:Key="Font.Segment">pack://application:,,,/Assets/Fonts/#DSEG7 Classic</FontFamily>
+
+    <Style x:Key="Style.SegmentDigits" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Segment}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="30" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+
+    <Style x:Key="Style.SegmentGhost" TargetType="TextBlock" BasedOn="{StaticResource Style.SegmentDigits}">
+        <Setter Property="Foreground" Value="{StaticResource Brush.SegmentGhost}" />
+    </Style>
+
     <Style x:Key="Style.StatusLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
         <Setter Property="FontSize" Value="12" />

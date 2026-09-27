@@ -6,9 +6,11 @@ namespace Time2Gadget.Converters;
 /// <summary>Форматирование TimeSpan → "MM:SS" (docs/COMPONENTS.md). Часы сверх 99 минут — "H:MM:SS".</summary>
 public sealed class TimeSpanToStringConverter : IValueConverter
 {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Format(value as TimeSpan? ?? TimeSpan.Zero);
+
+    public static string Format(TimeSpan span)
     {
-        if (value is not TimeSpan span) return "00:00";
         if (span < TimeSpan.Zero) span = TimeSpan.Zero;
 
         return span.TotalHours >= 1

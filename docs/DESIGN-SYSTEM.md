@@ -43,12 +43,12 @@
 
 | Токен | Размер | Начертание | Использование |
 |---|---|---|---|
-| `Type.TimeDisplay` | 44px | SemiBold | центральное время (`23:47`) |
-| `Type.TimeDisplayCompact` | 30px | SemiBold | время в Compact-режиме |
-| `Type.StatusLabel` | 12px, letter-spacing 1.5 | Medium, UPPERCASE | `ОСТАЛОСЬ` / `ГОТОВ` |
+| `Style.SegmentDigits` / `Style.SegmentGhost` | 30px в Viewbox: Normal — MaxWidth 118 (DownOnly), Compact — высота 30 | DSEG7 Classic Bold | центральное время, оба режима (с 2026-09-27; раньше `Type.TimeDisplay` 44px / `Type.TimeDisplayCompact` 30px Segoe) || `Type.StatusLabel` | 12px, letter-spacing 1.5, отступ 7px от цифр | Medium, UPPERCASE | `ОСТАЛОСЬ` / `ГОТОВ` |
 | `Type.SectorValue` | размер вычисляется Viewbox по геометрии сектора (см. Геометрия выше) | SemiBold | число в секторе (`5`) — БЕЗ подписи "МИН" (убрана целиком, докладка 2026-09-27: не помещалась рядом с крупной цифрой в 24px-кольце) |
 
 Шрифт — системный `Segoe UI Variable` (доступен в Windows 10 через компонент, fallback `Segoe UI`), без внешних веб-шрифтов.
+
+**Циферблат (LCD-стиль, 2026-09-27).** Время рисуется сегментным шрифтом DSEG7 Classic Bold (встроен в сборку, `Assets/Fonts`, SIL OFL 1.1) в два слоя: «подложка» из погасших сегментов (`88:88` цветом `Color.SegmentGhost` `#222E47`) и горящие цифры `TextPrimary` поверх. Двоеточие во время отсчёта мигает раз в секунду (`MainViewModel.IsColonLit`); погасшее двоеточие — символ `!` DSEG (пустота шириной с `:`), поэтому цифры не сдвигаются. Формат `H:MM:SS` после часа — подложка подстраивается автоматически (`Converters/SegmentTimeConverter.cs`).
 
 ## Анимация
 

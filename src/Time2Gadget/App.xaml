@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="Resources/Theme.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <conv:TimeSpanToStringConverter x:Key="TimeSpanConverter" />
+            <conv:SegmentTimeConverter x:Key="SegmentTimeConverter" />
             <conv:MuteToGlyphConverter x:Key="MuteGlyphConverter" />
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
         </ResourceDictionary>

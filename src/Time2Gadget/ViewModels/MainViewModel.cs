@@ -171,6 +171,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         private set { _progressFraction = value; OnPropertyChanged(); }
     }
 
+    private bool _isColonLit = true;
+    /// <summary>Двоеточие сегментного циферблата: при отсчёте мигает раз в секунду (горит в первой
+    /// половине каждой секунды оставшегося времени), в остальных состояниях горит постоянно.</summary>
+    public bool IsColonLit
+    {
+        get => _isColonLit;
+        private set { if (_isColonLit == value) return; _isColonLit = value; OnPropertyChanged(); }
+    }
+
     public TimerStatus Status => _engine.Status;
 
     public string StatusLabel => Status switch
@@ -557,6 +566,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private void RefreshFromEngine()
     {
         RemainingTime = _engine.GetRemaining();
+        IsColonLit = Status != TimerStatus.Running || RemainingTime.Milliseconds >= 500;
         var total = _engine.TotalDuration;
         ProgressFraction = total.TotalSeconds <= 0
             ? 0
