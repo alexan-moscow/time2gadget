@@ -10,14 +10,8 @@ namespace Time2Gadget.Services;
 public sealed class TrayService : ITrayService
 {
     private NotifyIcon? _notifyIcon;
-    private ToolStripMenuItem? _alwaysOnTopItem;
-    private ToolStripMenuItem? _launchAtStartupItem;
 
     public event EventHandler? ShowRequested;
-    public event EventHandler? StartPauseRequested;
-    public event EventHandler? ResetRequested;
-    public event EventHandler<bool>? AlwaysOnTopToggled;
-    public event EventHandler<bool>? LaunchAtStartupToggled;
     public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
 
@@ -25,33 +19,12 @@ public sealed class TrayService : ITrayService
     {
         var menu = new ContextMenuStrip();
 
-        var showItem = new ToolStripMenuItem("Показать таймер");
-        showItem.Click += (_, _) => ShowRequested?.Invoke(this, EventArgs.Empty);
-
-        var startPauseItem = new ToolStripMenuItem("Start / Pause");
-        startPauseItem.Click += (_, _) => StartPauseRequested?.Invoke(this, EventArgs.Empty);
-
-        var resetItem = new ToolStripMenuItem("Reset");
-        resetItem.Click += (_, _) => ResetRequested?.Invoke(this, EventArgs.Empty);
-
-        _alwaysOnTopItem = new ToolStripMenuItem("Always on Top") { CheckOnClick = true };
-        _alwaysOnTopItem.Click += (_, _) => AlwaysOnTopToggled?.Invoke(this, _alwaysOnTopItem.Checked);
-
-        _launchAtStartupItem = new ToolStripMenuItem("Запускать вместе с Windows") { CheckOnClick = true };
-        _launchAtStartupItem.Click += (_, _) => LaunchAtStartupToggled?.Invoke(this, _launchAtStartupItem.Checked);
-
         var settingsItem = new ToolStripMenuItem("Настройки…");
         settingsItem.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
 
         var exitItem = new ToolStripMenuItem("Выход");
         exitItem.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
 
-        menu.Items.Add(showItem);
-        menu.Items.Add(startPauseItem);
-        menu.Items.Add(resetItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(_alwaysOnTopItem);
-        menu.Items.Add(_launchAtStartupItem);
         menu.Items.Add(settingsItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(exitItem);
@@ -63,7 +36,11 @@ public sealed class TrayService : ITrayService
             Text = "Тайм2гаджет",
             ContextMenuStrip = menu
         };
-        _notifyIcon.DoubleClick += (_, _) => ShowRequested?.Invoke(this, EventArgs.Empty);
+        // Левый клик — вернуть окно (пункт «Показать таймер» убран из меню, это единственный путь назад из трея).
+        _notifyIcon.MouseClick += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left) ShowRequested?.Invoke(this, EventArgs.Empty);
+        };
     }
 
     /// <summary>
@@ -84,16 +61,6 @@ public sealed class TrayService : ITrayService
         }
         catch { /* откат ниже */ }
         return System.Drawing.SystemIcons.Application;
-    }
-
-    public void SetAlwaysOnTopChecked(bool value)
-    {
-        if (_alwaysOnTopItem is not null) _alwaysOnTopItem.Checked = value;
-    }
-
-    public void SetLaunchAtStartupChecked(bool value)
-    {
-        if (_launchAtStartupItem is not null) _launchAtStartupItem.Checked = value;
     }
 
     public void ShowBalloon(string title, string text)

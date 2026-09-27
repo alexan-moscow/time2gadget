@@ -1,6 +1,7 @@
 using System.IO;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 using Time2Gadget.Models;
 
 namespace Time2Gadget.Services;
@@ -18,10 +19,15 @@ public sealed class SoundService : ISoundService, IDisposable
     private static readonly string RingtoneDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Time2Gadget", "Ringtones");
 
+    // Остановка звука посреди волны даёт слышимый щелчок (докладка 2026-09-27: переключение на новый
+    // таймер во время звонка) — поэтому звук сначала быстро гасится, и только потом останавливается вывод.
+    private static readonly TimeSpan FadeOutDuration = TimeSpan.FromMilliseconds(120);
+    private const int OutputLatencyMs = 100; // буфер WasapiOut — затухание должно доиграть и из него
+
     private readonly object _lock = new();
     private CancellationTokenSource? _ringCts;
     private WasapiOut? _currentOutput;
-    private AudioFileReader? _currentReader;
+    private FadeInOutSampleProvider? _currentFade;
 
     public IReadOnlyList<AudioDeviceInfo> GetOutputDevices()
     {
@@ -62,16 +68,32 @@ public sealed class SoundService : ISoundService, IDisposable
         if (path is not null) _ = PlayOnceAsync(path, settings.AudioDeviceId, settings.AlarmVolume, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Останавливает звонок/превью с быстрым затуханием (без щелчка). Отмена токена только прерывает
+    /// цикл повторов; само текущее проигрывание гасится здесь — ровно один раз на вывод (повторный
+    /// BeginFadeOut перезапустил бы затухание с полной громкости и дал бы тот же щелчок).
+    /// </summary>
     public void StopAlarm()
     {
         _ringCts?.Cancel();
         _ringCts = null;
+
+        WasapiOut? output;
+        FadeInOutSampleProvider? fade;
         lock (_lock)
         {
-            try { _currentOutput?.Stop(); } catch { /* уже остановлен/освобождён — не критично */ }
+            output = _currentOutput;
+            fade = _currentFade;
             _currentOutput = null;
-            _currentReader = null;
+            _currentFade = null;
         }
+        if (output is null) return;
+
+        try { fade?.BeginFadeOut(FadeOutDuration.TotalMilliseconds); } catch { /* уже освобождён — не критично */ }
+        _ = Task.Delay(FadeOutDuration + TimeSpan.FromMilliseconds(OutputLatencyMs)).ContinueWith(_ =>
+        {
+            try { output.Stop(); } catch { /* уже остановлен/освобождён — не критично */ }
+        }, TaskScheduler.Default);
     }
 
     /// <summary>
@@ -94,9 +116,11 @@ public sealed class SoundService : ISoundService, IDisposable
     private Task PlayOnceAsync(string path, string deviceId, double volume, CancellationToken token)
     {
         var tcs = new TaskCompletionSource();
+        if (token.IsCancellationRequested) { tcs.TrySetResult(); return tcs.Task; }
         try
         {
             var reader = new AudioFileReader(path) { Volume = (float)Math.Clamp(volume, 0, 1) };
+            var fade = new FadeInOutSampleProvider(reader);
             var device = ResolveDeviceOrNull(deviceId);
             var output = device is not null
                 ? new WasapiOut(device, AudioClientShareMode.Shared, true, 100)
@@ -111,19 +135,20 @@ public sealed class SoundService : ISoundService, IDisposable
 
             lock (_lock)
             {
-                _currentReader = reader;
+                // StopAlarm отменяет токен ДО захвата lock: если отмена уже была — этот повтор не стартует,
+                // иначе StopAlarm гарантированно увидит его как текущий и погасит.
+                if (token.IsCancellationRequested)
+                {
+                    reader.Dispose();
+                    output.Dispose();
+                    tcs.TrySetResult();
+                    return tcs.Task;
+                }
                 _currentOutput = output;
+                _currentFade = fade;
             }
 
-            var registration = token.CanBeCanceled
-                ? token.Register(() => { try { output.Stop(); } catch { } })
-                : default;
-            if (registration != default)
-            {
-                _ = tcs.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
-            }
-
-            output.Init(reader);
+            output.Init(fade);
             output.Play();
         }
         catch

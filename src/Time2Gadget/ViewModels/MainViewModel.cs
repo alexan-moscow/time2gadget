@@ -116,13 +116,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(_settings.VirusTotalUrl));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
 
-        _trayService.StartPauseRequested += (_, _) => StartPauseCommand.Execute(null);
-        _trayService.ResetRequested += (_, _) => ResetCommand.Execute(null);
         _trayService.ShowRequested += (_, _) => ShowRequested?.Invoke(this, EventArgs.Empty);
         _trayService.SettingsRequested += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
         _trayService.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-        _trayService.AlwaysOnTopToggled += (_, value) => IsAlwaysOnTop = value;
-        _trayService.LaunchAtStartupToggled += (_, value) => IsLaunchAtStartup = value;
 
         _uiTimer = new DispatcherTimer(DispatcherPriority.Normal)
         {
@@ -218,7 +214,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _isAlwaysOnTop = value;
             _settings.AlwaysOnTop = value;
             _settingsService.Save(_settings);
-            _trayService.SetAlwaysOnTopChecked(value);
             OnPropertyChanged();
         }
     }
@@ -248,7 +243,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LaunchAtStartup = value;
             _settingsService.Save(_settings);
             AutostartService.SetEnabled(value);
-            _trayService.SetLaunchAtStartupChecked(value);
             OnPropertyChanged();
         }
     }
@@ -395,8 +389,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public void InitializeTray()
     {
         _trayService.Initialize();
-        _trayService.SetAlwaysOnTopChecked(IsAlwaysOnTop);
-        _trayService.SetLaunchAtStartupChecked(IsLaunchAtStartup);
     }
 
     // ============ Подсказки (Controls/HintService.cs, docs/UI-CONTRACT.md → Подсказки) ============
