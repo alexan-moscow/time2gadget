@@ -122,7 +122,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         BrowseCustomSoundCommand = new RelayCommand(BrowseCustomSound);
         // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
         PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p as string));
-        OpenGitHubCommand = new RelayCommand(() => OpenUrl(_settings.GitHubUrl));
+        OpenGitHubCommand = new RelayCommand(() => OpenUrl(GitHubUrl));
         OpenVirusTotalCommand = new RelayCommand(() => OpenUrl(_settings.VirusTotalUrl));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
 
@@ -545,7 +545,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     // "Об авторе" — только отображение, тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName => _settings.AuthorName;
-    public string GitHubUrl => _settings.GitHubUrl;
+    /// <summary>Настоящий репозиторий (2026-09-27) — константа, а не настройка: в settings.json у пользователей
+    /// уже записана прежняя заглушка, и она перекрыла бы новое значение по умолчанию.</summary>
+    public const string GitHubUrl = "https://github.com/alexan-moscow/time2gadget";
     public string VirusTotalUrl => _settings.VirusTotalUrl;
 
     public double? InitialWindowLeft => _settings.WindowLeft;

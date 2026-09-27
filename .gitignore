@@ -21,3 +21,6 @@ Thumbs.db
 
 # Результат vpk pack (установщик/пакеты) — выкладывается в GitHub Releases, не в git
 /Releases/
+
+# Звонки Pixabay не публикуем (лицензия запрещает раздавать файлы отдельно) — лежат только локально и внутри exe/установщика
+/src/Time2Gadget/Assets/Ringtones/*.mp3

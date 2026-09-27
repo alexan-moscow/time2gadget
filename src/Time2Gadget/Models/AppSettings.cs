@@ -66,6 +66,5 @@ public sealed class AppSettings
 
     // "Об авторе" — тестовые плейсхолдеры (docs/DECISIONS.md, 2026-09-27).
     public string AuthorName { get; set; } = "Автор (заглушка)";
-    public string GitHubUrl { get; set; } = "https://github.com/example/Time2Gadget";
     public string VirusTotalUrl { get; set; } = "https://www.virustotal.com/gui/file/0000000000000000000000000000000000000000000000000000000000000000";
 }
