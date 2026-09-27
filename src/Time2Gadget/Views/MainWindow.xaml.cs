@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Time2Gadget.Controls;
 using Time2Gadget.Models;
 using Time2Gadget.ViewModels;
@@ -62,6 +63,66 @@ public partial class MainWindow : Window
         // Скрытое окно + законченный таймер → иконка трея мигает красным (MainViewModel.UpdateTray).
         IsVisibleChanged += (_, _) => UpdateHiddenState();
         StateChanged += (_, _) => UpdateHiddenState(); // свёрнуто на панель задач (Win+D) — тоже «не видно»
+
+        // После сна/переподключения мониторов Windows переносит окна на доступный в тот момент монитор
+        // (докладка 2026-09-28: компакт «уехал» на нижний монитор) — возвращаем на сохранённые места.
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        Closed += (_, _) =>
+        {
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        };
+    }
+
+    // ============ Возврат окон на места после сна (docs/DECISIONS.md, 2026-09-28) ============
+    // Мониторы после пробуждения инициализируются не сразу и не одновременно: пока «свой» монитор не появился,
+    // окно стоит там, куда его переставила Windows. Поэтому несколько попыток с растущей паузой: как только
+    // сохранённое место снова видно на экране — ставим окно туда. Сохранённое место при этом не перезаписывается
+    // (переставленная Windows позиция нигде не сохраняется — сохраняем только после перетаскивания/переключения).
+    private static readonly TimeSpan[] RestoreAttemptDelays =
+        { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(25) };
+    private DispatcherTimer? _restoreTimer;
+    private int _restoreAttempt;
+
+    private void OnPowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == Microsoft.Win32.PowerModes.Resume) Dispatcher.BeginInvoke(ScheduleRestorePositions);
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(ScheduleRestorePositions);
+
+    private void ScheduleRestorePositions()
+    {
+        _restoreAttempt = 0;
+        _restoreTimer ??= new DispatcherTimer();
+        _restoreTimer.Stop();
+        _restoreTimer.Tick -= OnRestoreTick;
+        _restoreTimer.Tick += OnRestoreTick;
+        _restoreTimer.Interval = RestoreAttemptDelays[0];
+        _restoreTimer.Start();
+    }
+
+    private void OnRestoreTick(object? sender, EventArgs e)
+    {
+        RestoreSavedPositions();
+        _restoreAttempt++;
+        if (_restoreAttempt >= RestoreAttemptDelays.Length) { _restoreTimer!.Stop(); return; }
+        _restoreTimer!.Interval = RestoreAttemptDelays[_restoreAttempt] - RestoreAttemptDelays[_restoreAttempt - 1];
+    }
+
+    /// <summary>Поставить главное окно и окно настроек на сохранённые места, если те снова видны на экране.</summary>
+    private void RestoreSavedPositions()
+    {
+        if (_viewModel.GetSavedWindowPosition(_viewModel.IsCompactMode) is { } saved
+            && IsVisibleOnScreen(saved.X, saved.Y, Width, Height)
+            && (Math.Abs(Left - saved.X) > 1 || Math.Abs(Top - saved.Y) > 1))
+        {
+            Left = saved.X;
+            Top = saved.Y;
+            _lastAnchorOnScreen = null; // привязка «туда-обратно» больше не актуальна
+        }
+        _settingsWindow?.RestoreSavedPosition();
     }
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)

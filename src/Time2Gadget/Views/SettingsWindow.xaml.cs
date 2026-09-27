@@ -29,6 +29,18 @@ public partial class SettingsWindow : Window
         Closing += (_, _) => _viewModel.SaveSettingsWindowPosition(Left, Top);
     }
 
+    /// <summary>После сна/смены мониторов — вернуть на сохранённое место, если оно снова видно (см. MainWindow).</summary>
+    public void RestoreSavedPosition()
+    {
+        if (_viewModel.SavedSettingsWindowPosition is { } saved
+            && MainWindow.IsVisibleOnScreen(saved.X, saved.Y, Width, Height)
+            && (Math.Abs(Left - saved.X) > 1 || Math.Abs(Top - saved.Y) > 1))
+        {
+            Left = saved.X;
+            Top = saved.Y;
+        }
+    }
+
     /// <summary>После «Сбросить настройки» — на исходное место: по центру главного окна.</summary>
     public void CenterOnOwner()
     {

@@ -21,6 +21,13 @@
             <ComboBox ItemsSource="{Binding CloseBehaviorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
                       SelectedValue="{Binding CloseBehavior}" />
 
+            <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
+            <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />
+            <CheckBox Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
+            <CheckBox Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
+            <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+
             <!-- ============ Звук ============ -->
             <TextBlock Text="Звук" Style="{StaticResource Style.SectionHeader}" />
 
@@ -116,13 +123,6 @@
                 <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
                            TextWrapping="Wrap" MaxWidth="150" Foreground="{StaticResource Brush.TextSecondary}" />
             </StackPanel>
-
-            <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
-            <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />
-            <CheckBox Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
-            <CheckBox Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
-            <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
-                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
 
             <!-- ============ Сброс (докладка 2026-09-28) — с подтверждением, см. MainViewModel.ResetSettings ============ -->
             <TextBlock Text="Сброс" Style="{StaticResource Style.SectionHeader}" />
