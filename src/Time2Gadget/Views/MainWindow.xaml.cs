@@ -170,6 +170,31 @@ public partial class MainWindow : Window
         }
         UpdateCompactProgressBar();
         ApplyDialEffect();
+
+        // Перезапуск ради смены прав был из открытых настроек — открыть их снова с той же прокруткой (место окна
+        // настроек восстанавливается как обычно).
+        if (_viewModel.TakeReopenSettingsScroll() is { } scroll)
+        {
+            OpenSettings();
+            _settingsWindow?.ScrollToOffset(scroll);
+        }
+    }
+
+    /// <summary>
+    /// Перед перезапуском (смена прав): запомнить, открыты ли настройки, их прокрутку и место — заранее, до запуска
+    /// новой копии: она может прочитать настройки раньше, чем эта закроется.
+    /// </summary>
+    public void RememberSettingsForRestart()
+    {
+        if (_settingsWindow is { } settings)
+        {
+            _viewModel.SaveSettingsWindowPosition(settings.Left, settings.Top);
+            _viewModel.RememberSettingsForRestart(settings.ScrollOffset);
+        }
+        else
+        {
+            _viewModel.RememberSettingsForRestart(null);
+        }
     }
 
     private void UpdateHiddenState() =>

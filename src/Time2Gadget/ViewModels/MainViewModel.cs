@@ -670,6 +670,22 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Запуск с правами выключили, а программа работает с ними — перезапуститься с обычными правами (выполняет App).</summary>
     public event EventHandler? RestartNormalRequested;
 
+    /// <summary>Перед перезапуском: открыть ли настройки в новой копии и с какой прокруткой (null — не открывать).</summary>
+    public void RememberSettingsForRestart(double? scroll)
+    {
+        _settings.ReopenSettingsScroll = scroll;
+        _settingsService.Save(_settings);
+    }
+
+    /// <summary>После запуска: прокрутка настроек, если их надо открыть (поле сразу очищается — только один раз).</summary>
+    public double? TakeReopenSettingsScroll()
+    {
+        if (_settings.ReopenSettingsScroll is not { } scroll) return null;
+        _settings.ReopenSettingsScroll = null;
+        _settingsService.Save(_settings);
+        return scroll;
+    }
+
     /// <summary>
     /// «Запускать с правами администратора» (подпункт возврата окон, 2026-09-28). Вкл — создать задачу
     /// Планировщика (один раз через UAC) и перезапуститься через неё; отказ в UAC — галочка возвращается.

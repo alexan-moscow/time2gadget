@@ -137,6 +137,12 @@ public partial class SettingsWindow : Window
     /// Прокрутить так, чтобы раздел «Обновления» оказался вверху окна (клик по мигающей шестерёнке, 2026-09-27).
     /// Отложено до окончания раскладки: сразу после Show() позиции элементов ещё не посчитаны.
     /// </summary>
+    public double ScrollOffset => Scroller.VerticalOffset;
+
+    /// <summary>Прокрутить на позицию (после раскладки — сразу после Show() высота содержимого ещё не посчитана).</summary>
+    public void ScrollToOffset(double offset) =>
+        Dispatcher.BeginInvoke(() => Scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
+
     public void ScrollToUpdates()
     {
         Dispatcher.BeginInvoke(() =>

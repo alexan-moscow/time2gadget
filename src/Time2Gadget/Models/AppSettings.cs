@@ -44,6 +44,12 @@ public sealed class AppSettings
     /// </summary>
     public bool RunElevated { get; set; } = false;
 
+    /// <summary>
+    /// Служебное: перезапуск ради смены прав (галочка «с правами администратора») был из открытых настроек — новая копия
+    /// сразу открывает их с этой прокруткой и очищает поле (докладка 2026-09-28). null — не открывать.
+    /// </summary>
+    public double? ReopenSettingsScroll { get; set; }
+
     /// <summary>Для какого exe создана задача запуска с правами (портативная и установленная копии делят настройки).</summary>
     public string? ElevationTaskExePath { get; set; }
 

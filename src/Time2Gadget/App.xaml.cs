@@ -24,6 +24,7 @@ public partial class App : Application
 
     private MainViewModel? _viewModel;
     private Mutex? _instanceMutex;
+    private MainWindow? _mainWindow;
     private EventWaitHandle? _showEvent;
     private System.Windows.Interop.HwndSource? _showListener;
 
@@ -91,6 +92,7 @@ public partial class App : Application
         }
 
         var window = new MainWindow(_viewModel);
+        _mainWindow = window;
 
         _viewModel.ExitRequested += (_, _) =>
         {
@@ -146,6 +148,7 @@ public partial class App : Application
     /// </summary>
     private void RestartElevated()
     {
+        _mainWindow?.RememberSettingsForRestart(); // новая копия откроет настройки на том же месте и прокрутке
         _instanceMutex?.ReleaseMutex();
         _instanceMutex?.Dispose();
         _instanceMutex = null;
@@ -155,6 +158,7 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        _viewModel?.RememberSettingsForRestart(null);
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
         MessageBox.Show("Не удалось перезапустить программу с правами администратора. Настройка сохранена — сработает при следующем запуске.",
             "Тайм2гаджет", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -166,6 +170,7 @@ public partial class App : Application
     /// </summary>
     private void RestartNormal()
     {
+        _mainWindow?.RememberSettingsForRestart(); // новая копия откроет настройки на том же месте и прокрутке
         _instanceMutex?.ReleaseMutex();
         _instanceMutex?.Dispose();
         _instanceMutex = null;
@@ -180,6 +185,7 @@ public partial class App : Application
         }
         catch
         {
+            _viewModel?.RememberSettingsForRestart(null);
             _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
             MessageBox.Show("Не удалось перезапустить программу. Запуск с правами администратора выключен — перезапустите её вручную.",
                 "Тайм2гаджет", MessageBoxButton.OK, MessageBoxImage.Information);
