@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -57,7 +58,9 @@ public partial class MainWindow : Window
             _settingsWindow?.CenterOnOwner();
         };
 
-        _hints = new HintController(RootGrid, target => _viewModel.GetHint(HintService.GetKey(target)!, target.Tag));
+        _hints = new HintController(RootGrid, target => HintService.GetKey(target) == "AutoClose"
+            ? BuildAutoCloseHint()
+            : _viewModel.GetHint(HintService.GetKey(target)!, target.Tag));
         Deactivated += (_, _) => _hints.Cancel();
 
         // Автозакрытие после таймера — ровно как нажатие крестика (свернуть в трей или выйти по настройке).
@@ -347,38 +350,52 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Визуальный эффект циферблата — либо во время отсчёта (RunningEffect), либо при завершении
-    /// (FinishEffect, пока звонит будильник); статусы Running/Finished взаимоисключающие, поэтому
-    /// конфликта между двумя наборами эффектов на одних и тех же элементах не бывает. По умолчанию
-    /// оба отключены. Все реализации намеренно просты (Opacity/Scale/Color на EffectOverlay) — не
-    /// лезут во внутренности ProgressRingControl/SectorRingControl (docs/UI-CONTRACT.md).
+    /// (ActiveFinishEffect, пока звонит будильник), либо просмотр из настроек (PreviewEffect — поверх состояния).
+    /// Статусы Running/Finished взаимоисключающие, поэтому конфликта между наборами эффектов не бывает.
+    /// Эффекты-заливки (Flash, ColorBreathe, эффекты завершения Pulse/Flash/ColorCycle) — на EffectOverlay;
+    /// «Волны»/«Змейка»/«Радужная змейка» (2026-09-28) — бегущий пунктир по контурам (RunDashLoop).
+    /// Не лезут во внутренности ProgressRingControl/SectorRingControl (docs/UI-CONTRACT.md).
     /// </summary>
     private void ApplyDialEffect()
     {
         _dialEffectStoryboard?.Stop(this);
         _dialEffectStoryboard = null;
-        RingGroupScale.ScaleX = RingGroupScale.ScaleY = 1;
-        CompactScale.ScaleX = CompactScale.ScaleY = 1;
+        StopPulseScale();
+        StopShapeEffects();
         EffectOverlay.Opacity = CompactEffectOverlay.Opacity = 0;
 
+        object? effect = _viewModel.PreviewEffect
+                         ?? (_viewModel.IsRunning && _viewModel.RunningEffect != RunningVisualEffect.None ? _viewModel.RunningEffect
+                             : _viewModel.IsFinishEffectActive ? _viewModel.ActiveFinishEffect // у быстрого таймера — свой
+                             : null);
+
         Storyboard? sb = null;
-        if (_viewModel.PreviewEffect is RunningVisualEffect previewRunning) // просмотр из настроек — поверх состояния таймера
+        bool coversDial = false; // эффект закрашивает циферблат — тёмные сегменты-подложки «88» прячем
+        switch (effect)
         {
-            SetOverlayBrush((Brush)FindResource("Brush.Accent"));
-            sb = BuildRunningEffectStoryboard(previewRunning);
+            case RunningVisualEffect.Waves or FinishVisualEffect.Waves:
+                StartWaves(effect is FinishVisualEffect);
+                break;
+            case RunningVisualEffect.Snake or FinishVisualEffect.Snake:
+                StartSnake(effect is FinishVisualEffect, rainbow: false);
+                break;
+            case RunningVisualEffect.RainbowSnake or FinishVisualEffect.RainbowSnake:
+                StartSnake(effect is FinishVisualEffect, rainbow: true);
+                break;
+            case RunningVisualEffect running and not RunningVisualEffect.None:
+                SetOverlayBrush((Brush)FindResource("Brush.Accent"));
+                sb = BuildRunningEffectStoryboard(running);
+                coversDial = running is RunningVisualEffect.Flash or RunningVisualEffect.ColorBreathe;
+                break;
+            case FinishVisualEffect finish and not FinishVisualEffect.None:
+                sb = BuildFinishEffectStoryboard(finish);
+                coversDial = true;
+                break;
         }
-        else if (_viewModel.PreviewEffect is FinishVisualEffect previewFinish)
-        {
-            sb = BuildFinishEffectStoryboard(previewFinish);
-        }
-        else if (_viewModel.IsRunning && _viewModel.RunningEffect != RunningVisualEffect.None)
-        {
-            SetOverlayBrush((Brush)FindResource("Brush.Accent"));
-            sb = BuildRunningEffectStoryboard(_viewModel.RunningEffect);
-        }
-        else if (_viewModel.IsFinishEffectActive) // Finished + эффект выбран + длительность не истекла
-        {
-            sb = BuildFinishEffectStoryboard(_viewModel.ActiveFinishEffect); // у быстрого таймера — свой
-        }
+
+        // Подложку прячем подменой ресурса окна (стили берут её через DynamicResource) — докладка 2026-09-28.
+        if (coversDial) Resources["Brush.SegmentGhostLive"] = Brushes.Transparent;
+        else Resources.Remove("Brush.SegmentGhostLive");
 
         if (sb is null) return;
         _dialEffectStoryboard = sb;
@@ -409,18 +426,29 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Пульсация масштабом. Компакт — втрое слабее: прямоугольник 220px в окне 236px при полном размахе
-    /// вылез бы за край окна и обрезался.
+    /// вылез бы за край окна и обрезался. Анимация — прямо на ScaleTransform (BeginAnimation): Storyboard с целью-
+    /// трансформацией (не элементом окна) молча не играл — «Пульсация» отсчёта не работала (найдено 2026-09-28).
     /// </summary>
-    private void AddPulseScale(Storyboard sb, double to, TimeSpan halfPeriod)
+    private void StartPulseScale(double to, TimeSpan halfPeriod)
     {
         double compactTo = 1 + (to - 1) / 3;
         foreach (var (target, max) in new[] { (RingGroupScale, to), (CompactScale, compactTo) })
         foreach (var property in new[] { ScaleTransform.ScaleXProperty, ScaleTransform.ScaleYProperty })
         {
-            var scale = new DoubleAnimation(1.0, max, halfPeriod) { AutoReverse = true, EasingFunction = new SineEase() };
-            Storyboard.SetTarget(scale, target);
-            Storyboard.SetTargetProperty(scale, new PropertyPath(property));
-            sb.Children.Add(scale);
+            target.BeginAnimation(property, new DoubleAnimation(1.0, max, halfPeriod)
+            {
+                AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase()
+            });
+        }
+    }
+
+    private void StopPulseScale()
+    {
+        foreach (var target in new[] { RingGroupScale, CompactScale })
+        {
+            target.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            target.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            target.ScaleX = target.ScaleY = 1;
         }
     }
 
@@ -431,7 +459,7 @@ public partial class MainWindow : Window
         switch (effect)
         {
             case RunningVisualEffect.Pulse:
-                AddPulseScale(sb, 1.05, TimeSpan.FromSeconds(0.9));
+                StartPulseScale(1.05, TimeSpan.FromSeconds(0.9));
                 break;
 
             case RunningVisualEffect.Flash:
@@ -463,7 +491,7 @@ public partial class MainWindow : Window
         switch (effect)
         {
             case FinishVisualEffect.Pulse:
-                AddPulseScale(sb, 1.09, TimeSpan.FromSeconds(0.45));
+                StartPulseScale(1.09, TimeSpan.FromSeconds(0.45));
                 AddOverlayOpacity(sb, new DoubleAnimation(0.15, 0.55, TimeSpan.FromSeconds(0.45)) { AutoReverse = true, EasingFunction = new SineEase() });
                 break;
 
@@ -481,19 +509,105 @@ public partial class MainWindow : Window
                 // Цвет анимируется прямо на кистях (BeginAnimation), а не через Storyboard: Storyboard с целью-кистью
                 // (не элементом окна) молча не играл — заливка стояла одним цветом (найдено снимками 2026-09-27).
                 // Кисти новые при каждом ApplyDialEffect, поэтому их анимации уходят вместе с ними — останавливать не нужно.
-                var rainbow = new ColorAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-                for (int i = 0; i <= RainbowPalette.Colors.Length; i++) // последний кадр = первый цвет: цикл без скачка
-                {
-                    var (r, g, b) = RainbowPalette.Colors[i % RainbowPalette.Colors.Length];
-                    rainbow.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(r, g, b),
-                        KeyTime.FromTimeSpan(TimeSpan.FromSeconds(i * RainbowPalette.StepSeconds))));
-                }
+                var rainbow = BuildRainbowAnimation();
                 ((SolidColorBrush)EffectOverlay.Fill).BeginAnimation(SolidColorBrush.ColorProperty, rainbow);
                 ((SolidColorBrush)CompactEffectOverlay.Background).BeginAnimation(SolidColorBrush.ColorProperty, rainbow);
                 break;
         }
 
         return sb;
+    }
+
+    /// <summary>Круг цветов Models/RainbowPalette; последний кадр = первый цвет — цикл без скачка.</summary>
+    private static ColorAnimationUsingKeyFrames BuildRainbowAnimation(double speed = 1)
+    {
+        var rainbow = new ColorAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        for (int i = 0; i <= RainbowPalette.Colors.Length; i++)
+        {
+            var (r, g, b) = RainbowPalette.Colors[i % RainbowPalette.Colors.Length];
+            rainbow.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(r, g, b),
+                KeyTime.FromTimeSpan(TimeSpan.FromSeconds(i * RainbowPalette.StepSeconds / speed))));
+        }
+        return rainbow;
+    }
+
+    // ---- «Встречные волны», «Змейка», «Радужная змейка» (докладка 2026-09-28) ----
+    // Бегущий пунктир: StrokeDashArray с N штрихами на весь контур и анимация StrokeDashOffset на длину контура —
+    // цикл без скачка. Размеры контуров заданы в XAML явно (скрытый вид имеет ActualWidth = 0).
+
+    private IEnumerable<System.Windows.Shapes.Shape> EffectShapes =>
+        new System.Windows.Shapes.Shape[] { WaveRingA, WaveRingB, FrameSnake, CompactWaveA, CompactWaveB, CompactSnake };
+
+    private void StopShapeEffects()
+    {
+        foreach (var shape in EffectShapes)
+        {
+            shape.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, null);
+            shape.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>Длина контура по средней линии штриха (штрих рисуется внутри границ фигуры).</summary>
+    private static double ContourLength(System.Windows.Shapes.Shape shape)
+    {
+        double t = shape.StrokeThickness, w = shape.Width - t, h = shape.Height - t;
+        if (shape is System.Windows.Shapes.Ellipse) return Math.PI * w;
+        double r = Math.Clamp(((System.Windows.Shapes.Rectangle)shape).RadiusX - t / 2, 0, Math.Min(w, h) / 2);
+        return 2 * (w + h) - 8 * r + 2 * Math.PI * r;
+    }
+
+    /// <summary>count штрихов длиной dashPx бегут по контуру; один круг за seconds; reverse — в обратную сторону.</summary>
+    private static void RunDashLoop(System.Windows.Shapes.Shape shape, Brush stroke, int count, double dashPx, double seconds, bool reverse)
+    {
+        double t = shape.StrokeThickness;
+        double length = ContourLength(shape) / t; // StrokeDashArray/Offset — в толщинах штриха
+        double period = length / count, dash = Math.Min(dashPx / t, period * 0.85);
+        var dashes = new DoubleCollection();
+        for (int i = 0; i < count; i++) { dashes.Add(dash); dashes.Add(period - dash); }
+        shape.StrokeDashArray = dashes;
+        shape.Stroke = stroke;
+        shape.Visibility = Visibility.Visible;
+        shape.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty,
+            new DoubleAnimation(0, reverse ? -length : length, TimeSpan.FromSeconds(seconds)) { RepeatBehavior = RepeatBehavior.Forever });
+    }
+
+    /// <summary>Две волны навстречу друг другу с разной скоростью: по кольцу секторов и по краю компакта.</summary>
+    private void StartWaves(bool finish)
+    {
+        var brush = (Brush)FindResource(finish ? "Brush.Finish" : "Brush.Accent");
+        double k = finish ? 0.6 : 1; // по окончании — быстрее, как сигнал
+        RunDashLoop(WaveRingA, brush, 2, 70, 3.2 * k, reverse: false);
+        RunDashLoop(WaveRingB, brush, 1, 95, 5.3 * k, reverse: true);
+        RunDashLoop(CompactWaveA, brush, 2, 60, 2.8 * k, reverse: false);
+        RunDashLoop(CompactWaveB, brush, 1, 85, 4.4 * k, reverse: true);
+    }
+
+    /// <summary>Узкая змейка по рамке окна; радужная — толще, переливается цветами палитры и светится.</summary>
+    private void StartSnake(bool finish, bool rainbow)
+    {
+        Brush brush;
+        if (rainbow)
+        {
+            var solid = new SolidColorBrush(Colors.White);
+            solid.BeginAnimation(SolidColorBrush.ColorProperty, BuildRainbowAnimation(speed: 2));
+            brush = solid;
+        }
+        else
+        {
+            brush = (Brush)FindResource(finish ? "Brush.Finish" : "Brush.Accent");
+        }
+
+        double k = finish ? 0.6 : 1;
+        foreach (var (shape, dash, seconds) in new[] { (FrameSnake, rainbow ? 170.0 : 110.0, 3.6), (CompactSnake, rainbow ? 120.0 : 80.0, 2.6) })
+        {
+            shape.StrokeThickness = rainbow ? 3.5 : 2.5;
+            shape.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = rainbow ? Colors.White : ((SolidColorBrush)brush).Color, BlurRadius = rainbow ? 12 : 8,
+                ShadowDepth = 0, Opacity = rainbow ? 0.55 : 0.8
+            };
+            RunDashLoop(shape, brush, 1, dash, seconds * k, reverse: false);
+        }
     }
 
     // ============ Drag / клик-по-центру (docs/UI-CONTRACT.md, обновлено 2026-09-27) ============
@@ -575,6 +689,53 @@ public partial class MainWindow : Window
     }
 
     private void OnCloseButtonClick(object sender, RoutedEventArgs e) => HandleCloseRequest();
+
+    /// <summary>ПКМ по кнопке автозакрытия — режим «свернуть в трей / закрыть» (ЛКМ — компактный вид, команда кнопки).</summary>
+    private void OnAutoCloseRightClick(object sender, MouseButtonEventArgs e)
+    {
+        _hints.Cancel();
+        _viewModel.ToggleAutoCloseCommand.Execute(null);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Подсказка кнопки автозакрытия — с легендой из тех же значков (докладка 2026-09-28): что включено сейчас
+    /// и что делают левый/правый щелчки.
+    /// </summary>
+    private FrameworkElement BuildAutoCloseHint()
+    {
+        string trayOrExit = _viewModel.CloseBehavior == CloseBehavior.Exit ? "закрыть программу" : "свернуть в трей";
+        string state = _viewModel.AutoCompactAfterFinish ? "перейти в компактный вид"
+            : _viewModel.AutoCloseAfterFinish ? trayOrExit
+            : "ничего не делать (выключено)";
+
+        var textStyle = (Style)FindResource("Style.HintText");
+        var panel = new StackPanel { MaxWidth = 250 };
+        panel.Children.Add(new TextBlock { Style = textStyle, Text = $"После окончания таймера: {state}", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(LegendRow("Brush.Accent", "ЛКМ — перейти в компактный вид (на его место)"));
+        panel.Children.Add(LegendRow("Brush.AutoClose", $"ПКМ — {trayOrExit}"));
+        panel.Children.Add(LegendRow("Brush.TextSecondary", "Выключено"));
+        panel.Children.Add(new TextBlock
+        {
+            Style = textStyle, Margin = new Thickness(0, 4, 0, 0), Foreground = (Brush)FindResource("Brush.TextSecondary"),
+            Text = "Срабатывает, когда звонок отыграл. Повторный щелчок той же кнопкой — выключить."
+        });
+        return panel;
+
+        FrameworkElement LegendRow(string brushKey, string text)
+        {
+            var icon = new System.Windows.Shapes.Path
+            {
+                Data = (Geometry)FindResource("Geometry.Power"), Fill = (Brush)FindResource(brushKey),
+                Width = 11, Height = 11, Stretch = Stretch.Uniform, Margin = new Thickness(0, 2, 6, 0), VerticalAlignment = VerticalAlignment.Top
+            };
+            var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+            DockPanel.SetDock(icon, Dock.Left);
+            row.Children.Add(icon);
+            row.Children.Add(new TextBlock { Style = textStyle, Text = text });
+            return row;
+        }
+    }
 
     // ============ Клавиши (docs/UI-CONTRACT.md → Клавиши, 2026-09-28) ============
 

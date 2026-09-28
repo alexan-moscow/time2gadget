@@ -38,6 +38,9 @@ public sealed partial class MainViewModel
         new EffectOption(RunningVisualEffect.Pulse, "Пульсация"),
         new EffectOption(RunningVisualEffect.Flash, "Вспышка акцентом"),
         new EffectOption(RunningVisualEffect.ColorBreathe, "Дыхание цветом"),
+        new EffectOption(RunningVisualEffect.Waves, "Встречные волны"),
+        new EffectOption(RunningVisualEffect.Snake, "Змейка по рамке"),
+        new EffectOption(RunningVisualEffect.RainbowSnake, "Радужная змейка"),
     };
 
     public IReadOnlyList<EffectOption> FinishEffectOptions { get; } = CreateFinishEffectOptions("Отключено");
@@ -48,6 +51,9 @@ public sealed partial class MainViewModel
         new EffectOption(FinishVisualEffect.Pulse, "Пульсация"),
         new EffectOption(FinishVisualEffect.Flash, "Строб-вспышка"),
         new EffectOption(FinishVisualEffect.ColorCycle, "Радужная волна"),
+        new EffectOption(FinishVisualEffect.Waves, "Встречные волны"),
+        new EffectOption(FinishVisualEffect.Snake, "Змейка по рамке"),
+        new EffectOption(FinishVisualEffect.RainbowSnake, "Радужная змейка"),
     };
 
     // ---- Просмотр эффекта ----

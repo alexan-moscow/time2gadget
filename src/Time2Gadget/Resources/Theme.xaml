@@ -44,6 +44,8 @@
     <SolidColorBrush x:Key="Brush.TextSecondary" Color="{StaticResource Color.TextSecondary}" />
     <SolidColorBrush x:Key="Brush.BorderSubtle" Color="{StaticResource Color.BorderSubtle}" Opacity="0.6" />
     <SolidColorBrush x:Key="Brush.Finish" Color="{StaticResource Color.Finish}" />
+    <!-- Кнопка автозакрытия в режиме «свернуть в трей / закрыть» — приглушённый красный (докладка 2026-09-28). -->
+    <SolidColorBrush x:Key="Brush.AutoClose" Color="#B5574F" />
     <SolidColorBrush x:Key="Brush.ButtonSurface" Color="{StaticResource Color.SurfaceSector}" Opacity="0.55" />
 
     <!-- Обновления (2026-09-27): жёлтый — «есть что-то новое», не тревога (красный занят завершением таймера). -->
@@ -72,6 +74,9 @@
          см. Converters/SegmentTimeConverter.cs. ============ -->
     <Color x:Key="Color.SegmentGhost">#222E47</Color>
     <SolidColorBrush x:Key="Brush.SegmentGhost" Color="{StaticResource Color.SegmentGhost}" />
+    <!-- Цвет подложки на циферблате: пока эффект закрашивает циферблат, MainWindow подменяет его прозрачным
+         (докладка 2026-09-28) — видны только горящие цифры, тёмные «88» не торчат из заливки. -->
+    <SolidColorBrush x:Key="Brush.SegmentGhostLive" Color="{StaticResource Color.SegmentGhost}" />
     <FontFamily x:Key="Font.Segment">pack://application:,,,/Assets/Fonts/#DSEG7 Classic</FontFamily>
 
     <Style x:Key="Style.SegmentDigits" TargetType="TextBlock">
@@ -83,7 +88,7 @@
     </Style>
 
     <Style x:Key="Style.SegmentGhost" TargetType="TextBlock" BasedOn="{StaticResource Style.SegmentDigits}">
-        <Setter Property="Foreground" Value="{StaticResource Brush.SegmentGhost}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.SegmentGhostLive}" />
     </Style>
 
     <!-- Часы — тем же сегментным шрифтом, что главный таймер, мельче и приглушённее (вторичная информация).
@@ -93,7 +98,7 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
     </Style>
     <Style x:Key="Style.ClockGhost" TargetType="TextBlock" BasedOn="{StaticResource Style.ClockText}">
-        <Setter Property="Foreground" Value="{StaticResource Brush.SegmentGhost}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.SegmentGhostLive}" />
     </Style>
 
     <Style x:Key="Style.StatusLabel" TargetType="TextBlock">
@@ -327,6 +332,26 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="LineHeight" Value="15" />
+    </Style>
+
+    <!-- Стандартные подсказки (окно настроек и меню) — тот же вид, что у подсказок главного окна (2026-09-28:
+         в настройках были системные белые). Окно у края экрана — WPF сам переносит ToolTip в видимую область. -->
+    <Style TargetType="ToolTip">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Style="{StaticResource Style.HintBubble}">
+                        <ContentPresenter>
+                            <ContentPresenter.Resources>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Style.HintText}" />
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ============ Тёмная тема для стандартных контролов SettingsWindow (docs/UI-CONTRACT.md).

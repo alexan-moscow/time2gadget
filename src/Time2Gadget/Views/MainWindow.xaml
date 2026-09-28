@@ -63,6 +63,10 @@
                  ============================================================ -->
             <Grid x:Name="NormalContent">
 
+                <!-- «Змейка» / «Радужная змейка» по рамке окна (докладка 2026-09-28) — размер = содержимое полного вида. -->
+                <Rectangle x:Name="FrameSnake" Width="257" Height="325" RadiusX="28" RadiusY="28" StrokeDashCap="Round"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" IsHitTestVisible="False" />
+
                 <!-- RingGroup — общий контейнер для кольца И центрального дисплея: оба ребёнка
                      Center/Center внутри ОДНОЙ ячейки Grid, поэтому центр времени гарантированно
                      совпадает с геометрическим центром колец при любых будущих изменениях радиусов
@@ -86,6 +90,17 @@
                                                      Presets="{Binding Presets}"
                                                      SelectedPreset="{Binding SelectedPreset}"
                                                      SelectCommand="{Binding SelectPresetCommand}" />
+
+                        <!-- «Встречные волны» (докладка 2026-09-28): два размытых контура по полосе секторов (84..108),
+                             бегущий пунктир навстречу друг другу с разной скоростью — MainWindow.xaml.cs → RunDashLoop. -->
+                        <Ellipse x:Name="WaveRingA" Width="216" Height="216" StrokeThickness="24" Opacity="0.55"
+                                 Visibility="Collapsed" IsHitTestVisible="False">
+                            <Ellipse.Effect><BlurEffect Radius="8" /></Ellipse.Effect>
+                        </Ellipse>
+                        <Ellipse x:Name="WaveRingB" Width="216" Height="216" StrokeThickness="24" Opacity="0.45"
+                                 Visibility="Collapsed" IsHitTestVisible="False">
+                            <Ellipse.Effect><BlurEffect Radius="8" /></Ellipse.Effect>
+                        </Ellipse>
 
                         <controls:ProgressRingControl x:Name="ProgressRing"
                                                        OuterRadius="78" InnerRadius="74"
@@ -179,6 +194,17 @@
                 <!-- Эффекты отсчёта/завершения в компакте (докладка 2026-09-27: раньше были только на кольце
                      полного режима и в компакте не было видно). Анимируются вместе с EffectOverlay — см. .xaml.cs. -->
                 <Border x:Name="CompactEffectOverlay" CornerRadius="20" Opacity="0" IsHitTestVisible="False" />
+                <!-- Волны и змейка компакта — по краю прямоугольника (докладка 2026-09-28). -->
+                <Rectangle x:Name="CompactWaveA" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeThickness="4" Opacity="0.7"
+                           Visibility="Collapsed" IsHitTestVisible="False">
+                    <Rectangle.Effect><BlurEffect Radius="3" /></Rectangle.Effect>
+                </Rectangle>
+                <Rectangle x:Name="CompactWaveB" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeThickness="4" Opacity="0.55"
+                           Visibility="Collapsed" IsHitTestVisible="False">
+                    <Rectangle.Effect><BlurEffect Radius="3" /></Rectangle.Effect>
+                </Rectangle>
+                <Rectangle x:Name="CompactSnake" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeDashCap="Round"
+                           Visibility="Collapsed" IsHitTestVisible="False" />
                 <Grid Margin="12,10,12,10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -329,7 +355,7 @@
             <!-- Переключатель «после таймера закрыть/свернуть» (что именно — по настройке закрытия).
                  Выкл — приглушённая иконка, вкл — акцентная. Размер/стиль — как у крестика. -->
             <Button x:Name="AutoCloseButton" Style="{StaticResource Style.CornerIconButton}"
-                    Command="{Binding ToggleAutoCloseCommand}" controls:HintService.Key="AutoClose"
+                    Command="{Binding ToggleAutoCompactCommand}" MouseRightButtonUp="OnAutoCloseRightClick" controls:HintService.Key="AutoClose"
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,32,0"><!-- вплотную к крестику (зазор иконок ~6px) -->
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
@@ -338,8 +364,12 @@
                                 <Style TargetType="Path">
                                     <Setter Property="Fill" Value="{StaticResource Brush.TextSecondary}" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding AutoCloseAfterFinish}" Value="True">
+                                        <!-- ЛКМ — после окончания компактный вид (синий); ПКМ — свернуть в трей/закрыть (приглушённый красный). -->
+                                        <DataTrigger Binding="{Binding AutoCompactAfterFinish}" Value="True">
                                             <Setter Property="Fill" Value="{StaticResource Brush.Accent}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding AutoCloseAfterFinish}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource Brush.AutoClose}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>

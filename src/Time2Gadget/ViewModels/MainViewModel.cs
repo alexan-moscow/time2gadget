@@ -258,10 +258,34 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             if (_autoCloseAfterFinish == value) return;
             _autoCloseAfterFinish = value;
             _settings.AutoCloseAfterFinish = value;
+            if (value) SetAutoCompact(false); // режимы кнопки взаимоисключающие
             _settingsService.Save(_settings);
             OnPropertyChanged();
         }
     }
+
+    /// <summary>Левый щелчок по той же кнопке — после окончания перейти в компактный вид (докладка 2026-09-28).</summary>
+    public bool AutoCompactAfterFinish
+    {
+        get => _settings.AutoCompactAfterFinish;
+        set
+        {
+            if (_settings.AutoCompactAfterFinish == value) return;
+            SetAutoCompact(value);
+            if (value) AutoCloseAfterFinish = false;
+            _settingsService.Save(_settings);
+        }
+    }
+
+    private void SetAutoCompact(bool value)
+    {
+        if (_settings.AutoCompactAfterFinish == value) return;
+        _settings.AutoCompactAfterFinish = value;
+        OnPropertyChanged(nameof(AutoCompactAfterFinish));
+    }
+
+    public RelayCommand ToggleAutoCompactCommand => _toggleAutoCompactCommand ??= new RelayCommand(() => AutoCompactAfterFinish = !AutoCompactAfterFinish);
+    private RelayCommand? _toggleAutoCompactCommand;
 
     private bool _isWindowHidden;
     /// <summary>Окно скрыто (свёрнуто в трей) — тогда законченный таймер мигает иконкой трея. Ставит View.</summary>
@@ -1152,8 +1176,16 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     private void TryAutoClose()
     {
-        if (AutoCloseAfterFinish && Status == TimerStatus.Finished)
+        if (Status != TimerStatus.Finished) return;
+        if (AutoCloseAfterFinish)
+        {
             AutoCloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+        else if (AutoCompactAfterFinish)
+        {
+            IsCompactMode = true; // вид сам встаёт на своё сохранённое место
+            if (IsWindowHidden) ShowRequested?.Invoke(this, EventArgs.Empty); // было в трее — показать компакт
+        }
     }
 
     /// <summary>

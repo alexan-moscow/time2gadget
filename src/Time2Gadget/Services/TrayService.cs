@@ -80,12 +80,15 @@ public sealed class TrayService : ITrayService
                 return new(IconFinish, WithAlpha(IconFinish, 0.9 * intensity), 1f);
             }
             case Models.FinishVisualEffect.Pulse:
+            case Models.FinishVisualEffect.Waves: // в 16px волны/змейку не разглядеть — пульсация того же цвета
+            case Models.FinishVisualEffect.Snake:
             {
                 // пульсация: период 0.9с (0.45 туда + 0.45 обратно), подсветка 0.15 → 0.55, «раздувание» кольца
                 double v = 0.5 - 0.5 * Math.Cos(2 * Math.PI * (t % 0.9) / 0.9);
                 return new(IconFinish, WithAlpha(IconFinish, 0.15 + 0.4 * v), 1f + 0.7f * (float)v);
             }
             case Models.FinishVisualEffect.ColorCycle:
+            case Models.FinishVisualEffect.RainbowSnake:
             {
                 // радужная волна — та же палитра и темп, что в окне (Models/RainbowPalette); подсветка 0.5.
                 // Время квантуется до 1/10 шага палитры — плавно на глаз, без лишних перерисовок.

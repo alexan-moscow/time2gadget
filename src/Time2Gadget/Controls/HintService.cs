@@ -67,14 +67,15 @@ public static class TreeHelper
 /// </summary>
 public sealed class HintController
 {
-    private static readonly TimeSpan ShowDelay = TimeSpan.FromSeconds(2);
+    // Обычная для Windows задержка подсказки (докладка 2026-09-28: 2 с казались долгими).
+    private static readonly TimeSpan ShowDelay = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan FadeIn = TimeSpan.FromMilliseconds(140);
     private static readonly TimeSpan FadeOut = TimeSpan.FromMilliseconds(90);
     private const double MoveTolerance = 3; // px — дрожание руки не считается движением
     private const double CursorOffset = 18; // px — подсказка под курсором, не перекрывает его
 
     private readonly FrameworkElement _host;
-    private readonly Func<FrameworkElement, string?> _resolveText;
+    private readonly Func<FrameworkElement, object?> _resolveText; // текст или готовый элемент (подсказка с иконками)
     private readonly DispatcherTimer _delayTimer;
     private readonly Popup _popup;
     private readonly Border _bubble;
@@ -82,18 +83,20 @@ public sealed class HintController
     private Point? _restPoint;        // в координатах host — для поиска элемента под курсором
     private Point _restPointInWindow;  // в координатах окна — для места подсказки (host может быть масштабирован)
 
-    public HintController(FrameworkElement host, Func<FrameworkElement, string?> resolveText)
+    public HintController(FrameworkElement host, Func<FrameworkElement, object?> resolveText)
     {
         _host = host;
         _resolveText = resolveText;
 
         _text = new TextBlock { Style = host.TryFindResource("Style.HintText") as Style };
-        _bubble = new Border { Style = host.TryFindResource("Style.HintBubble") as Style, Child = _text, Opacity = 0 };
+        // Подсказка не ловит мышь: иначе, оказавшись под курсором, она «уводила» мышь с окна и тут же гасла.
+        _bubble = new Border { Style = host.TryFindResource("Style.HintBubble") as Style, Child = _text, Opacity = 0, IsHitTestVisible = false };
         _popup = new Popup
         {
             Child = _bubble,
             AllowsTransparency = true,
-            Placement = PlacementMode.Relative,
+            Placement = PlacementMode.Custom,
+            CustomPopupPlacementCallback = PlaceAroundCursor,
             PlacementTarget = host,
             IsHitTestVisible = false,
             Focusable = false
@@ -141,15 +144,36 @@ public sealed class HintController
 
         var hit = _host.InputHitTest(p) as DependencyObject;
         var target = HintService.FindHintTarget(hit);
-        var text = target is null ? null : _resolveText(target);
-        if (string.IsNullOrEmpty(text)) return;
+        var content = target is null ? null : _resolveText(target);
+        if (content is null or "") return;
 
-        _text.Text = text;
-        _popup.HorizontalOffset = _restPointInWindow.X + CursorOffset / 2;
-        _popup.VerticalOffset = _restPointInWindow.Y + CursorOffset;
+        if (content is UIElement element) _bubble.Child = element;
+        else { _text.Text = content.ToString(); _bubble.Child = _text; }
+        _popup.HorizontalOffset = _popup.VerticalOffset = 0; // место выбирает PlaceAroundCursor
+        _popup.IsOpen = false; // ещё гасла прежняя — переоткрыть, чтобы место посчиталось заново
         _popup.IsOpen = true;
         _bubble.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, FadeIn) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+    }
+
+    /// <summary>
+    /// Место подсказки (докладка 2026-09-28: у края экрана подсказка «пыталась показаться и пропадала»): варианты по
+    /// порядку — справа-снизу от курсора, слева-снизу, справа-сверху, слева-сверху; WPF берёт первый, что целиком
+    /// помещается на экране. Курсор подсказка не накрывает ни в одном варианте. Координаты — в физических пикселях
+    /// относительно окна (так их считает Popup), поэтому точку курсора переводим с учётом DPI.
+    /// </summary>
+    private CustomPopupPlacement[] PlaceAroundCursor(Size popupSize, Size targetSize, Point offset)
+    {
+        var dpi = VisualTreeHelper.GetDpi(_popup.PlacementTarget as Visual ?? _host);
+        double x = _restPointInWindow.X * dpi.DpiScaleX, y = _restPointInWindow.Y * dpi.DpiScaleY;
+        double gapX = CursorOffset / 2 * dpi.DpiScaleX, below = CursorOffset * dpi.DpiScaleY, above = 4 * dpi.DpiScaleY;
+        return new[]
+        {
+            new CustomPopupPlacement(new Point(x + gapX, y + below), PopupPrimaryAxis.None),
+            new CustomPopupPlacement(new Point(x - popupSize.Width - gapX, y + below), PopupPrimaryAxis.None),
+            new CustomPopupPlacement(new Point(x + gapX, y - popupSize.Height - above), PopupPrimaryAxis.None),
+            new CustomPopupPlacement(new Point(x - popupSize.Width - gapX, y - popupSize.Height - above), PopupPrimaryAxis.None),
+        };
     }
 
     private void Hide()

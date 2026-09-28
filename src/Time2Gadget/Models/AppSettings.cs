@@ -71,6 +71,12 @@ public sealed class AppSettings
     /// </summary>
     public bool AutoCloseAfterFinish { get; set; } = false;
 
+    /// <summary>
+    /// Та же кнопка, левый щелчок (докладка 2026-09-28): после отработавшего таймера перейти в компактный вид (на его
+    /// сохранённое место). Взаимоисключается с <see cref="AutoCloseAfterFinish"/> (правый щелчок). По умолчанию выкл.
+    /// </summary>
+    public bool AutoCompactAfterFinish { get; set; } = false;
+
     /// <summary>Громкость звонка, 0..1 (слайдер слева от кнопки Mute / в Settings).</summary>
     public double AlarmVolume { get; set; } = 0.6;
 
