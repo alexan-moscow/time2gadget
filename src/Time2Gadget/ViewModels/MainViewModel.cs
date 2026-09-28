@@ -50,22 +50,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<TimerPreset> Presets { get; } = new(TimerPreset.All);
     public IReadOnlyList<AudioDeviceInfo> AudioDevices { get; }
 
-    public IReadOnlyList<EnumOption<RunningVisualEffect>> RunningEffectOptions { get; } = new[]
-    {
-        new EnumOption<RunningVisualEffect>(RunningVisualEffect.None, "Отключено"),
-        new EnumOption<RunningVisualEffect>(RunningVisualEffect.Pulse, "Пульсация"),
-        new EnumOption<RunningVisualEffect>(RunningVisualEffect.Flash, "Вспышка акцентом"),
-        new EnumOption<RunningVisualEffect>(RunningVisualEffect.ColorBreathe, "Дыхание цветом"),
-    };
-
-    public IReadOnlyList<EnumOption<FinishVisualEffect>> FinishEffectOptions { get; } = new[]
-    {
-        new EnumOption<FinishVisualEffect>(FinishVisualEffect.None, "Отключено"),
-        new EnumOption<FinishVisualEffect>(FinishVisualEffect.Pulse, "Пульсация"),
-        new EnumOption<FinishVisualEffect>(FinishVisualEffect.Flash, "Строб-вспышка"),
-        new EnumOption<FinishVisualEffect>(FinishVisualEffect.ColorCycle, "Радужная волна"),
-    };
-
     public IReadOnlyList<EnumOption<CloseBehavior>> CloseBehaviorOptions { get; } = new[]
     {
         new EnumOption<CloseBehavior>(CloseBehavior.MinimizeToTray, "Сворачивать в трей"),
@@ -393,6 +377,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.FinishEffect = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ActiveFinishEffect));
             RefreshFinishEffectActive();
         }
     }
@@ -832,7 +817,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         int duration = _settings.FinishEffectDurationSeconds;
         IsFinishEffectActive = Status == TimerStatus.Finished
-                               && FinishEffect != FinishVisualEffect.None
+                               && ActiveFinishEffect != FinishVisualEffect.None
                                && (duration == 0 || SecondsSinceFinish < duration);
     }
 
@@ -1040,7 +1025,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
-            _alarmChoice = null;
+            ClearQuickTimerOverrides();
             _engine.SetDuration(TimeSpan.FromMinutes(preset.Minutes));
             _engine.Start();
             RaiseStatusDependentChanges();
@@ -1056,7 +1041,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
-            _alarmChoice = null;
+            ClearQuickTimerOverrides();
             _engine.Restart(TimeSpan.FromMinutes(preset.Minutes));
             RaiseStatusDependentChanges();
         }
@@ -1082,7 +1067,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void ResetTimer()
     {
-        _alarmChoice = null; // свой звонок быстрого таймера — только до сброса
+        ClearQuickTimerOverrides(); // свой звук и эффект быстрого таймера — только до сброса
         _soundService.StopAlarm();
         _engine.Reset();
         RaiseStatusDependentChanges();
@@ -1097,7 +1082,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         if (newDuration < MinDuration) newDuration = MinDuration;
         if (newDuration > MaxDuration) newDuration = MaxDuration;
 
-        _alarmChoice = null;
+        ClearQuickTimerOverrides();
         _engine.SetDuration(newDuration);
 
         // Подсветка сектора актуальна, только если новое значение совпадает с одним из пресетов.
@@ -1147,7 +1132,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         // Windows держит экраны выключенными) — включаем, чтобы окончание увидели.
         if (WakeDisplayOnFinish) _power.WakeDisplay();
 
-        if (!IsMuted)
+        if (!IsMuted && !_quickSilent) // быстрый таймер без звука — только эффект
         {
             _soundService.PlayAlarm(_settings, _alarmChoice); // автозакрытие — по AlarmCompleted, когда звонок отыграет
         }
@@ -1185,7 +1170,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             TimerStatus.Finished => "Тайм2гаджет — время вышло!",
             _ => "Тайм2гаджет"
         };
-        var activeEffect = IsFinishEffectActive ? FinishEffect : FinishVisualEffect.None;
+        var activeEffect = IsFinishEffectActive ? ActiveFinishEffect : FinishVisualEffect.None;
         // Эффекта нет (выключен/истёк), а окна не видно — простое мигание, чтобы окончание не пропустили.
         bool blinkWhileHidden = Status == TimerStatus.Finished && IsWindowHidden && activeEffect == FinishVisualEffect.None;
         _trayService.Update(new TrayIconState(Status, ProgressFraction, activeEffect, SecondsSinceFinish, blinkWhileHidden, tooltip));

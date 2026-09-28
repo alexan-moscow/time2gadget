@@ -16,6 +16,12 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        // Настройки закрыли — прослушивание и показ эффекта не должны продолжаться без них.
+        Closed += (_, _) =>
+        {
+            _viewModel.StopPreview();
+            _viewModel.StopEffectPreview();
+        };
 
         // Окно настроек открывается там, где его оставили (докладка 2026-09-28), если это место видно на экране;
         // иначе — по центру главного окна (CenterOwner из XAML).
@@ -66,10 +72,58 @@ public partial class SettingsWindow : Window
     private void OnQuickSoundPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (sender is not FrameworkElement { Tag: string ringtoneId } button) return;
-        for (DependencyObject? d = button; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d))
-            if (d is FrameworkElement { DataContext: ViewModels.QuickTimerItem item }) { item.Preview(ringtoneId); return; }
+        if (sender is FrameworkElement { Tag: string ringtoneId } button && FindQuickTimer(button) is { } item) item.Preview(ringtoneId);
     }
+
+    /// <summary>Строка быстрого таймера, к которой относится элемент меню (меню — всплывашка, ищем и по логическому дереву).</summary>
+    private static ViewModels.QuickTimerItem? FindQuickTimer(DependencyObject start)
+    {
+        for (DependencyObject? d = start; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d))
+            if (d is FrameworkElement { DataContext: ViewModels.QuickTimerItem item }) return item;
+        return null;
+    }
+
+    /// <summary>Щелчок пришёлся на кнопку ▶ внутри пункта — это просмотр, а не выбор.</summary>
+    private static bool IsOnButton(object? source, DependencyObject container)
+    {
+        for (var d = source as DependencyObject; d is not null && !ReferenceEquals(d, container); d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+            if (d is System.Windows.Controls.Primitives.ButtonBase) return true;
+        return false;
+    }
+
+    /// <summary>Щелчок по звонку в меню быстрого таймера: выбрать, включить звук, закрыть меню.</summary>
+    private void OnQuickSoundItemClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: ViewModels.RingtoneOption option } container
+            || IsOnButton(e.OriginalSource, container)) return;
+        FindQuickTimer(container)?.ChooseRingtone(option.Id);
+    }
+
+    /// <summary>Щелчок по эффекту в меню быстрого таймера: выбрать, прекратить показ, закрыть меню.</summary>
+    private void OnQuickEffectItemClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: ViewModels.EffectOption option } container
+            || IsOnButton(e.OriginalSource, container)) return;
+        FindQuickTimer(container)?.ChooseEffect(option.Value);
+    }
+
+    /// <summary>▶/■ у эффекта (меню быстрого таймера или выпадающий список раздела эффектов) — показ на циферблате.</summary>
+    private void OnEffectPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { DataContext: ViewModels.EffectOption option } button) return;
+        for (DependencyObject? d = button; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+        {
+            if (d is not System.Windows.Controls.ListBoxItem and not System.Windows.Controls.ComboBoxItem) continue;
+            if (System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(d)?.ItemsSource is IReadOnlyList<ViewModels.EffectOption> list)
+                _viewModel.TogglePreviewEffect(list, option);
+            return;
+        }
+    }
+
+    private void OnQuickEffectPopupClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
+
+    private void OnEffectDropDownClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
 
     /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
     private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();

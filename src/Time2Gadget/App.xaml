@@ -10,6 +10,7 @@
             </ResourceDictionary.MergedDictionaries>
             <conv:TimeSpanToStringConverter x:Key="TimeSpanConverter" />            <conv:BoolToGeometryConverter x:Key="BoolToGeometry" />
             <conv:RingtonePreviewVisibilityConverter x:Key="RingtonePreviewVisibility" />
+            <conv:EffectIconConverter x:Key="EffectIcon" />
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
         </ResourceDictionary>
     </Application.Resources>

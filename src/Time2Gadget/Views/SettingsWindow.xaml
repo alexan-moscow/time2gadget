@@ -50,19 +50,19 @@
         <Style x:Key="Style.GlobalCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="ToolTip" Value="Работает в любой программе, даже когда окно в трее" />
         </Style>
 
-        <!-- Кнопка-колокольчик быстрого таймера. Пока всплывашка открыта, кнопка не ловит мышь: иначе щелчок по ней
-             закрыл бы всплывашку (StaysOpen=False) и тут же открыл снова. -->
-        <Style x:Key="Style.SoundToggle" TargetType="ToggleButton">
+        <!-- Квадратные кнопки-иконки строки быстрого таймера (эффект, звук). Пока меню кнопки открыто, она не ловит мышь
+             (DataTemplate.Triggers): иначе щелчок по ней закрыл бы меню (StaysOpen=False) и тут же открыл снова. -->
+        <Style x:Key="Style.RowIconButton" TargetType="Button">
             <Setter Property="Width" Value="24" />
             <Setter Property="Height" Value="24" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
+                    <ControlTemplate TargetType="Button">
                         <Border x:Name="Bg" CornerRadius="4" BorderThickness="1" Background="{StaticResource Brush.SurfaceSector}"
                                 BorderBrush="{StaticResource Brush.BorderSubtle}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -71,14 +71,20 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
                             </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bg" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
-                                <Setter Property="IsHitTestVisible" Value="False" />
-                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Меню быстрого таймера (звук, эффект) — рамка всплывашки. -->
+        <Style x:Key="Style.MenuBorder" TargetType="Border">
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="Background" Value="{StaticResource Brush.Background}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
         </Style>
 
         <!-- Строка списка звонков во всплывашке — тёмная, выбранная подсвечена акцентом. -->
@@ -105,6 +111,35 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Щелчок по пункту меню — выбрать и закрыть меню (кнопка ▶ внутри пункта сюда не относится). -->
+        <Style x:Key="Style.QuickSoundItem" TargetType="ListBoxItem" BasedOn="{StaticResource Style.SoundListItem}">
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnQuickSoundItemClick" />
+        </Style>
+        <Style x:Key="Style.QuickEffectItem" TargetType="ListBoxItem" BasedOn="{StaticResource Style.SoundListItem}">
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnQuickEffectItemClick" />
+        </Style>
+
+        <!-- Пункт списка эффектов: название и ▶/■ просмотра (в выпадающем списке — только в раскрытом, не у «Отключено»). -->
+        <DataTemplate x:Key="Template.EffectComboItem">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Style="{StaticResource Style.PreviewButton}" Padding="8,1" FontSize="11" Margin="10,0,0,0"
+                        ToolTip="Показать на циферблате"
+                        PreviewMouseLeftButtonDown="OnEffectPreviewMouseDown" PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp">
+                    <Button.Visibility>
+                        <MultiBinding Converter="{StaticResource RingtonePreviewVisibility}">
+                            <Binding RelativeSource="{RelativeSource AncestorType=ComboBoxItem}" />
+                            <Binding Path="CanPreview" />
+                        </MultiBinding>
+                    </Button.Visibility>
+                </Button>
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
         <StackPanel>
@@ -187,12 +222,13 @@
 
             <!-- ============ Визуальные эффекты ============ -->
             <TextBlock Text="Визуальный эффект во время отсчёта" Style="{StaticResource Style.SectionHeader}" />
-            <ComboBox ItemsSource="{Binding RunningEffectOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                      SelectedValue="{Binding RunningEffect}" />
+            <!-- ▶ в раскрытом списке — показать эффект на циферблате; закрытие списка/выбор прекращает показ (2026-09-28). -->
+            <ComboBox ItemsSource="{Binding RunningEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding RunningEffect}"
+                      ItemTemplate="{StaticResource Template.EffectComboItem}" DropDownClosed="OnEffectDropDownClosed" />
 
             <TextBlock Text="Визуальный эффект при завершении" Style="{StaticResource Style.SectionHeader}" />
-            <ComboBox ItemsSource="{Binding FinishEffectOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                      SelectedValue="{Binding FinishEffect}" />
+            <ComboBox ItemsSource="{Binding FinishEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding FinishEffect}"
+                      ItemTemplate="{StaticResource Template.EffectComboItem}" DropDownClosed="OnEffectDropDownClosed" />
             <!-- Шкала 2 с … 5 мин и последним шагом «бесконечно» (MainViewModel.FinishEffectDurationSteps);
                  действует и на окно, и на трей. -->
             <TextBlock Text="{Binding FinishEffectDurationLabel}" Margin="0,10,0,2" />
@@ -214,18 +250,21 @@
 
             <!-- ============ Клавиши (докладка 2026-09-28): поле — щёлкнуть и нажать сочетание, Controls/HotkeyBox.
                  Галочка «везде» — глобальная клавиша (MainViewModel.Hotkeys.cs). ============ -->
-            <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
+            <!-- Подпись столбца «везде» — в строке заголовка раздела, чтобы отступ до первой клавиши был обычным. -->
+            <Grid>
+                <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
+                <TextBlock Text="везде" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Width="40" TextAlignment="Center"
+                           HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,9" />
+            </Grid>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="128" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="40" /> <!-- = ширине подписи «везде» над столбцом -->
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    <RowDefinition Height="0" /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Column="2" Text="везде" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}"
-                           HorizontalAlignment="Center" Margin="6,0,0,0" />
                 <TextBlock Grid.Row="1" Text="Старт / пауза" VerticalAlignment="Center" />
                 <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
                 <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding StartPauseGlobal}" Style="{StaticResource Style.GlobalCheck}" />
@@ -257,6 +296,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding Number}" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="{StaticResource Brush.TextSecondary}" />
                             <c:TimeSpinner Grid.Column="1" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" />
@@ -264,19 +304,55 @@
                             <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" Margin="2,0,0,0" />
                             <c:HotkeyBox Grid.Column="4" BindingValue="{Binding Binding}" Margin="4,0,0,0" />
 
-                            <!-- Звук таймера: колокольчик подсвечен — задан свой звонок/устройство. -->
-                            <ToggleButton x:Name="SoundButton" Grid.Column="5" Margin="4,0,0,0" Style="{StaticResource Style.SoundToggle}"
-                                          ToolTip="{Binding SoundToolTip}">
-                                <Path x:Name="Bell" Width="12" Height="12" Stretch="Uniform" StrokeThickness="1.2"
-                                      Data="M6,0.8 C3.9,0.8 2.6,2.4 2.6,4.6 L2.6,7.4 L1.2,9.2 L10.8,9.2 L9.4,7.4 L9.4,4.6 C9.4,2.4 8.1,0.8 6,0.8 Z M4.4,10 A1.6,1.6 0 0 0 7.6,10 Z"
-                                      Stroke="{StaticResource Brush.TextSecondary}" Fill="Transparent" />
-                            </ToggleButton>
-                            <Popup Grid.Column="5" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-200"
-                                   StaysOpen="False" AllowsTransparency="True"
-                                   IsOpen="{Binding IsChecked, ElementName=SoundButton, Mode=TwoWay}"
+                            <!-- Эффект завершения таймера: иконка текущего эффекта («—» нет), меню с просмотром. -->
+                            <Button x:Name="EffectButton" Grid.Column="5" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                                    Command="{Binding EffectCommand}" ToolTip="{Binding EffectToolTip}">
+                                <ContentControl Content="{Binding FinishEffect, Converter={StaticResource EffectIcon}}" Focusable="False" />
+                            </Button>
+                            <Popup Grid.Column="5" PlacementTarget="{Binding ElementName=EffectButton}" Placement="Bottom" HorizontalOffset="-150"
+                                   StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsEffectMenuOpen, Mode=TwoWay}"
+                                   Closed="OnQuickEffectPopupClosed">
+                                <Border Width="190" Style="{StaticResource Style.MenuBorder}">
+                                    <ListBox ItemsSource="{Binding EffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding FinishEffect, Mode=OneWay}"
+                                             Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource Style.QuickEffectItem}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="18" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ContentControl Content="{Binding Value, Converter={StaticResource EffectIcon}}" Focusable="False"
+                                                                    VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Label}" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Style="{StaticResource Style.PreviewButton}" Padding="6,0" FontSize="10"
+                                                            ToolTip="Показать на циферблате"
+                                                            Visibility="{Binding CanPreview, Converter={StaticResource BoolToVis}}"
+                                                            PreviewMouseLeftButtonDown="OnEffectPreviewMouseDown"
+                                                            PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Popup>
+
+                            <!-- Звук: включён — колокольчик синий, щелчок выключает; выключен — перечёркнут, щелчок открывает меню. -->
+                            <Button x:Name="SoundButton" Grid.Column="6" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                                    Command="{Binding BellCommand}" ToolTip="{Binding SoundToolTip}">
+                                <Grid Width="12" Height="12">
+                                    <Path x:Name="Bell" Stretch="Uniform" StrokeThickness="1.2"
+                                          Data="M6,0.8 C3.9,0.8 2.6,2.4 2.6,4.6 L2.6,7.4 L1.2,9.2 L10.8,9.2 L9.4,7.4 L9.4,4.6 C9.4,2.4 8.1,0.8 6,0.8 Z M4.4,10 A1.6,1.6 0 0 0 7.6,10 Z"
+                                          Stroke="{StaticResource Brush.TextSecondary}" Fill="Transparent" />
+                                    <Path x:Name="BellSlash" Data="M0.5,11.5 L11.5,0.5" Stroke="{StaticResource Brush.TextSecondary}" StrokeThickness="1.4" />
+                                </Grid>
+                            </Button>
+                            <Popup Grid.Column="6" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-230"
+                                   StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsSoundMenuOpen, Mode=TwoWay}"
                                    Closed="OnQuickSoundPopupClosed">
-                                <Border Width="260" Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0"
-                                        Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
+                                <Border Width="260" Style="{StaticResource Style.MenuBorder}">
                                     <StackPanel>
                                         <!-- Громкость: «общая» — из раздела «Звук»; тронули ползунок — галочка снимается сама. -->
                                         <Grid Margin="0,0,0,6">
@@ -291,10 +367,11 @@
                                             <Slider Grid.Column="2" Minimum="0" Maximum="1" Value="{Binding VolumeValue}" Margin="8,0,0,0"
                                                     VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1" />
                                         </Grid>
+                                        <!-- Щелчок по звонку — выбрать, включить звук и закрыть меню. -->
                                         <ListBox ItemsSource="{Binding SoundOptions}" SelectedValuePath="Id" SelectedValue="{Binding RingtoneKey}"
                                                  Height="200" Background="Transparent" BorderThickness="0"
-                                                 ItemContainerStyle="{StaticResource Style.SoundListItem}"
-                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                 ItemContainerStyle="{StaticResource Style.QuickSoundItem}"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
                                                     <Grid>
@@ -332,13 +409,20 @@
                                 </Border>
                             </Popup>
 
-                            <Button Grid.Column="6" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                            <Button Grid.Column="7" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
                                     Width="22" Height="24" Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
                         </Grid>
                         <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding HasCustomSound}" Value="True">
+                            <DataTrigger Binding="{Binding SoundEnabled}" Value="True">
                                 <Setter TargetName="Bell" Property="Stroke" Value="{StaticResource Brush.Accent}" />
                                 <Setter TargetName="Bell" Property="Fill" Value="{StaticResource Brush.Accent}" />
+                                <Setter TargetName="BellSlash" Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSoundMenuOpen}" Value="True">
+                                <Setter TargetName="SoundButton" Property="IsHitTestVisible" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsEffectMenuOpen}" Value="True">
+                                <Setter TargetName="EffectButton" Property="IsHitTestVisible" Value="False" />
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>

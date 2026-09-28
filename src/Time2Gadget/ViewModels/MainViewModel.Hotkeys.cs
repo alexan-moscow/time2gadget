@@ -104,6 +104,7 @@ public sealed partial class MainViewModel
     internal void RemoveQuickTimer(QuickTimerItem item)
     {
         if (ReferenceEquals(_previewOwner, item)) StopPreview();
+        if (ReferenceEquals(_effectPreviewList, item.EffectOptions)) StopEffectPreview();
         _settings.QuickTimers.Remove(item.Model);
         DeleteSoundIfUnused(item.Model.CustomSoundFilePath);
         QuickTimers.Remove(item);
@@ -246,8 +247,8 @@ public sealed partial class MainViewModel
         var duration = timer.Duration;
         // Совпадает с сектором кольца — подсветить его; нет — кольцо без выделения.
         SelectedPreset = Presets.FirstOrDefault(p => TimeSpan.FromMinutes(p.Minutes) == duration);
+        SetQuickTimerOverrides(timer); // свой звук (или без звука) и эффект завершения
         _engine.Restart(duration);
-        _alarmChoice = timer.Sound;
         RaiseStatusDependentChanges();
     }
 
@@ -318,13 +319,76 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         {
             if (value == RingtoneCatalog.CustomId && string.IsNullOrEmpty(Model.CustomSoundFilePath))
             {
-                // «Свой файл…» без файла — сначала выбрать файл; после того, как список закончит обработку щелчка.
-                Dispatcher.CurrentDispatcher.BeginInvoke(BrowseSound);
+                // «Свой файл…» без файла — файл выбирается по щелчку (ChooseRingtone); выделение вернуть назад.
+                Dispatcher.CurrentDispatcher.BeginInvoke(() => OnPropertyChanged(nameof(RingtoneKey)));
                 return;
             }
             SetSound(() => Model.RingtoneId = string.IsNullOrEmpty(value) ? null : value);
         }
     }
+
+    /// <summary>Звонить по окончании (иначе только эффект).</summary>
+    public bool SoundEnabled => Model.SoundEnabled;
+
+    private bool _isSoundMenuOpen;
+    public bool IsSoundMenuOpen { get => _isSoundMenuOpen; set { if (_isSoundMenuOpen != value) { _isSoundMenuOpen = value; OnPropertyChanged(); } } }
+
+    /// <summary>
+    /// Колокольчик (решение пользователя 2026-09-28): звук включён — щелчок выключает его (меню не открывается);
+    /// выключен — открывает меню выбора звука.
+    /// </summary>
+    public RelayCommand BellCommand => _bellCommand ??= new RelayCommand(() =>
+    {
+        if (Model.SoundEnabled) SetSound(() => Model.SoundEnabled = false);
+        else IsSoundMenuOpen = true;
+    });
+    private RelayCommand? _bellCommand;
+
+    /// <summary>Щелчок по звонку в меню: выбрать, включить звук и закрыть меню («Свой файл…» без файла — сначала выбрать файл).</summary>
+    public void ChooseRingtone(string id)
+    {
+        _owner.StopPreview();
+        IsSoundMenuOpen = false;
+        if (id == RingtoneCatalog.CustomId && string.IsNullOrEmpty(Model.CustomSoundFilePath))
+        {
+            Dispatcher.CurrentDispatcher.BeginInvoke(BrowseSound); // после того, как меню закроется
+            return;
+        }
+        SetSound(() =>
+        {
+            Model.RingtoneId = string.IsNullOrEmpty(id) ? null : id;
+            Model.SoundEnabled = true;
+        });
+    }
+
+    // ---- Эффект завершения: кнопка левее колокольчика, меню с просмотром ----
+
+    private IReadOnlyList<EffectOption>? _effectOptions;
+    public IReadOnlyList<EffectOption> EffectOptions => _effectOptions ??= MainViewModel.CreateFinishEffectOptions("Нет эффекта");
+
+    public FinishVisualEffect FinishEffect => Model.FinishEffect;
+
+    private bool _isEffectMenuOpen;
+    public bool IsEffectMenuOpen { get => _isEffectMenuOpen; set { if (_isEffectMenuOpen != value) { _isEffectMenuOpen = value; OnPropertyChanged(); } } }
+
+    public RelayCommand EffectCommand => _effectCommand ??= new RelayCommand(() => IsEffectMenuOpen = true);
+    private RelayCommand? _effectCommand;
+
+    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}";
+
+    /// <summary>Щелчок по эффекту в меню: выбрать, прекратить показ и закрыть меню.</summary>
+    public void ChooseEffect(object value)
+    {
+        _owner.StopEffectPreview();
+        IsEffectMenuOpen = false;
+        if (value is not FinishVisualEffect effect || effect == Model.FinishEffect) return;
+        Model.FinishEffect = effect;
+        OnPropertyChanged(nameof(FinishEffect));
+        OnPropertyChanged(nameof(EffectToolTip));
+        _owner.OnQuickTimersChanged(hotkeys: false);
+    }
+
+    public void PreviewEffect(EffectOption option) => _owner.TogglePreviewEffect(EffectOptions, option);
 
     /// <summary>Id устройства для списка: <see cref="MainViewModel.GeneralDeviceKey"/> — как в разделе «Звук».</summary>
     public string DeviceKey
@@ -380,19 +444,20 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         {
             Model.CustomSoundFilePath = path;
             Model.RingtoneId = RingtoneCatalog.CustomId;
+            Model.SoundEnabled = true;
         });
         _owner.UpdateCustomOption(SoundOptions, path);
         _owner.DeleteSoundIfUnused(previous);
     }
 
     /// <summary>Задан свой звук (звонок, устройство или громкость) — колокольчик подсвечен.</summary>
-    public bool HasCustomSound => Model.RingtoneId is not null || Model.AudioDeviceId is not null || Model.Volume is not null;
-
-    public string SoundToolTip =>
-        $"Звук: {SoundOptions.FirstOrDefault(r => r.Id == RingtoneKey)?.Title ?? "общий"}" +
-        (IsCustomFileSelected ? $" ({CustomFileName})" : "") + "\n" +
-        $"Громкость: {(Model.Volume is { } v ? $"{Math.Round(v * 100)}%" : "общая")}\n" +
-        $"Устройство: {DeviceOptions.FirstOrDefault(d => d.Id == DeviceKey)?.FriendlyName ?? "как в разделе «Звук»"}";
+    public string SoundToolTip => !Model.SoundEnabled
+        ? "Звук выключен (только эффект)\nЩелчок — выбрать звук"
+        : $"Звук: {SoundOptions.FirstOrDefault(r => r.Id == RingtoneKey)?.Title ?? "общий"}" +
+          (IsCustomFileSelected ? $" ({CustomFileName})" : "") + "\n" +
+          $"Громкость: {(Model.Volume is { } v ? $"{Math.Round(v * 100)}%" : "общая")}\n" +
+          $"Устройство: {DeviceOptions.FirstOrDefault(d => d.Id == DeviceKey)?.FriendlyName ?? "как в разделе «Звук»"}\n" +
+          "Щелчок — выключить звук";
 
     /// <summary>▶/■ во всплывашке: звонок — с громкостью и на устройстве этого таймера.</summary>
     public void Preview(string ringtoneId) =>
@@ -403,7 +468,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     {
         assign();
         foreach (var name in new[] { nameof(RingtoneKey), nameof(DeviceKey), nameof(UseGeneralVolume), nameof(VolumeValue),
-                     nameof(IsCustomFileSelected), nameof(CustomFileName), nameof(HasCustomSound), nameof(SoundToolTip) })
+                     nameof(IsCustomFileSelected), nameof(CustomFileName), nameof(SoundEnabled), nameof(SoundToolTip) })
             OnPropertyChanged(name);
         _owner.OnQuickTimersChanged(hotkeys: false);
     }

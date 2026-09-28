@@ -213,6 +213,8 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.IsRunning):
             case nameof(MainViewModel.RunningEffect):
             case nameof(MainViewModel.FinishEffect):
+            case nameof(MainViewModel.ActiveFinishEffect):
+            case nameof(MainViewModel.PreviewEffect):
             case nameof(MainViewModel.IsFinishEffectActive):
                 ApplyDialEffect();
                 break;
@@ -359,14 +361,23 @@ public partial class MainWindow : Window
         EffectOverlay.Opacity = CompactEffectOverlay.Opacity = 0;
 
         Storyboard? sb = null;
-        if (_viewModel.IsRunning && _viewModel.RunningEffect != RunningVisualEffect.None)
+        if (_viewModel.PreviewEffect is RunningVisualEffect previewRunning) // просмотр из настроек — поверх состояния таймера
+        {
+            SetOverlayBrush((Brush)FindResource("Brush.Accent"));
+            sb = BuildRunningEffectStoryboard(previewRunning);
+        }
+        else if (_viewModel.PreviewEffect is FinishVisualEffect previewFinish)
+        {
+            sb = BuildFinishEffectStoryboard(previewFinish);
+        }
+        else if (_viewModel.IsRunning && _viewModel.RunningEffect != RunningVisualEffect.None)
         {
             SetOverlayBrush((Brush)FindResource("Brush.Accent"));
             sb = BuildRunningEffectStoryboard(_viewModel.RunningEffect);
         }
         else if (_viewModel.IsFinishEffectActive) // Finished + эффект выбран + длительность не истекла
         {
-            sb = BuildFinishEffectStoryboard(_viewModel.FinishEffect);
+            sb = BuildFinishEffectStoryboard(_viewModel.ActiveFinishEffect); // у быстрого таймера — свой
         }
 
         if (sb is null) return;
