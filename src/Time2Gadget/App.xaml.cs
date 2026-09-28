@@ -54,7 +54,7 @@ public partial class App : Application
         // (повышение без UAC) и выходит. LaunchedByTask — защита от зацикливания, если задача не дала повышения.
         var startupSettings = new SettingsService().Load();
         if (startupSettings.RunElevated && !ElevationService.IsElevated && !ElevationService.LaunchedByTask
-            && ElevationService.IsTaskForThisCopy(startupSettings.ElevationTaskExePath) // не запускать чужую копию
+            && ElevationService.TaskTargetsThisCopy(startupSettings.ElevationTaskExePath) // не запускать чужую копию
             && ElevationService.TaskExists())
         {
             _instanceMutex!.ReleaseMutex(); // до запуска задачи — иначе новая копия решит, что уже запущена
@@ -99,6 +99,7 @@ public partial class App : Application
         };
         _viewModel.ShowRequested += (_, _) => ShowMainWindow(window);
         _viewModel.RestartElevatedRequested += (_, _) => RestartElevated();
+        _viewModel.RestartNormalRequested += (_, _) => RestartNormal();
 
         _viewModel.InitializeTray();
 
@@ -157,6 +158,32 @@ public partial class App : Application
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
         MessageBox.Show("Не удалось перезапустить программу с правами администратора. Настройка сохранена — сработает при следующем запуске.",
             "Тайм2гаджет", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    /// <summary>
+    /// Выключили «Запускать с правами администратора», работая с правами: перезапуститься с обычными. Процесс с правами
+    /// запускает дочерние тоже с правами, поэтому запуск — через проводник (он работает с обычными правами пользователя).
+    /// </summary>
+    private void RestartNormal()
+    {
+        _instanceMutex?.ReleaseMutex();
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Environment.ProcessPath}\"")
+            {
+                UseShellExecute = false
+            });
+            _viewModel?.Dispose();
+            Shutdown();
+        }
+        catch
+        {
+            _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
+            MessageBox.Show("Не удалось перезапустить программу. Запуск с правами администратора выключен — перезапустите её вручную.",
+                "Тайм2гаджет", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private static void ShowMainWindow(Window window)

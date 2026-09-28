@@ -39,6 +39,35 @@ public static class ElevationService
     /// Портативная и установленная копии делят одни настройки и одну задачу; найдено 2026-09-28: задача от портативной
     /// сборки запускала бы её вместо установленной программы.
     /// </summary>
+    public static bool TaskTargetsThisCopy(string? savedTaskExePath) =>
+        IsTaskForThisCopy(GetTaskExePath() ?? savedTaskExePath);
+
+    /// <summary>
+    /// Какой exe на самом деле запускает задача — через COM Планировщика (путь в Юникоде; вывод schtasks — в кодировке
+    /// консоли, кириллица в пути ломается). Нужен, когда путь не запомнен: задачи, созданные 1.0.4, его не хранили
+    /// (найдено 2026-09-28: после обновления до 1.0.5 — «настроено для другой копии» при своей же задаче). null — нет задачи/ошибка.
+    /// </summary>
+    public static string? GetTaskExePath()
+    {
+        try
+        {
+            if (Type.GetTypeFromProgID("Schedule.Service") is not { } type) return null;
+            dynamic service = Activator.CreateInstance(type)!;
+            service.Connect();
+            dynamic task = service.GetFolder("\\").GetTask(TaskName);
+            foreach (dynamic action in task.Definition.Actions)
+            {
+                string? path = action.Path;
+                if (!string.IsNullOrWhiteSpace(path)) return path.Trim('"');
+            }
+        }
+        catch
+        {
+            // задачи нет / Планировщик недоступен
+        }
+        return null;
+    }
+
     public static bool IsTaskForThisCopy(string? taskExePath) =>
         !string.IsNullOrEmpty(taskExePath) && Environment.ProcessPath is { } current
         && string.Equals(System.IO.Path.GetFullPath(taskExePath), System.IO.Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase);

@@ -667,6 +667,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Нужен перезапуск с правами администратора (задача Планировщика уже создана) — выполняет App.</summary>
     public event EventHandler? RestartElevatedRequested;
 
+    /// <summary>Запуск с правами выключили, а программа работает с ними — перезапуститься с обычными правами (выполняет App).</summary>
+    public event EventHandler? RestartNormalRequested;
+
     /// <summary>
     /// «Запускать с правами администратора» (подпункт возврата окон, 2026-09-28). Вкл — создать задачу
     /// Планировщика (один раз через UAC) и перезапуститься через неё; отказ в UAC — галочка возвращается.
@@ -694,6 +697,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(ElevationStatusText));
 
             if (value && !ElevationService.IsElevated) RestartElevatedRequested?.Invoke(this, EventArgs.Empty);
+            // Сняли галочку, а работаем с правами — сразу перезапуск с обычными (докладка 2026-09-28: раньше права
+            // оставались до следующего запуска, и было непонятно, выключилось ли).
+            if (!value && ElevationService.IsElevated) RestartNormalRequested?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -701,7 +707,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public string ElevationStatusText => ElevationService.IsElevated
         ? "Сейчас программа работает с правами администратора."
-        : RunElevated && !ElevationService.IsTaskForThisCopy(_settings.ElevationTaskExePath)
+        : RunElevated && !ElevationService.TaskTargetsThisCopy(_settings.ElevationTaskExePath)
             ? "Сейчас программа работает с обычными правами: запуск с правами настроен для другой копии программы. Снимите и поставьте галочку заново."
             : "Сейчас программа работает с обычными правами.";
 
