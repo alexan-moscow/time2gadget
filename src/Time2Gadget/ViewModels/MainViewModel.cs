@@ -974,9 +974,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             ? $"Выключить звонок и сбросить на 00:00{KeyHint(ResetKey)}"
             : $"Сбросить таймер на 00:00{KeyHint(ResetKey)}",
         "Center" => Status is TimerStatus.Running or TimerStatus.Paused
-            ? "Клик — компактный режим\nПотяните — переместить окно"
-            : "Клик — компактный режим\nКолесо мыши — ±1 минута",
-        "CompactCenter" => "Клик — вернуться к полному виду",
+            ? $"Клик — компактный режим{KeyHint(CompactKey)}\nПотяните — переместить окно"
+            : $"Клик — компактный режим{KeyHint(CompactKey)}\nКолесо мыши — ±1 минута",
+        "CompactCenter" => $"Клик — вернуться к полному виду{KeyHint(CompactKey)}",
         "Mute" => IsMuted ? "Включить звук звонка" : "Выключить звук звонка",
         "Volume" => $"Громкость звонка: {Math.Round(AlarmVolume * 100)}%",
         "Settings" => IsUpdateAvailable ? $"Настройки — доступно обновление {AvailableVersion}" : "Настройки",

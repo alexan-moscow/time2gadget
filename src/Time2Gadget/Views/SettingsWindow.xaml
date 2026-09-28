@@ -37,6 +37,16 @@
             </Style.Triggers>
         </Style>
 
+        <!-- То же для эффектов: показ на циферблате главного окна. -->
+        <Style x:Key="Style.EffectPreviewButton" TargetType="Button" BasedOn="{StaticResource Style.PreviewButton}">
+            <Setter Property="ToolTip" Value="Показать на циферблате" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                    <Setter Property="ToolTip" Value="Остановить показ" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Длительность звука слева от ▶ — мелким узким шрифтом («45 сек», «1 мин 24 сек»). -->
         <Style x:Key="Style.SoundDuration" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Bahnschrift Condensed, Arial Narrow, Segoe UI" />
@@ -46,12 +56,15 @@
             <Setter Property="Margin" Value="8,0,0,0" />
         </Style>
 
-        <!-- Галочка «везде» у клавиш — без текста, заголовок столбца над ней. -->
-        <Style x:Key="Style.GlobalCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
-            <Setter Property="HorizontalAlignment" Value="Center" />
+        <!-- Значок «где работает клавиша» (окно / глобус) — контур без заливки, одинаковый фон кнопки в обоих режимах. -->
+        <Style x:Key="Style.KeyScopeIcon" TargetType="Path">
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Stroke" Value="{StaticResource Brush.TextPrimary}" />
+            <Setter Property="StrokeThickness" Value="1.1" />
+            <Setter Property="Fill" Value="Transparent" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="ToolTip" Value="Работает в любой программе, даже когда окно в трее" />
         </Style>
 
         <!-- Квадратные кнопки-иконки строки быстрого таймера (эффект, звук). Пока меню кнопки открыто, она не ловит мышь
@@ -128,8 +141,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Style="{StaticResource Style.PreviewButton}" Padding="8,1" FontSize="11" Margin="10,0,0,0"
-                        ToolTip="Показать на циферблате"
+                <Button Grid.Column="1" Style="{StaticResource Style.EffectPreviewButton}" Padding="8,1" FontSize="11" Margin="10,0,0,0"
                         PreviewMouseLeftButtonDown="OnEffectPreviewMouseDown" PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp">
                     <Button.Visibility>
                         <MultiBinding Converter="{StaticResource RingtonePreviewVisibility}">
@@ -146,27 +158,27 @@
 
             <!-- ============ Автозагрузка / закрытие ============ -->
             <TextBlock Text="Запуск и закрытие" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
-            <CheckBox Content="Запускать вместе с Windows" IsChecked="{Binding IsLaunchAtStartup}" />
-            <CheckBox Content="Поверх всех окон после запуска" IsChecked="{Binding IsAlwaysOnTop}" />
+            <CheckBox ToolTip="Запускать таймер при входе в Windows" Content="Запускать вместе с Windows" IsChecked="{Binding IsLaunchAtStartup}" />
+            <CheckBox ToolTip="Окно таймера поверх других окон" Content="Поверх всех окон после запуска" IsChecked="{Binding IsAlwaysOnTop}" />
 
             <TextBlock Text="При закрытии окна:" Margin="0,10,0,4" />
-            <ComboBox ItemsSource="{Binding CloseBehaviorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+            <ComboBox ToolTip="Что делает крестик в окне таймера" ItemsSource="{Binding CloseBehaviorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
                       SelectedValue="{Binding CloseBehavior}" />
 
             <!-- ============ Звук ============ -->
             <TextBlock Text="Звук" Style="{StaticResource Style.SectionHeader}" />
 
             <TextBlock Text="Устройство вывода:" Margin="0,0,0,4" />
-            <ComboBox ItemsSource="{Binding AudioDevices}" DisplayMemberPath="FriendlyName"
+            <ComboBox ToolTip="Куда выводить звонок" ItemsSource="{Binding AudioDevices}" DisplayMemberPath="FriendlyName"
                       SelectedItem="{Binding SelectedAudioDevice}" />
 
             <TextBlock Text="Громкость по умолчанию:" Margin="0,10,0,2" />
-            <Slider Minimum="0" Maximum="1" Value="{Binding AlarmVolume}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <Slider ToolTip="Громкость звонка" Minimum="0" Maximum="1" Value="{Binding AlarmVolume}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
 
             <TextBlock Text="Звонок:" Margin="0,10,0,4" />
             <!-- В каждой строке раскрытого списка — ▶: слушать звонок прямо в списке, не выбирая его
                  (докладка 2026-09-27). В закрытом поле ▶ не показывается (там кнопка всё равно не нажимается). -->
-            <ComboBox ItemsSource="{Binding RingtoneOptions}" SelectedValuePath="Id"
+            <ComboBox ToolTip="Звонок по окончании таймера; ▶ в списке — прослушать" ItemsSource="{Binding RingtoneOptions}" SelectedValuePath="Id"
                       SelectedValue="{Binding SelectedRingtoneId}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
@@ -195,13 +207,13 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                         Visibility="{Binding IsCustomRingtoneSelected, Converter={StaticResource BoolToVis}}">
-                <Button Content="Обзор…" Style="{StaticResource Style.SettingsButton}" Command="{Binding BrowseCustomSoundCommand}" />
+                <Button ToolTip="Выбрать свой файл (.mp3, .wav) — он копируется к программе" Content="Обзор…" Style="{StaticResource Style.SettingsButton}" Command="{Binding BrowseCustomSoundCommand}" />
                 <TextBlock Text="{Binding CustomSoundFilePath}" VerticalAlignment="Center" Margin="10,0,0,0"
                            TextTrimming="CharacterEllipsis" MaxWidth="200" />
             </StackPanel>
 
             <!-- Повторное нажатие гасит звук с затуханием (докладка 2026-09-28). -->
-            <Button Command="{Binding PreviewRingtoneCommand}" Margin="0,10,0,0" HorizontalAlignment="Left" MinWidth="120">
+            <Button ToolTip="Прослушать выбранный звонок; повторно — стоп" Command="{Binding PreviewRingtoneCommand}" Margin="0,10,0,0" HorizontalAlignment="Left" MinWidth="120">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
                         <Setter Property="Content" Value="▶ Прослушать" />
@@ -218,68 +230,99 @@
             <TextBlock Text="Поведение таймера при завершении" Style="{StaticResource Style.SectionHeader}" />
 
             <TextBlock Text="{Binding AlarmRepeatCount, StringFormat='Сколько раз звонить: {0}'}" Margin="0,0,0,2" />
-            <Slider Minimum="1" Maximum="10" Value="{Binding AlarmRepeatCount}" TickFrequency="1" IsSnapToTickEnabled="True" />
+            <Slider ToolTip="Сколько раз проиграть звонок" Minimum="1" Maximum="10" Value="{Binding AlarmRepeatCount}" TickFrequency="1" IsSnapToTickEnabled="True" />
 
             <!-- ============ Визуальные эффекты ============ -->
             <TextBlock Text="Визуальный эффект во время отсчёта" Style="{StaticResource Style.SectionHeader}" />
             <!-- ▶ в раскрытом списке — показать эффект на циферблате; закрытие списка/выбор прекращает показ (2026-09-28). -->
-            <ComboBox ItemsSource="{Binding RunningEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding RunningEffect}"
+            <ComboBox ToolTip="Эффект циферблата во время отсчёта; ▶ в списке — показать" ItemsSource="{Binding RunningEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding RunningEffect}"
                       ItemTemplate="{StaticResource Template.EffectComboItem}" DropDownClosed="OnEffectDropDownClosed" />
 
             <TextBlock Text="Визуальный эффект при завершении" Style="{StaticResource Style.SectionHeader}" />
-            <ComboBox ItemsSource="{Binding FinishEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding FinishEffect}"
+            <ComboBox ToolTip="Эффект циферблата и трея по окончании; ▶ в списке — показать" ItemsSource="{Binding FinishEffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding FinishEffect}"
                       ItemTemplate="{StaticResource Template.EffectComboItem}" DropDownClosed="OnEffectDropDownClosed" />
             <!-- Шкала 2 с … 5 мин и последним шагом «бесконечно» (MainViewModel.FinishEffectDurationSteps);
                  действует и на окно, и на трей. -->
             <TextBlock Text="{Binding FinishEffectDurationLabel}" Margin="0,10,0,2" />
-            <Slider Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
+            <Slider ToolTip="Сколько длится эффект по окончании" Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
                     Value="{Binding FinishEffectDurationIndex}" TickFrequency="1" IsSnapToTickEnabled="True" />
 
             <!-- ============ Размер видов — отдельно полный и компактный (докладка 2026-09-27) ============ -->
             <TextBlock Text="Размер" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding FullViewScaleLabel}" Margin="0,0,0,2" />
-            <Slider Minimum="0.6" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <Slider ToolTip="Размер полного вида" Minimum="0.6" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
             <TextBlock Text="{Binding CompactViewScaleLabel}" Margin="0,10,0,2" />
-            <Slider Minimum="0.6" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <Slider ToolTip="Размер компактного вида" Minimum="0.6" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
 
             <!-- ============ Часы под статусом ============ -->
             <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />
-            <CheckBox Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />
-            <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
-            <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
+            <CheckBox ToolTip="Текущее время под таймером" Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />
+            <CheckBox ToolTip="Часы с секундами" Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
+            <CheckBox ToolTip="Дата рядом с часами" Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
             <!-- ============ Клавиши (докладка 2026-09-28): поле — щёлкнуть и нажать сочетание, Controls/HotkeyBox.
-                 Галочка «везде» — глобальная клавиша (MainViewModel.Hotkeys.cs). ============ -->
-            <!-- Подпись столбца «везде» — в строке заголовка раздела, чтобы отступ до первой клавиши был обычным. -->
-            <Grid>
-                <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
-                <TextBlock Text="везде" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Width="40" TextAlignment="Center"
-                           HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,9" />
-            </Grid>
+                 Справа значок «где работает»: окно — только в активном окне таймера, глобус — везде (глобальная клавиша);
+                 щелчок переключает (MainViewModel.ToggleKeyScopeCommand). Под списком — легенда значков. ============ -->
+            <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="128" />
-                    <ColumnDefinition Width="40" /> <!-- = ширине подписи «везде» над столбцом -->
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="0" /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="1" Text="Старт / пауза" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
-                <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding StartPauseGlobal}" Style="{StaticResource Style.GlobalCheck}" />
-                <TextBlock Grid.Row="2" Text="Сброс" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
-                <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding ResetGlobal}" Style="{StaticResource Style.GlobalCheck}" />
-                <TextBlock Grid.Row="3" Text="Компактный вид" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
-                <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding CompactGlobal}" Style="{StaticResource Style.GlobalCheck}" />
-                <TextBlock Grid.Row="4" Text="Показать / скрыть окно" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                <c:HotkeyBox Grid.Row="4" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
-                <CheckBox Grid.Row="4" Grid.Column="2" IsChecked="{Binding ShowHideGlobal}" Style="{StaticResource Style.GlobalCheck}" />
+                <TextBlock Text="Старт / пауза" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
+                <Button Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding StartPauseGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                        Command="{Binding ToggleKeyScopeCommand}" CommandParameter="StartPause">
+                    <Path Style="{StaticResource Style.KeyScopeIcon}"
+                          Data="{Binding StartPauseGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
+                </Button>
+                <TextBlock Grid.Row="1" Text="Сброс" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
+                <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ResetGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                        Command="{Binding ToggleKeyScopeCommand}" CommandParameter="Reset">
+                    <Path Style="{StaticResource Style.KeyScopeIcon}"
+                          Data="{Binding ResetGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
+                </Button>
+                <TextBlock Grid.Row="2" Text="Компактный вид" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
+                <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding CompactGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                        Command="{Binding ToggleKeyScopeCommand}" CommandParameter="Compact">
+                    <Path Style="{StaticResource Style.KeyScopeIcon}"
+                          Data="{Binding CompactGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
+                </Button>
+                <TextBlock Grid.Row="3" Text="Показать / скрыть окно" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
+                <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ShowHideGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                        Command="{Binding ToggleKeyScopeCommand}" CommandParameter="ShowHide">
+                    <Path Style="{StaticResource Style.KeyScopeIcon}"
+                          Data="{Binding ShowHideGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
+                </Button>
             </Grid>
-            <TextBlock Text="«Везде» — клавиша работает в любой программе, даже когда окно в трее; без галочки — только когда окно таймера активно. Esc в окне всегда сбрасывает."
-                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+
+            <!-- Легенда значков. -->
+            <Grid Margin="0,6,0,0" TextElement.FontSize="11" TextElement.Foreground="{StaticResource Brush.TextSecondary}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+                <Path Style="{StaticResource Style.KeyScopeIcon}" Data="{StaticResource Geometry.KeyWindow}" Stroke="{StaticResource Brush.TextSecondary}"
+                      Width="11" Height="11" VerticalAlignment="Top" Margin="0,2,6,0" />
+                <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="В окне — работает, только когда окно таймера активно." />
+                <Path Grid.Row="1" Style="{StaticResource Style.KeyScopeIcon}" Data="{StaticResource Geometry.KeyGlobe}" Stroke="{StaticResource Brush.TextSecondary}"
+                      Width="11" Height="11" VerticalAlignment="Top" Margin="0,4,6,0" />
+                <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,2,0,0"
+                           Text="Везде — глобальная клавиша: работает в любой программе, даже когда окно свёрнуто в трей." />
+                <TextBlock Grid.Row="2" Grid.ColumnSpan="2" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="Щелчок по значку переключает режим; при переходе на «везде» старт/пауза и сброс получают Ctrl+F10 / Ctrl+F11 (можно назначить другие). Esc в окне таймера всегда сбрасывает." />
+            </Grid>
+            <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
             <!-- ============ Быстрые таймеры (докладка 2026-09-28): N ЧЧ ММ СС [клавиша] [звук] ×, до 5 строк ============ -->
@@ -327,8 +370,7 @@
                                                     <ContentControl Content="{Binding Value, Converter={StaticResource EffectIcon}}" Focusable="False"
                                                                     VerticalAlignment="Center" HorizontalAlignment="Left" />
                                                     <TextBlock Grid.Column="1" Text="{Binding Label}" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="2" Style="{StaticResource Style.PreviewButton}" Padding="6,0" FontSize="10"
-                                                            ToolTip="Показать на циферблате"
+                                                    <Button Grid.Column="2" Style="{StaticResource Style.EffectPreviewButton}" Padding="6,0" FontSize="10"
                                                             Visibility="{Binding CanPreview, Converter={StaticResource BoolToVis}}"
                                                             PreviewMouseLeftButtonDown="OnEffectPreviewMouseDown"
                                                             PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
@@ -364,7 +406,7 @@
                                             <TextBlock Text="Громкость" VerticalAlignment="Center" />
                                             <CheckBox Grid.Column="1" Content="общая" IsChecked="{Binding UseGeneralVolume}" Margin="8,0,0,0"
                                                       VerticalAlignment="Center" ToolTip="Громкость как в разделе «Звук»" />
-                                            <Slider Grid.Column="2" Minimum="0" Maximum="1" Value="{Binding VolumeValue}" Margin="8,0,0,0"
+                                            <Slider ToolTip="Своя громкость этого таймера (снимает «общая»)" Grid.Column="2" Minimum="0" Maximum="1" Value="{Binding VolumeValue}" Margin="8,0,0,0"
                                                     VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1" />
                                         </Grid>
                                         <!-- Щелчок по звонку — выбрать, включить звук и закрыть меню. -->
@@ -397,13 +439,13 @@
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Button Content="Обзор…" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
+                                            <Button ToolTip="Выбрать другой файл для этого таймера" Content="Обзор…" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
                                                     Padding="8,2" Margin="0" />
                                             <TextBlock Grid.Column="1" Text="{Binding CustomFileName}" VerticalAlignment="Center" Margin="8,0,0,0"
                                                        TextTrimming="CharacterEllipsis" FontSize="11" ToolTip="{Binding CustomFileName}" />
                                         </Grid>
                                         <TextBlock Text="Устройство" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,8,0,4" />
-                                        <ComboBox ItemsSource="{Binding DeviceOptions}" DisplayMemberPath="FriendlyName"
+                                        <ComboBox ToolTip="Куда выводить звонок этого таймера" ItemsSource="{Binding DeviceOptions}" DisplayMemberPath="FriendlyName"
                                                   SelectedValuePath="Id" SelectedValue="{Binding DeviceKey}" />
                                     </StackPanel>
                                 </Border>
@@ -428,7 +470,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Button Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
+            <Button ToolTip="Добавить быстрый таймер (до 5)" Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,6,0,0"
                     Visibility="{Binding CanAddQuickTimer, Converter={StaticResource BoolToVis}}" />
             <TextBlock Text="Клавиша запускает таймер на это время заново — где бы вы ни были, даже когда окно в трее. Колокольчик — свой звонок и устройство (подсвечен, если заданы)."
@@ -437,15 +479,15 @@
 
             <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
             <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />
-            <CheckBox Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
-            <CheckBox Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
-            <CheckBox IsChecked="{Binding RestoreOtherWindows}">
+            <CheckBox ToolTip="Разбудить компьютер к окончанию таймера (таймер пробуждения Windows)" Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
+            <CheckBox ToolTip="Включить погасшие мониторы, когда таймер закончился" Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
+            <CheckBox ToolTip="После сна вернуть окна программ на их мониторы" IsChecked="{Binding RestoreOtherWindows}">
                 <TextBlock Text="Возвращать окна других программ на их мониторы после сна и гашения мониторов" TextWrapping="Wrap" />
             </CheckBox>
             <!-- Подпункт возврата окон (докладка 2026-09-28): окна программ «от администратора» Windows даёт двигать
                  только программе с такими же правами. Services/ElevationService. -->
             <StackPanel Margin="20,2,0,0" IsEnabled="{Binding RestoreOtherWindows}">
-                <CheckBox IsChecked="{Binding RunElevated}">
+                <CheckBox ToolTip="Нужно, чтобы двигать окна программ, запущенных от администратора" IsChecked="{Binding RunElevated}">
                     <TextBlock Text="Запускать с правами администратора" TextWrapping="Wrap" />
                 </CheckBox>
                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
@@ -473,9 +515,9 @@
             <!-- Нашлось обновление — на месте «Проверить обновления» кнопка установки (докладка 2026-09-27: баннер
                  вверху настроек был неочевиден — закрыв настройки, кнопку легко потерять). -->
             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                <Button Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource Style.SettingsButton}"
+                <Button ToolTip="Проверить новую версию на GitHub" Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource Style.SettingsButton}"
                         Visibility="{Binding IsUpdateNotAvailable, Converter={StaticResource BoolToVis}}" />
-                <Button Content="{Binding InstallUpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource Style.SettingsButton}"
+                <Button ToolTip="Скачать и установить новую версию" Content="{Binding InstallUpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource Style.SettingsButton}"
                         BorderBrush="{StaticResource Brush.UpdateAccent}" Background="{StaticResource Brush.UpdateBannerBackground}"
                         Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}" />
                 <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
@@ -484,15 +526,15 @@
 
             <!-- ============ Сброс (докладка 2026-09-28) — с подтверждением, см. MainViewModel.ResetSettings ============ -->
             <TextBlock Text="Сброс" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Сбросить настройки и положение окон" Command="{Binding ResetSettingsCommand}"
+            <Button ToolTip="Все настройки по умолчанию, окна — на исходные места" Content="Сбросить настройки и положение окон" Command="{Binding ResetSettingsCommand}"
                     Style="{StaticResource Style.SettingsButton}" HorizontalAlignment="Left" />
 
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding AuthorLine, Mode=OneTime}" Margin="0,0,0,6" />
-            <Button Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
+            <Button ToolTip="Страница выпусков на GitHub" Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
             <!-- Отчёт по установщику текущей версии: хэш берётся из GitHub Release (UpdateService.GetVirusTotalUrlAsync). -->
-            <Button Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
+            <Button ToolTip="Отчёт VirusTotal по установщику этой версии" Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
 
         </StackPanel>
     </ScrollViewer>

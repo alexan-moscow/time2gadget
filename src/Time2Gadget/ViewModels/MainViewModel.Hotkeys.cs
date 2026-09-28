@@ -70,6 +70,19 @@ public sealed partial class MainViewModel
         set => SetGlobal(value, _settings.ShowHideGlobal, v => _settings.ShowHideGlobal = v, null);
     }
 
+    /// <summary>Кнопка-значок в строке клавиши (окно ↔ глобус): параметр — StartPause/Reset/Compact/ShowHide.</summary>
+    public RelayCommand ToggleKeyScopeCommand => _toggleKeyScopeCommand ??= new RelayCommand(p =>
+    {
+        switch (p as string)
+        {
+            case "StartPause": StartPauseGlobal = !StartPauseGlobal; break;
+            case "Reset": ResetGlobal = !ResetGlobal; break;
+            case "Compact": CompactGlobal = !CompactGlobal; break;
+            case "ShowHide": ShowHideGlobal = !ShowHideGlobal; break;
+        }
+    });
+    private RelayCommand? _toggleKeyScopeCommand;
+
     private void SetKey(HotkeyBinding value, Action<AppSettings, HotkeyBinding> assign, bool global, [CallerMemberName] string? name = null)
     {
         assign(_settings, value ?? HotkeyBinding.Empty);
@@ -374,7 +387,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     public RelayCommand EffectCommand => _effectCommand ??= new RelayCommand(() => IsEffectMenuOpen = true);
     private RelayCommand? _effectCommand;
 
-    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}";
+    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}\nЩелчок — выбрать";
 
     /// <summary>Щелчок по эффекту в меню: выбрать, прекратить показ и закрыть меню.</summary>
     public void ChooseEffect(object value)
