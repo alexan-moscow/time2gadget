@@ -3,12 +3,27 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
         mc:Ignorable="d"
         Title="Настройки — Тайм2гаджет"
         Width="380" Height="620"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
+    <Window.Resources>
+        <!-- Предупреждение под разделами клавиш: пустой текст — строки нет. -->
+        <Style x:Key="Style.HotkeyWarning" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.Finish}" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
         <StackPanel>
 
@@ -101,6 +116,65 @@
             <CheckBox Content="Показывать текущее время" IsChecked="{Binding ShowClock}" />
             <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
             <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
+
+            <!-- ============ Клавиши (докладка 2026-09-28): поле — щёлкнуть и нажать сочетание, Controls/HotkeyBox ============ -->
+            <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="150" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Старт / пауза" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
+                <TextBlock Grid.Row="1" Text="Сброс (и всегда Esc)" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
+                <TextBlock Grid.Row="2" Text="Компактный вид" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
+                <TextBlock Grid.Row="3" Text="Показать / скрыть окно" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
+            </Grid>
+            <TextBlock Text="Первые три работают, когда окно таймера активно; «Показать / скрыть» — везде, даже из трея."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
+
+            <!-- ============ Быстрые таймеры (докладка 2026-09-28): ЧЧ:ММ:СС + глобальная клавиша, до 5 строк ============ -->
+            <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" />
+            <ItemsControl ItemsSource="{Binding QuickTimers}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="24" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Number}" VerticalAlignment="Center" Foreground="{StaticResource Brush.TextSecondary}" />
+                            <c:TimeSpinner Grid.Column="1" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" />
+                            <TextBlock Grid.Column="2" Text=":" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" />
+                            <TextBlock Grid.Column="4" Text=":" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <c:TimeSpinner Grid.Column="5" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" />
+                            <c:HotkeyBox Grid.Column="6" BindingValue="{Binding Binding}" Margin="8,0,0,0" />
+                            <Button Grid.Column="7" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                                    Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" Margin="0,6,0,0"
+                    Visibility="{Binding CanAddQuickTimer, Converter={StaticResource BoolToVis}}" />
+            <TextBlock Text="Клавиша запускает таймер на это время заново — где бы вы ни были, даже когда окно в трее."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding QuickTimersWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
             <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
             <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />

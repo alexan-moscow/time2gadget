@@ -108,7 +108,7 @@ MVP: `System.Media.SystemSounds.Asterisk.Play()` (гарантированно �
 
 ## Hotkeys
 
-MVP: локальные для окна — `Window.InputBindings` (Space/R/Esc) → команды `MainViewModel`. Точка расширения: если понадобятся глобальные (system-wide) хоткеи — добавляется отдельный `IGlobalHotkeyService` (P/Invoke `RegisterHotKey`), не переписывая `MainViewModel`/команды — те остаются общими для локального и будущего глобального пути.
+С 2026-09-28 клавиши настраиваются (`AppSettings.StartPauseKey/ResetKey/CompactKey/ShowHideKey`, `QuickTimers`; модель `Models/HotkeyBinding`). Клавиши окна — `MainWindow.PreviewKeyDown/PreviewMouseDown` → `MainViewModel.HandleWindowKey` → те же команды. Глобальные (показать/скрыть, быстрые таймеры) — `Services/GlobalHotkeyService`: клавиатура через `RegisterHotKey` на HWND главного окна (id 1 — показать/скрыть, 10+N — быстрые таймеры; неудачная регистрация = занято), кнопки мыши через `WH_MOUSE_LL` (ставится, только если назначены; совпавшее нажатие и его отпускание «съедаются»). Набор перерегистрируется по `MainViewModel.HotkeysChanged`; ввод сочетания (`Controls/HotkeyBox.CaptureChanged`) приостанавливает глобальные клавиши. Логика клавиш во VM — `ViewModels/MainViewModel.Hotkeys.cs`.
 
 ## Normal / Compact — единственная адаптивная ось
 

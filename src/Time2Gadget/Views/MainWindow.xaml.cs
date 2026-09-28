@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private Storyboard? _dialEffectStoryboard;
     private readonly HintController _hints;
     private readonly Services.WindowLayoutService _windowLayout;
+    private readonly Services.GlobalHotkeyService _globalHotkeys;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -84,8 +85,20 @@ public partial class MainWindow : Window
         _windowLayout = new Services.WindowLayoutService(this);
         SourceInitialized += (_, _) => _windowLayout.Enabled = _viewModel.RestoreOtherWindows;
 
+        // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
+        PreviewKeyDown += OnWindowKeyDown;
+        PreviewMouseDown += OnWindowMouseDown;
+        _globalHotkeys = new Services.GlobalHotkeyService(this);
+        _globalHotkeys.Pressed += (_, id) => _viewModel.OnGlobalHotkey(id);
+        _viewModel.HotkeysChanged += (_, _) => ApplyGlobalHotkeys();
+        _viewModel.ToggleWindowRequested += (_, _) => ToggleWindow();
+        HotkeyBox.CaptureChanged += OnHotkeyCaptureChanged;
+        SourceInitialized += (_, _) => ApplyGlobalHotkeys();
+
         Closed += (_, _) =>
         {
+            HotkeyBox.CaptureChanged -= OnHotkeyCaptureChanged;
+            _globalHotkeys.Dispose();
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             _windowLayout.Dispose();
@@ -551,4 +564,46 @@ public partial class MainWindow : Window
     }
 
     private void OnCloseButtonClick(object sender, RoutedEventArgs e) => HandleCloseRequest();
+
+    // ============ Клавиши (docs/UI-CONTRACT.md → Клавиши, 2026-09-28) ============
+
+    private void ApplyGlobalHotkeys() => _viewModel.SetFailedHotkeys(_globalHotkeys.Apply(_viewModel.GetGlobalHotkeys()));
+
+    /// <summary>Идёт ввод сочетания в настройках — глобальные клавиши молчат, иначе сработали бы вместо записи.</summary>
+    private void OnHotkeyCaptureChanged(object? sender, bool capturing) => _globalHotkeys.Suspend(capturing);
+
+    private void OnWindowKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.IsRepeat) return; // зажатый пробел не должен дёргать старт/паузу
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (_viewModel.HandleWindowKey(HotkeyBinding.FromKey(key, Keyboard.Modifiers))) e.Handled = true;
+    }
+
+    private void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        var button = e.ChangedButton switch
+        {
+            MouseButton.Middle => HotkeyMouseButton.Middle,
+            MouseButton.XButton1 => HotkeyMouseButton.XButton1,
+            MouseButton.XButton2 => HotkeyMouseButton.XButton2,
+            _ => HotkeyMouseButton.None
+        };
+        if (button != HotkeyMouseButton.None
+            && _viewModel.HandleWindowKey(new HotkeyBinding { MouseButton = button, Modifiers = Keyboard.Modifiers }))
+            e.Handled = true;
+    }
+
+    /// <summary>Глобальная «Показать / скрыть окно»: видно — убрать в трей, нет — показать.</summary>
+    private void ToggleWindow()
+    {
+        if (IsVisible && WindowState != WindowState.Minimized)
+        {
+            _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top);
+            Hide();
+        }
+        else
+        {
+            _viewModel.RequestShowWindow(); // как из трея: App показывает и активирует окно
+        }
+    }
 }

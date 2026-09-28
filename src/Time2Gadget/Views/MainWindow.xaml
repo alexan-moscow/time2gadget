@@ -40,11 +40,6 @@
         </ControlTemplate>
     </Window.Resources>
 
-    <Window.InputBindings>
-        <KeyBinding Key="Space" Command="{Binding StartPauseCommand}" />
-        <KeyBinding Key="R" Command="{Binding ResetCommand}" />
-        <KeyBinding Key="Escape" Command="{Binding ResetCommand}" />
-    </Window.InputBindings>
 
     <Border x:Name="Chrome" CornerRadius="28" Background="{StaticResource Brush.Background}" Margin="8">
         <!-- Масштаб вида — ползунки «Размер полного/компактного вида» (MainWindow.xaml.cs → ApplyModeLayout).

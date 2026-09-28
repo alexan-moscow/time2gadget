@@ -43,6 +43,17 @@ public sealed class AppSettings
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.
     /// </summary>
     public bool RunElevated { get; set; } = false;
+
+    // ---- Клавиши (докладка 2026-09-28). В окне таймера (когда оно в фокусе) — как было; Esc — всегда ещё и сброс. ----
+    public HotkeyBinding StartPauseKey { get; set; } = HotkeyBinding.FromKey(System.Windows.Input.Key.Space);
+    public HotkeyBinding ResetKey { get; set; } = HotkeyBinding.FromKey(System.Windows.Input.Key.R);
+    public HotkeyBinding CompactKey { get; set; } = HotkeyBinding.Empty;
+
+    /// <summary>Глобальная (работает везде): показать/скрыть окно таймера. По умолчанию не задана.</summary>
+    public HotkeyBinding ShowHideKey { get; set; } = HotkeyBinding.Empty;
+
+    /// <summary>Быстрые таймеры (глобальные клавиши), до 5; по умолчанию одна пустая строка.</summary>
+    public List<QuickTimer> QuickTimers { get; set; } = new() { new QuickTimer() };
     /// <summary>По умолчанию — да; при первом запуске App включает автозапуск в реестре (см. App.xaml.cs).</summary>
     public bool LaunchAtStartup { get; set; } = true;
 

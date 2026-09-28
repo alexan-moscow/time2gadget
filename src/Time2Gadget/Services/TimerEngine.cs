@@ -15,7 +15,9 @@ public sealed class TimerEngine : ITimerEngine
     public event EventHandler? Finished;
     public event EventHandler? StatusChanged;
 
-    private static readonly TimeSpan MinDuration = TimeSpan.FromMinutes(1);
+    // 1 секунда (было 1 минута): быстрые таймеры задаются с точностью до секунды (2026-09-28). Колесо мыши
+    // по циферблату по-прежнему ограничено минутой — это отдельная граница в MainViewModel.AdjustTime.
+    private static readonly TimeSpan MinDuration = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromHours(24);
 
     private static TimeSpan Clamp(TimeSpan duration)

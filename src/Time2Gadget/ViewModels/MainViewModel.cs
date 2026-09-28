@@ -15,7 +15,7 @@ namespace Time2Gadget.ViewModels;
 /// окно, и окно настроек (SettingsWindow биндится на этот же экземпляр) — так изменения в
 /// настройках мгновенно отражаются в рантайме без отдельного синхронизирующего механизма.
 /// </summary>
-public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
+public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     private static readonly TimeSpan MinDuration = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromHours(24);
@@ -910,6 +910,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _alarmRepeatCount = _settings.AlarmRepeatCount;
         _runningEffect = _settings.RunningEffect;
         _finishEffect = _settings.FinishEffect;
+        LoadQuickTimers();
 
         // Подсвечиваем последний использованный сектор, но НЕ скармливаем его время в engine —
         // при запуске приложения дисплей должен показывать 00:00 (docs/DECISIONS.md, 2026-09-27),
@@ -951,6 +952,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(string.Empty); // все привязки перечитать
         RefreshIdleClock();
         RaiseCompactLayoutChanges();
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
         SettingsReset?.Invoke(this, EventArgs.Empty);
     }
 
@@ -970,18 +972,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         "Preset" when tag is TimerPreset preset => GetPresetHint(preset),
         "StartPause" => Status switch
         {
-            TimerStatus.Running => "Пауза  (Пробел)",
-            TimerStatus.Paused => "Продолжить отсчёт  (Пробел)",
-            TimerStatus.Finished => "Запустить этот таймер ещё раз  (Пробел)",
+            TimerStatus.Running => $"Пауза{KeyHint(StartPauseKey)}",
+            TimerStatus.Paused => $"Продолжить отсчёт{KeyHint(StartPauseKey)}",
+            TimerStatus.Finished => $"Запустить этот таймер ещё раз{KeyHint(StartPauseKey)}",
             _ => _engine.TotalDuration > TimeSpan.Zero
-                ? "Запустить отсчёт  (Пробел)"
+                ? $"Запустить отсчёт{KeyHint(StartPauseKey)}"
                 : SelectedPreset is not null
-                    ? $"Запустить таймер на {FormatMinutes(SelectedPreset.Minutes)}  (Пробел)"
+                    ? $"Запустить таймер на {FormatMinutes(SelectedPreset.Minutes)}{KeyHint(StartPauseKey)}"
                     : "Сначала выберите время на кольце"
         },
         "Reset" => Status == TimerStatus.Finished
-            ? "Выключить звонок и сбросить на 00:00  (R)"
-            : "Сбросить таймер на 00:00  (R)",
+            ? $"Выключить звонок и сбросить на 00:00{KeyHint(ResetKey)}"
+            : $"Сбросить таймер на 00:00{KeyHint(ResetKey)}",
         "Center" => Status is TimerStatus.Running or TimerStatus.Paused
             ? "Клик — компактный режим\nПотяните — переместить окно"
             : "Клик — компактный режим\nКолесо мыши — ±1 минута",
@@ -1006,6 +1008,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             return $"Добавить {label} к текущему таймеру";
         return $"Сбросить и запустить заново на {label}";
     }
+
+    private static string KeyHint(HotkeyBinding key) => key.IsEmpty ? "" : $"  ({key})";
 
     private static string FormatMinutes(int minutes) => minutes switch
     {
