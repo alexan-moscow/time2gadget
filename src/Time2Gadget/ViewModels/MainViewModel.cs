@@ -685,6 +685,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             if (!value) ElevationService.DeleteTask();
 
             _settings.RunElevated = value;
+            _settings.ElevationTaskExePath = value ? Environment.ProcessPath : null; // для какой копии создана задача
             _settingsService.Save(_settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(ElevationStatusText));
@@ -697,7 +698,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public string ElevationStatusText => ElevationService.IsElevated
         ? "Сейчас программа работает с правами администратора."
-        : "Сейчас программа работает с обычными правами.";
+        : RunElevated && !ElevationService.IsTaskForThisCopy(_settings.ElevationTaskExePath)
+            ? "Сейчас программа работает с обычными правами: запуск с правами настроен для другой копии программы. Снимите и поставьте галочку заново."
+            : "Сейчас программа работает с обычными правами.";
 
     /// <summary>
     /// Таймер пробуждения — только пока идёт отсчёт; на момент окончания (сейчас + осталось). Пауза/сброс/

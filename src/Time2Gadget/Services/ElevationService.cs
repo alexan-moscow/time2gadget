@@ -34,6 +34,15 @@ public static class ElevationService
 
     public static bool TaskExists() => RunSchtasks($"/Query /TN \"{TaskName}\"", elevate: false) == 0;
 
+    /// <summary>
+    /// Задача создана для ЭТОЙ копии программы (путь exe запоминается при создании — AppSettings.ElevationTaskExePath).
+    /// Портативная и установленная копии делят одни настройки и одну задачу; найдено 2026-09-28: задача от портативной
+    /// сборки запускала бы её вместо установленной программы.
+    /// </summary>
+    public static bool IsTaskForThisCopy(string? taskExePath) =>
+        !string.IsNullOrEmpty(taskExePath) && Environment.ProcessPath is { } current
+        && string.Equals(System.IO.Path.GetFullPath(taskExePath), System.IO.Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Запустить программу через задачу (с повышением, без UAC). false — задачи нет/не запустилась.</summary>
     public static bool RunTask() => RunSchtasks($"/Run /TN \"{TaskName}\"", elevate: false) == 0;
 

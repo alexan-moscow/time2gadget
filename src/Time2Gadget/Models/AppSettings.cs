@@ -44,6 +44,16 @@ public sealed class AppSettings
     /// </summary>
     public bool RunElevated { get; set; } = false;
 
+    /// <summary>Для какого exe создана задача запуска с правами (портативная и установленная копии делят настройки).</summary>
+    public string? ElevationTaskExePath { get; set; }
+
+    /// <summary>
+    /// Поля, которых эта версия не знает (записаны более новой версией), — сохраняются как есть (докладка 2026-09-28:
+    /// старая 1.0.3 при сохранении стёрла новые поля, и после обновления они вернулись к значениям по умолчанию).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonExtensionData]
+    public Dictionary<string, System.Text.Json.JsonElement>? UnknownFields { get; set; }
+
     // ---- Клавиши (докладка 2026-09-28). *Global = работает везде (RegisterHotKey), иначе — когда окно таймера
     // в фокусе; Esc в окне — всегда ещё и сброс. По умолчанию глобальная только «Показать / скрыть». ----
     public HotkeyBinding StartPauseKey { get; set; } = HotkeyBinding.FromKey(System.Windows.Input.Key.Space);

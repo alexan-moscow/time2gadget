@@ -54,6 +54,7 @@ public partial class App : Application
         // (повышение без UAC) и выходит. LaunchedByTask — защита от зацикливания, если задача не дала повышения.
         var startupSettings = new SettingsService().Load();
         if (startupSettings.RunElevated && !ElevationService.IsElevated && !ElevationService.LaunchedByTask
+            && ElevationService.IsTaskForThisCopy(startupSettings.ElevationTaskExePath) // не запускать чужую копию
             && ElevationService.TaskExists())
         {
             _instanceMutex!.ReleaseMutex(); // до запуска задачи — иначе новая копия решит, что уже запущена
