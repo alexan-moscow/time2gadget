@@ -107,7 +107,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty));
         BrowseCustomSoundCommand = new RelayCommand(BrowseCustomSound);
         // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
-        PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p as string));
+        PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p is string { Length: > 0 } id ? id : null)); // "" — общий звонок
         OpenGitHubCommand = new RelayCommand(() => OpenUrl(GitHubUrl));
         // Отчёт VirusTotal по установщику ИМЕННО этой версии (хэш — из GitHub Release); нет связи — страница выпусков.
         OpenVirusTotalCommand = new RelayCommand(async () => OpenUrl(await _updateService.GetVirusTotalUrlAsync() ?? GitHubUrl));
@@ -1036,6 +1036,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
+            _alarmRingtoneOverride = _alarmDeviceOverride = null;
             _engine.SetDuration(TimeSpan.FromMinutes(preset.Minutes));
             _engine.Start();
             RaiseStatusDependentChanges();
@@ -1051,6 +1052,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
+            _alarmRingtoneOverride = _alarmDeviceOverride = null;
             _engine.Restart(TimeSpan.FromMinutes(preset.Minutes));
             RaiseStatusDependentChanges();
         }
@@ -1076,6 +1078,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void ResetTimer()
     {
+        _alarmRingtoneOverride = _alarmDeviceOverride = null; // свой звонок быстрого таймера — только до сброса
         _soundService.StopAlarm();
         _engine.Reset();
         RaiseStatusDependentChanges();
@@ -1090,6 +1093,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         if (newDuration < MinDuration) newDuration = MinDuration;
         if (newDuration > MaxDuration) newDuration = MaxDuration;
 
+        _alarmRingtoneOverride = _alarmDeviceOverride = null;
         _engine.SetDuration(newDuration);
 
         // Подсветка сектора актуальна, только если новое значение совпадает с одним из пресетов.
@@ -1148,7 +1152,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (!IsMuted)
         {
-            _soundService.PlayAlarm(_settings); // автозакрытие — по AlarmCompleted, когда звонок отыграет
+            _soundService.PlayAlarm(_settings, _alarmRingtoneOverride, _alarmDeviceOverride); // автозакрытие — по AlarmCompleted, когда звонок отыграет
         }
         else
         {

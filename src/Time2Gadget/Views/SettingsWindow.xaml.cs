@@ -62,6 +62,15 @@ public partial class SettingsWindow : Window
         e.Handled = true;
     }
 
+    /// <summary>▶ во всплывашке быстрого таймера: звонок на устройстве этого таймера; строку списка не выбирает.</summary>
+    private void OnQuickSoundPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { Tag: string ringtoneId } button) return;
+        for (DependencyObject? d = button; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d))
+            if (d is FrameworkElement { DataContext: ViewModels.QuickTimerItem item }) { item.Preview(ringtoneId); return; }
+    }
+
     private void OnRingtonePreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
     /// <summary>

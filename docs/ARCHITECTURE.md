@@ -108,7 +108,7 @@ MVP: `System.Media.SystemSounds.Asterisk.Play()` (гарантированно �
 
 ## Hotkeys
 
-С 2026-09-28 клавиши настраиваются (`AppSettings.StartPauseKey/ResetKey/CompactKey/ShowHideKey`, `QuickTimers`; модель `Models/HotkeyBinding`). Клавиши окна — `MainWindow.PreviewKeyDown/PreviewMouseDown` → `MainViewModel.HandleWindowKey` → те же команды. Глобальные (показать/скрыть, быстрые таймеры) — `Services/GlobalHotkeyService`: клавиатура через `RegisterHotKey` на HWND главного окна (id 1 — показать/скрыть, 10+N — быстрые таймеры; неудачная регистрация = занято), кнопки мыши через `WH_MOUSE_LL` (ставится, только если назначены; совпавшее нажатие и его отпускание «съедаются»). Набор перерегистрируется по `MainViewModel.HotkeysChanged`; ввод сочетания (`Controls/HotkeyBox.CaptureChanged`) приостанавливает глобальные клавиши. Логика клавиш во VM — `ViewModels/MainViewModel.Hotkeys.cs`.
+С 2026-09-28 клавиши настраиваются (`AppSettings.StartPauseKey/ResetKey/CompactKey/ShowHideKey`, `QuickTimers`; модель `Models/HotkeyBinding`). Клавиши окна — `MainWindow.PreviewKeyDown/PreviewMouseDown` → `MainViewModel.HandleWindowKey` → те же команды. Глобальные (клавиши с галочкой «везде», `AppSettings.*Global`, и быстрые таймеры) — `Services/GlobalHotkeyService`: клавиатура через `RegisterHotKey` на HWND главного окна (id 1–4 — действия, 10+N — быстрые таймеры; неудачная регистрация = занято), кнопки мыши через `WH_MOUSE_LL` (ставится, только если назначены; совпавшее нажатие и его отпускание «съедаются»). Набор перерегистрируется по `MainViewModel.HotkeysChanged`; ввод сочетания (`Controls/HotkeyBox.CaptureChanged`) приостанавливает глобальные клавиши. Логика клавиш во VM — `ViewModels/MainViewModel.Hotkeys.cs`.
 
 ## Normal / Compact — единственная адаптивная ось
 

@@ -44,13 +44,18 @@ public sealed class AppSettings
     /// </summary>
     public bool RunElevated { get; set; } = false;
 
-    // ---- Клавиши (докладка 2026-09-28). В окне таймера (когда оно в фокусе) — как было; Esc — всегда ещё и сброс. ----
+    // ---- Клавиши (докладка 2026-09-28). *Global = работает везде (RegisterHotKey), иначе — когда окно таймера
+    // в фокусе; Esc в окне — всегда ещё и сброс. По умолчанию глобальная только «Показать / скрыть». ----
     public HotkeyBinding StartPauseKey { get; set; } = HotkeyBinding.FromKey(System.Windows.Input.Key.Space);
+    public bool StartPauseGlobal { get; set; } = false;
     public HotkeyBinding ResetKey { get; set; } = HotkeyBinding.FromKey(System.Windows.Input.Key.R);
+    public bool ResetGlobal { get; set; } = false;
     public HotkeyBinding CompactKey { get; set; } = HotkeyBinding.Empty;
+    public bool CompactGlobal { get; set; } = false;
 
-    /// <summary>Глобальная (работает везде): показать/скрыть окно таймера. По умолчанию не задана.</summary>
+    /// <summary>Показать/скрыть окно таймера. По умолчанию не задана.</summary>
     public HotkeyBinding ShowHideKey { get; set; } = HotkeyBinding.Empty;
+    public bool ShowHideGlobal { get; set; } = true;
 
     /// <summary>Быстрые таймеры (глобальные клавиши), до 5; по умолчанию одна пустая строка.</summary>
     public List<QuickTimer> QuickTimers { get; set; } = new() { new QuickTimer() };

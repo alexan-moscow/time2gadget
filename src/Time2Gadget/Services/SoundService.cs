@@ -50,10 +50,10 @@ public sealed class SoundService : ISoundService, IDisposable
 
     private static readonly TimeSpan GapBetweenRepeats = TimeSpan.FromMilliseconds(400);
 
-    public void PlayAlarm(AppSettings settings)
+    public void PlayAlarm(AppSettings settings, string? ringtoneId = null, string? deviceId = null)
     {
         StopAlarm();
-        var path = ResolveSoundPath(settings);
+        var path = ringtoneId is null ? ResolveSoundPath(settings) : ResolveSoundPath(ringtoneId, settings.CustomSoundFilePath);
         if (path is null)
         {
             AlarmCompleted?.Invoke(this, EventArgs.Empty); // звонить нечем (файл пропал) — «отыграл» сразу
@@ -61,17 +61,19 @@ public sealed class SoundService : ISoundService, IDisposable
         }
 
         _ringCts = new CancellationTokenSource();
-        _ = RingLoopAsync(path, settings.AudioDeviceId, settings.AlarmVolume,
+        _ = RingLoopAsync(path, deviceId ?? settings.AudioDeviceId, settings.AlarmVolume,
             Math.Clamp(settings.AlarmRepeatCount, 1, 10), _ringCts.Token);
     }
 
-    public void PlayPreview(AppSettings settings, string? ringtoneId = null)
+    public void PlayPreview(AppSettings settings, string? ringtoneId = null) => PlayPreview(settings, ringtoneId, null);
+
+    public void PlayPreview(AppSettings settings, string? ringtoneId, string? deviceId)
     {
         StopAlarm();
         var path = ringtoneId is null
             ? ResolveSoundPath(settings)
             : ResolveSoundPath(ringtoneId, settings.CustomSoundFilePath);
-        if (path is not null) _ = PlayOnceAsync(path, settings.AudioDeviceId, settings.AlarmVolume, CancellationToken.None);
+        if (path is not null) _ = PlayOnceAsync(path, deviceId ?? settings.AudioDeviceId, settings.AlarmVolume, CancellationToken.None);
     }
 
     /// <summary>

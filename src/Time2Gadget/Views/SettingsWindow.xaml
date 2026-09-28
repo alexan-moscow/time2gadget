@@ -23,6 +23,66 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Галочка «везде» у клавиш — без текста, заголовок столбца над ней. -->
+        <Style x:Key="Style.GlobalCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="ToolTip" Value="Работает в любой программе, даже когда окно в трее" />
+        </Style>
+
+        <!-- Кнопка-колокольчик быстрого таймера. Пока всплывашка открыта, кнопка не ловит мышь: иначе щелчок по ней
+             закрыл бы всплывашку (StaysOpen=False) и тут же открыл снова. -->
+        <Style x:Key="Style.SoundToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bg" CornerRadius="4" BorderThickness="1" Background="{StaticResource Brush.SurfaceSector}"
+                                BorderBrush="{StaticResource Brush.BorderSubtle}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                                <Setter Property="IsHitTestVisible" Value="False" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Строка списка звонков во всплывашке — тёмная, выбранная подсвечена акцентом. -->
+        <Style x:Key="Style.SoundListItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="6,2">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Padding="20,10,20,20">
         <StackPanel>
@@ -117,62 +177,116 @@
             <CheckBox Content="С секундами" IsChecked="{Binding ShowClockSeconds}" IsEnabled="{Binding ShowClock}" Margin="20,4,0,4" />
             <CheckBox Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
-            <!-- ============ Клавиши (докладка 2026-09-28): поле — щёлкнуть и нажать сочетание, Controls/HotkeyBox ============ -->
+            <!-- ============ Клавиши (докладка 2026-09-28): поле — щёлкнуть и нажать сочетание, Controls/HotkeyBox.
+                 Галочка «везде» — глобальная клавиша (MainViewModel.Hotkeys.cs). ============ -->
             <TextBlock Text="Клавиши" Style="{StaticResource Style.SectionHeader}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="128" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Text="Старт / пауза" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
-                <TextBlock Grid.Row="1" Text="Сброс (и всегда Esc)" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
-                <TextBlock Grid.Row="2" Text="Компактный вид" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
-                <TextBlock Grid.Row="3" Text="Показать / скрыть окно" VerticalAlignment="Center" />
-                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
+                <TextBlock Grid.Column="2" Text="везде" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}"
+                           HorizontalAlignment="Center" Margin="6,0,0,0" />
+                <TextBlock Grid.Row="1" Text="Старт / пауза" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
+                <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding StartPauseGlobal}" Style="{StaticResource Style.GlobalCheck}" />
+                <TextBlock Grid.Row="2" Text="Сброс" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
+                <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding ResetGlobal}" Style="{StaticResource Style.GlobalCheck}" />
+                <TextBlock Grid.Row="3" Text="Компактный вид" VerticalAlignment="Center" />
+                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
+                <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding CompactGlobal}" Style="{StaticResource Style.GlobalCheck}" />
+                <TextBlock Grid.Row="4" Text="Показать / скрыть окно" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <c:HotkeyBox Grid.Row="4" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
+                <CheckBox Grid.Row="4" Grid.Column="2" IsChecked="{Binding ShowHideGlobal}" Style="{StaticResource Style.GlobalCheck}" />
             </Grid>
-            <TextBlock Text="Первые три работают, когда окно таймера активно; «Показать / скрыть» — везде, даже из трея."
+            <TextBlock Text="«Везде» — клавиша работает в любой программе, даже когда окно в трее; без галочки — только когда окно таймера активно. Esc в окне всегда сбрасывает."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
-            <!-- ============ Быстрые таймеры (докладка 2026-09-28): ЧЧ:ММ:СС + глобальная клавиша, до 5 строк ============ -->
+            <!-- ============ Быстрые таймеры (докладка 2026-09-28): N ЧЧ ММ СС [клавиша] [звук] ×, до 5 строк ============ -->
             <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" />
             <ItemsControl ItemsSource="{Binding QuickTimers}" Focusable="False">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="0,2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="16" />
-                                <ColumnDefinition Width="38" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="38" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="28" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Number}" VerticalAlignment="Center" Foreground="{StaticResource Brush.TextSecondary}" />
+                            <TextBlock Text="{Binding Number}" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="{StaticResource Brush.TextSecondary}" />
                             <c:TimeSpinner Grid.Column="1" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" />
-                            <TextBlock Grid.Column="2" Text=":" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" />
-                            <TextBlock Grid.Column="4" Text=":" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <c:TimeSpinner Grid.Column="5" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" />
-                            <c:HotkeyBox Grid.Column="6" BindingValue="{Binding Binding}" Margin="8,0,0,0" />
-                            <Button Grid.Column="7" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
-                                    Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
+                            <c:TimeSpinner Grid.Column="2" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" Margin="2,0,0,0" />
+                            <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" Margin="2,0,0,0" />
+                            <c:HotkeyBox Grid.Column="4" BindingValue="{Binding Binding}" Margin="4,0,0,0" />
+
+                            <!-- Звук таймера: колокольчик подсвечен — задан свой звонок/устройство. -->
+                            <ToggleButton x:Name="SoundButton" Grid.Column="5" Margin="4,0,0,0" Style="{StaticResource Style.SoundToggle}"
+                                          ToolTip="{Binding SoundToolTip}">
+                                <Path x:Name="Bell" Width="12" Height="12" Stretch="Uniform" StrokeThickness="1.2"
+                                      Data="M6,0.8 C3.9,0.8 2.6,2.4 2.6,4.6 L2.6,7.4 L1.2,9.2 L10.8,9.2 L9.4,7.4 L9.4,4.6 C9.4,2.4 8.1,0.8 6,0.8 Z M4.4,10 A1.6,1.6 0 0 0 7.6,10 Z"
+                                      Stroke="{StaticResource Brush.TextSecondary}" Fill="Transparent" />
+                            </ToggleButton>
+                            <Popup Grid.Column="5" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-200"
+                                   StaysOpen="False" AllowsTransparency="True"
+                                   IsOpen="{Binding IsChecked, ElementName=SoundButton, Mode=TwoWay}">
+                                <Border Width="240" Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0"
+                                        Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Звонок" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+                                        <ListBox ItemsSource="{Binding SoundOptions}" SelectedValuePath="Id" SelectedValue="{Binding RingtoneKey}"
+                                                 Height="200" Background="Transparent" BorderThickness="0"
+                                                 ItemContainerStyle="{StaticResource Style.SoundListItem}"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <Button Grid.Column="1" Content="▶" Margin="6,0,0,0" Padding="6,0" FontSize="10"
+                                                                Style="{StaticResource Style.SettingsButton}" Tag="{Binding Id}"
+                                                                ToolTip="Прослушать на устройстве этого таймера"
+                                                                PreviewMouseLeftButtonDown="OnQuickSoundPreviewMouseDown"
+                                                                PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Text="Устройство" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,8,0,4" />
+                                        <ComboBox ItemsSource="{Binding DeviceOptions}" DisplayMemberPath="FriendlyName"
+                                                  SelectedValuePath="Id" SelectedValue="{Binding DeviceKey}" />
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+
+                            <Button Grid.Column="6" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                                    Width="22" Height="24" Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
                         </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding HasCustomSound}" Value="True">
+                                <Setter TargetName="Bell" Property="Stroke" Value="{StaticResource Brush.Accent}" />
+                                <Setter TargetName="Bell" Property="Fill" Value="{StaticResource Brush.Accent}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
             <Button Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,6,0,0"
                     Visibility="{Binding CanAddQuickTimer, Converter={StaticResource BoolToVis}}" />
-            <TextBlock Text="Клавиша запускает таймер на это время заново — где бы вы ни были, даже когда окно в трее."
+            <TextBlock Text="Клавиша запускает таймер на это время заново — где бы вы ни были, даже когда окно в трее. Колокольчик — свой звонок и устройство (подсвечен, если заданы)."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
             <TextBlock Text="{Binding QuickTimersWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 

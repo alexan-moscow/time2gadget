@@ -27,7 +27,7 @@ public sealed class TimeSpinner : Grid
     public TimeSpinner()
     {
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) }); // узкие стрелки — строка быстрого таймера должна влезть целиком
         RowDefinitions.Add(new RowDefinition());
         RowDefinitions.Add(new RowDefinition());
 
@@ -61,7 +61,7 @@ public sealed class TimeSpinner : Grid
     {
         var b = new RepeatButton
         {
-            Content = new TextBlock { Text = glyph, FontSize = 7, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            Content = new TextBlock { Text = glyph, FontSize = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
             Padding = new Thickness(0),
             Focusable = false,
             Cursor = Cursors.Hand,

@@ -18,7 +18,12 @@ public interface ISoundService
     /// Каждое повторение — полное проигрывание звука до конца, ровно AlarmRepeatCount раз
     /// (не бесконечно), с короткой фиксированной паузой между повторами.
     /// </summary>
-    void PlayAlarm(AppSettings settings);
+    /// <param name="ringtoneId">Свой звонок быстрого таймера вместо settings.RingtoneId; null — общий.</param>
+    /// <param name="deviceId">Своё устройство вывода быстрого таймера вместо settings.AudioDeviceId; null — общее.</param>
+    void PlayAlarm(AppSettings settings, string? ringtoneId = null, string? deviceId = null);
+
+    /// <summary>Прослушать звонок (ringtoneId null — общий) на устройстве (deviceId null — общее).</summary>
+    void PlayPreview(AppSettings settings, string? ringtoneId, string? deviceId);
 
     /// <summary>
     /// Прослушивание в настройках — играет звук один раз. ringtoneId — конкретный звонок из списка

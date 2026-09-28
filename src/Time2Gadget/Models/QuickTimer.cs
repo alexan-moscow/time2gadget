@@ -10,7 +10,11 @@ public sealed class QuickTimer
     public int Minutes { get; set; }
     public int Seconds { get; set; }
     public HotkeyBinding Binding { get; set; } = HotkeyBinding.Empty;
+    /// <summary>Свой звонок (Id из RingtoneCatalog.BuiltIn); null — общий звонок из раздела «Звук».</summary>
+    public string? RingtoneId { get; set; }
+    /// <summary>Своё устройство вывода (AudioDeviceInfo.Id, "" — системное); null — как в разделе «Звук».</summary>
+    public string? AudioDeviceId { get; set; }
 
-    public TimeSpan Duration => new(Hours, Minutes, Seconds);
-    public bool IsUsable => Duration > TimeSpan.Zero && !Binding.IsEmpty;
+    [System.Text.Json.Serialization.JsonIgnore] public TimeSpan Duration => new(Hours, Minutes, Seconds);
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsUsable => Duration > TimeSpan.Zero && !Binding.IsEmpty;
 }
