@@ -406,13 +406,15 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    // ============ Обновления (docs/DECISIONS.md, 2026-09-27) ============
-    // Автопроверка раз в неделю: через минуту после запуска и дальше каждые 6 ч смотрим, прошло ли 7 дней с
-    // последней УСПЕШНОЙ проверки (дата — в settings.json, переживает перезапуски). Проверка тихая: нашлось —
-    // баннер в настройках и жёлтое мигание шестерёнки; ошибка сети — ничего не показываем.
-    private static readonly TimeSpan UpdateCheckPeriod = TimeSpan.FromDays(7);
+    // ============ Обновления (docs/DECISIONS.md, 2026-09-27; расписание изменено 2026-09-28) ============
+    // Автопроверка при каждом запуске (в т.ч. автозапуск после перезагрузки) — через минуту, когда сеть уже поднялась, —
+    // и дальше раз в сутки: каждый час смотрим, прошли ли сутки с последней УСПЕШНОЙ проверки (дата — в settings.json).
+    // Неудачная (нет сети) дату не двигает — повтор в течение часа. Проверка тихая: нашлось — баннер в настройках и
+    // жёлтое мигание шестерёнки; ошибка сети — ничего не показываем.
+    private static readonly TimeSpan UpdateCheckPeriod = TimeSpan.FromDays(1);
     private static readonly TimeSpan FirstUpdateCheckDelay = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan UpdateScheduleTick = TimeSpan.FromHours(6);
+    private static readonly TimeSpan UpdateScheduleTick = TimeSpan.FromHours(1);
+    private bool _startupUpdateCheckDone;
     private DispatcherTimer? _updateTimer;
     private string? _availableReleasePageUrl;
 
@@ -471,7 +473,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             _updateTimer.Interval = UpdateScheduleTick;
             var last = _settings.LastUpdateCheckUtc;
-            if (last is null || DateTime.UtcNow - last.Value >= UpdateCheckPeriod)
+            bool startup = !_startupUpdateCheckDone; // первая проверка после запуска — всегда
+            _startupUpdateCheckDone = true;
+            if (startup || last is null || DateTime.UtcNow - last.Value >= UpdateCheckPeriod)
                 _ = CheckUpdatesAsync(manual: false);
         };
         _updateTimer.Start();

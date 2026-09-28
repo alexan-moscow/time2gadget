@@ -509,7 +509,7 @@
             <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
 
-            <!-- ============ Обновления — внизу (автопроверка раз в неделю идёт сама) ============ -->
+            <!-- ============ Обновления — внизу (автопроверка при запуске и раз в сутки идёт сама) ============ -->
             <TextBlock x:Name="UpdatesSection" Text="Обновления" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding CurrentVersionText}" Foreground="{StaticResource Brush.TextSecondary}" />
             <!-- Нашлось обновление — на месте «Проверить обновления» кнопка установки (докладка 2026-09-27: баннер
