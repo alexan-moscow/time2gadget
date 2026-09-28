@@ -123,6 +123,9 @@ public partial class SettingsWindow : Window
 
     private void OnQuickEffectPopupClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
 
+    /// <summary>Список звонков раздела «Звук» закрыт (выбор или щелчок мимо) — прослушивание гаснет с затуханием.</summary>
+    private void OnRingtoneDropDownClosed(object? sender, EventArgs e) => _viewModel.StopPreview();
+
     private void OnEffectDropDownClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
 
     /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>

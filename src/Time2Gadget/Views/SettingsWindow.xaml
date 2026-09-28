@@ -179,7 +179,7 @@
             <!-- В каждой строке раскрытого списка — ▶: слушать звонок прямо в списке, не выбирая его
                  (докладка 2026-09-27). В закрытом поле ▶ не показывается (там кнопка всё равно не нажимается). -->
             <ComboBox ToolTip="Звонок по окончании таймера; ▶ в списке — прослушать" ItemsSource="{Binding RingtoneOptions}" SelectedValuePath="Id"
-                      SelectedValue="{Binding SelectedRingtoneId}">
+                      SelectedValue="{Binding SelectedRingtoneId}" DropDownClosed="OnRingtoneDropDownClosed">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <Grid>
@@ -482,7 +482,7 @@
             <CheckBox ToolTip="Разбудить компьютер к окончанию таймера (таймер пробуждения Windows)" Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
             <CheckBox ToolTip="Включить погасшие мониторы, когда таймер закончился" Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
             <CheckBox ToolTip="После сна вернуть окна программ на их мониторы" IsChecked="{Binding RestoreOtherWindows}">
-                <TextBlock Text="Возвращать окна других программ на их мониторы после сна и гашения мониторов" TextWrapping="Wrap" />
+                <TextBlock Text="Возвращать окна других программ на их мониторы после сна и/или гашения мониторов" TextWrapping="Wrap" />
             </CheckBox>
             <!-- Подпункт возврата окон (докладка 2026-09-28): окна программ «от администратора» Windows даёт двигать
                  только программе с такими же правами. Services/ElevationService. -->
