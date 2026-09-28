@@ -71,6 +71,9 @@ public partial class SettingsWindow : Window
             if (d is FrameworkElement { DataContext: ViewModels.QuickTimerItem item }) { item.Preview(ringtoneId); return; }
     }
 
+    /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
+    private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();
+
     private void OnRingtonePreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
     /// <summary>

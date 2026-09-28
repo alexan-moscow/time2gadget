@@ -50,10 +50,10 @@ public sealed class SoundService : ISoundService, IDisposable
 
     private static readonly TimeSpan GapBetweenRepeats = TimeSpan.FromMilliseconds(400);
 
-    public void PlayAlarm(AppSettings settings, string? ringtoneId = null, string? deviceId = null)
+    public void PlayAlarm(AppSettings settings, SoundChoice? choice = null)
     {
         StopAlarm();
-        var path = ringtoneId is null ? ResolveSoundPath(settings) : ResolveSoundPath(ringtoneId, settings.CustomSoundFilePath);
+        var path = ResolveSoundPath(settings, choice);
         if (path is null)
         {
             AlarmCompleted?.Invoke(this, EventArgs.Empty); // звонить нечем (файл пропал) — «отыграл» сразу
@@ -61,19 +61,37 @@ public sealed class SoundService : ISoundService, IDisposable
         }
 
         _ringCts = new CancellationTokenSource();
-        _ = RingLoopAsync(path, deviceId ?? settings.AudioDeviceId, settings.AlarmVolume,
+        _ = RingLoopAsync(path, choice?.DeviceId ?? settings.AudioDeviceId, choice?.Volume ?? settings.AlarmVolume,
             Math.Clamp(settings.AlarmRepeatCount, 1, 10), _ringCts.Token);
     }
 
-    public void PlayPreview(AppSettings settings, string? ringtoneId = null) => PlayPreview(settings, ringtoneId, null);
+    public event EventHandler<int>? PreviewEnded;
+    private int _previewSeq;
 
-    public void PlayPreview(AppSettings settings, string? ringtoneId, string? deviceId)
+    public int PlayPreview(AppSettings settings, SoundChoice? choice = null)
     {
         StopAlarm();
-        var path = ringtoneId is null
-            ? ResolveSoundPath(settings)
-            : ResolveSoundPath(ringtoneId, settings.CustomSoundFilePath);
-        if (path is not null) _ = PlayOnceAsync(path, deviceId ?? settings.AudioDeviceId, settings.AlarmVolume, CancellationToken.None);
+        var path = ResolveSoundPath(settings, choice);
+        if (path is null) return 0;
+        int id = Interlocked.Increment(ref _previewSeq);
+        PlayOnceAsync(path, choice?.DeviceId ?? settings.AudioDeviceId, choice?.Volume ?? settings.AlarmVolume, CancellationToken.None)
+            .ContinueWith(_ => PreviewEnded?.Invoke(this, id), TaskScheduler.Default);
+        return id;
+    }
+
+    public TimeSpan? GetDuration(string ringtoneId, string? customPath)
+    {
+        var path = ResolveSoundPath(ringtoneId, customPath);
+        if (path is null) return null;
+        try
+        {
+            using var reader = new AudioFileReader(path);
+            return reader.TotalTime;
+        }
+        catch
+        {
+            return null; // повреждённый/неподдерживаемый файл — длительность просто не показываем
+        }
     }
 
     /// <summary>
@@ -188,7 +206,7 @@ public sealed class SoundService : ISoundService, IDisposable
         return parent is not null && File.Exists(Path.Combine(parent.FullName, "Update.exe"));
     }
 
-    public string? ImportCustomSound(string sourcePath, string? previousImportedPath)
+    public string? ImportCustomSound(string sourcePath)
     {
         StopAlarm(); // перезапись файла, который сейчас играет, упала бы на блокировке
 
@@ -199,10 +217,13 @@ public sealed class SoundService : ISoundService, IDisposable
             {
                 Directory.CreateDirectory(dir);
                 var dest = Path.Combine(dir, Path.GetFileName(sourcePath));
-                if (!string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
-                    File.Copy(sourcePath, dest, overwrite: true);
+                if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
+                    return dest; // выбрали уже скопированный файл
 
-                DeleteOldImport(previousImportedPath, dest);
+                // Свои файлы теперь бывают у каждого быстрого таймера: одноимённый файл с другим содержимым
+                // не затираем (им может пользоваться другой таймер) — копия получает имя «звук (2).mp3».
+                dest = FreeName(dest, sourcePath);
+                File.Copy(sourcePath, dest, overwrite: true);
                 return dest;
             }
             catch
@@ -213,15 +234,25 @@ public sealed class SoundService : ISoundService, IDisposable
         return null;
     }
 
+    /// <summary>Имя для копии: то же, если файла нет или он такой же длины (та же копия); иначе «имя (N).расш».</summary>
+    private static string FreeName(string dest, string source)
+    {
+        long size = new FileInfo(source).Length;
+        var dir = Path.GetDirectoryName(dest)!;
+        var name = Path.GetFileNameWithoutExtension(dest);
+        var ext = Path.GetExtension(dest);
+        for (int n = 2; File.Exists(dest) && new FileInfo(dest).Length != size; n++)
+            dest = Path.Combine(dir, $"{name} ({n}){ext}");
+        return dest;
+    }
+
     /// <summary>Удаляет прежнюю копию — только если она лежит в НАШЕЙ папке звуков (чужие файлы не трогаем).</summary>
-    private static void DeleteOldImport(string? previousPath, string newPath)
+    public void DeleteImportedSound(string? previousPath)
     {
         if (string.IsNullOrEmpty(previousPath)) return;
         try
         {
             var prev = Path.GetFullPath(previousPath);
-            if (string.Equals(prev, Path.GetFullPath(newPath), StringComparison.OrdinalIgnoreCase)) return;
-
             var prevDir = Path.GetDirectoryName(prev);
             bool isOurs = string.Equals(prevDir, Path.GetFullPath(AppSoundsDir), StringComparison.OrdinalIgnoreCase)
                        || string.Equals(prevDir, Path.GetFullPath(FallbackSoundsDir), StringComparison.OrdinalIgnoreCase);
@@ -247,8 +278,10 @@ public sealed class SoundService : ISoundService, IDisposable
         }
     }
 
-    private static string? ResolveSoundPath(AppSettings settings) =>
-        ResolveSoundPath(settings.RingtoneId, settings.CustomSoundFilePath);
+    private static string? ResolveSoundPath(AppSettings settings, SoundChoice? choice) =>
+        choice?.RingtoneId is { } id
+            ? ResolveSoundPath(id, choice.CustomPath)
+            : ResolveSoundPath(settings.RingtoneId, settings.CustomSoundFilePath);
 
     /// <summary>
     /// Путь к файлу звонка. Встроенный — распаковывается из ресурсов exe в кэш %APPDATA%\Time2Gadget\Ringtones

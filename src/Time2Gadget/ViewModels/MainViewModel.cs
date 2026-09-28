@@ -50,10 +50,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<TimerPreset> Presets { get; } = new(TimerPreset.All);
     public IReadOnlyList<AudioDeviceInfo> AudioDevices { get; }
 
-    /// <summary>Встроенные звонки + «Свой файл…» последним пунктом.</summary>
-    public IReadOnlyList<Ringtone> RingtoneOptions { get; } =
-        RingtoneCatalog.BuiltIn.Append(new Ringtone(RingtoneCatalog.CustomId, "Свой файл…")).ToList();
-
     public IReadOnlyList<EnumOption<RunningVisualEffect>> RunningEffectOptions { get; } = new[]
     {
         new EnumOption<RunningVisualEffect>(RunningVisualEffect.None, "Отключено"),
@@ -93,6 +89,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         LoadCachedFromSettings();
 
         _engine.Finished += OnEngineFinished;
+        _soundService.PreviewEnded += OnPreviewEnded;
+        LoadBuiltInDurations();
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AlarmVolume)) foreach (var q in QuickTimers) q.OnGeneralVolumeChanged(); // галочка «общая» — ползунок следует
+        };
         _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(TryAutoClose);
         _engine.StatusChanged += (_, _) => RaiseStatusDependentChanges();
 
@@ -107,7 +109,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty));
         BrowseCustomSoundCommand = new RelayCommand(BrowseCustomSound);
         // Параметр — Id конкретного звонка (кнопка ▶ в строке выпадающего списка); без параметра — выбранный.
-        PreviewRingtoneCommand = new RelayCommand(p => _soundService.PlayPreview(_settings, p is string { Length: > 0 } id ? id : null)); // "" — общий звонок
+        PreviewRingtoneCommand = new RelayCommand(PreviewFromSoundSection);
         OpenGitHubCommand = new RelayCommand(() => OpenUrl(GitHubUrl));
         // Отчёт VirusTotal по установщику ИМЕННО этой версии (хэш — из GitHub Release); нет связи — страница выпусков.
         OpenVirusTotalCommand = new RelayCommand(async () => OpenUrl(await _updateService.GetVirusTotalUrlAsync() ?? GitHubUrl));
@@ -343,6 +345,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.CustomSoundFilePath = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            UpdateCustomOption(RingtoneOptions, value);
         }
     }
 
@@ -907,6 +910,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             ? _settings.RingtoneId
             : RingtoneCatalog.DefaultId;
         _customSoundFilePath = _settings.CustomSoundFilePath;
+        if (_ringtoneOptions is not null) UpdateCustomOption(_ringtoneOptions, _customSoundFilePath); // после сброса настроек
         _alarmRepeatCount = _settings.AlarmRepeatCount;
         _runningEffect = _settings.RunningEffect;
         _finishEffect = _settings.FinishEffect;
@@ -1036,7 +1040,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
-            _alarmRingtoneOverride = _alarmDeviceOverride = null;
+            _alarmChoice = null;
             _engine.SetDuration(TimeSpan.FromMinutes(preset.Minutes));
             _engine.Start();
             RaiseStatusDependentChanges();
@@ -1052,7 +1056,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.LastPresetMinutes = preset.Minutes;
             _settingsService.Save(_settings);
             _soundService.StopAlarm();
-            _alarmRingtoneOverride = _alarmDeviceOverride = null;
+            _alarmChoice = null;
             _engine.Restart(TimeSpan.FromMinutes(preset.Minutes));
             RaiseStatusDependentChanges();
         }
@@ -1078,7 +1082,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void ResetTimer()
     {
-        _alarmRingtoneOverride = _alarmDeviceOverride = null; // свой звонок быстрого таймера — только до сброса
+        _alarmChoice = null; // свой звонок быстрого таймера — только до сброса
         _soundService.StopAlarm();
         _engine.Reset();
         RaiseStatusDependentChanges();
@@ -1093,7 +1097,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         if (newDuration < MinDuration) newDuration = MinDuration;
         if (newDuration > MaxDuration) newDuration = MaxDuration;
 
-        _alarmRingtoneOverride = _alarmDeviceOverride = null;
+        _alarmChoice = null;
         _engine.SetDuration(newDuration);
 
         // Подсветка сектора актуальна, только если новое значение совпадает с одним из пресетов.
@@ -1109,18 +1113,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void BrowseCustomSound()
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Выберите звуковой файл",
-            Filter = "Аудио файлы (*.wav;*.mp3)|*.wav;*.mp3|Все файлы (*.*)|*.*"
-        };
-        if (dialog.ShowDialog() == true)
-        {
-            // Играем копию из папки программы, а не оригинал (докладка 2026-09-27); если скопировать
-            // не удалось — хотя бы оригинал, чтобы выбор не потерялся.
-            CustomSoundFilePath = _soundService.ImportCustomSound(dialog.FileName, CustomSoundFilePath) ?? dialog.FileName;
-            SelectedRingtoneId = RingtoneCatalog.CustomId;
-        }
+        if (PickAndImportSound() is not { } path) return;
+        var previous = CustomSoundFilePath;
+        CustomSoundFilePath = path;
+        SelectedRingtoneId = RingtoneCatalog.CustomId;
+        DeleteSoundIfUnused(previous); // прежняя копия — только если её не использует быстрый таймер
     }
 
     private static void OpenUrl(string url)
@@ -1152,7 +1149,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (!IsMuted)
         {
-            _soundService.PlayAlarm(_settings, _alarmRingtoneOverride, _alarmDeviceOverride); // автозакрытие — по AlarmCompleted, когда звонок отыграет
+            _soundService.PlayAlarm(_settings, _alarmChoice); // автозакрытие — по AlarmCompleted, когда звонок отыграет
         }
         else
         {

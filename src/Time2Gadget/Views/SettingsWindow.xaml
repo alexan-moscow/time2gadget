@@ -24,6 +24,28 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Кнопка прослушивания в списках звонков: ▶, пока звук этой строки играет — ■ (повторное нажатие гасит). -->
+        <Style x:Key="Style.PreviewButton" TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
+            <Setter Property="Content" Value="▶" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="ToolTip" Value="Прослушать" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                    <Setter Property="Content" Value="■" />
+                    <Setter Property="ToolTip" Value="Остановить" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Длительность звука слева от ▶ — мелким узким шрифтом («45 сек», «1 мин 24 сек»). -->
+        <Style x:Key="Style.SoundDuration" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Bahnschrift Condensed, Arial Narrow, Segoe UI" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+        </Style>
+
         <!-- Галочка «везде» у клавиш — без текста, заголовок столбца над ней. -->
         <Style x:Key="Style.GlobalCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="HorizontalAlignment" Value="Center" />
@@ -119,17 +141,18 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="▶" Margin="10,0,0,0" Padding="8,1" FontSize="11"
-                                    Style="{StaticResource Style.SettingsButton}" Tag="{Binding Id}"
-                                    PreviewMouseLeftButtonDown="OnRingtonePreviewMouseDown"
-                                    PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp">
-                                <Button.Visibility>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <StackPanel.Visibility>
                                     <MultiBinding Converter="{StaticResource RingtonePreviewVisibility}">
                                         <Binding RelativeSource="{RelativeSource AncestorType=ComboBoxItem}" />
-                                        <Binding Path="Id" />
+                                        <Binding Path="CanPreview" />
                                     </MultiBinding>
-                                </Button.Visibility>
-                            </Button>
+                                </StackPanel.Visibility>
+                                <TextBlock Text="{Binding DurationText}" Style="{StaticResource Style.SoundDuration}" />
+                                <Button Style="{StaticResource Style.PreviewButton}" Tag="{Binding Id}" Padding="8,1" FontSize="11"
+                                        PreviewMouseLeftButtonDown="OnRingtonePreviewMouseDown"
+                                        PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
@@ -142,7 +165,19 @@
                            TextTrimming="CharacterEllipsis" MaxWidth="200" />
             </StackPanel>
 
-            <Button Content="▶ Прослушать" Style="{StaticResource Style.SettingsButton}" Command="{Binding PreviewRingtoneCommand}" Margin="0,10,0,0" />
+            <!-- Повторное нажатие гасит звук с затуханием (докладка 2026-09-28). -->
+            <Button Command="{Binding PreviewRingtoneCommand}" Margin="0,10,0,0" HorizontalAlignment="Left" MinWidth="120">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
+                        <Setter Property="Content" Value="▶ Прослушать" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPreviewPlaying}" Value="True">
+                                <Setter Property="Content" Value="■ Стоп" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
 
             <!-- ============ Поведение при завершении ============ -->
             <TextBlock Text="Поведение таймера при завершении" Style="{StaticResource Style.SectionHeader}" />
@@ -238,11 +273,24 @@
                             </ToggleButton>
                             <Popup Grid.Column="5" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-200"
                                    StaysOpen="False" AllowsTransparency="True"
-                                   IsOpen="{Binding IsChecked, ElementName=SoundButton, Mode=TwoWay}">
-                                <Border Width="240" Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0"
+                                   IsOpen="{Binding IsChecked, ElementName=SoundButton, Mode=TwoWay}"
+                                   Closed="OnQuickSoundPopupClosed">
+                                <Border Width="260" Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0"
                                         Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
                                     <StackPanel>
-                                        <TextBlock Text="Звонок" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+                                        <!-- Громкость: «общая» — из раздела «Звук»; тронули ползунок — галочка снимается сама. -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Громкость" VerticalAlignment="Center" />
+                                            <CheckBox Grid.Column="1" Content="общая" IsChecked="{Binding UseGeneralVolume}" Margin="8,0,0,0"
+                                                      VerticalAlignment="Center" ToolTip="Громкость как в разделе «Звук»" />
+                                            <Slider Grid.Column="2" Minimum="0" Maximum="1" Value="{Binding VolumeValue}" Margin="8,0,0,0"
+                                                    VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1" />
+                                        </Grid>
                                         <ListBox ItemsSource="{Binding SoundOptions}" SelectedValuePath="Id" SelectedValue="{Binding RingtoneKey}"
                                                  Height="200" Background="Transparent" BorderThickness="0"
                                                  ItemContainerStyle="{StaticResource Style.SoundListItem}"
@@ -255,15 +303,28 @@
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                        <Button Grid.Column="1" Content="▶" Margin="6,0,0,0" Padding="6,0" FontSize="10"
-                                                                Style="{StaticResource Style.SettingsButton}" Tag="{Binding Id}"
-                                                                ToolTip="Прослушать на устройстве этого таймера"
-                                                                PreviewMouseLeftButtonDown="OnQuickSoundPreviewMouseDown"
-                                                                PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                                    Visibility="{Binding CanPreview, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="{Binding DurationText}" Style="{StaticResource Style.SoundDuration}" />
+                                                            <Button Style="{StaticResource Style.PreviewButton}" Tag="{Binding Id}" Padding="6,0" FontSize="10"
+                                                                    PreviewMouseLeftButtonDown="OnQuickSoundPreviewMouseDown"
+                                                                    PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                        </StackPanel>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
                                         </ListBox>
+                                        <!-- Свой файл таймера: копия в папке звуков программы. -->
+                                        <Grid Margin="0,6,0,0" Visibility="{Binding IsCustomFileSelected, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Content="Обзор…" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Padding="8,2" Margin="0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding CustomFileName}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                       TextTrimming="CharacterEllipsis" FontSize="11" ToolTip="{Binding CustomFileName}" />
+                                        </Grid>
                                         <TextBlock Text="Устройство" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,8,0,4" />
                                         <ComboBox ItemsSource="{Binding DeviceOptions}" DisplayMemberPath="FriendlyName"
                                                   SelectedValuePath="Id" SelectedValue="{Binding DeviceKey}" />

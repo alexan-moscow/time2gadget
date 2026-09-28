@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Windows.Threading;
+using System.Windows.Threading;
 using Time2Gadget.Models;
 
 namespace Time2Gadget.ViewModels;
@@ -101,7 +103,9 @@ public sealed partial class MainViewModel
 
     internal void RemoveQuickTimer(QuickTimerItem item)
     {
+        if (ReferenceEquals(_previewOwner, item)) StopPreview();
         _settings.QuickTimers.Remove(item.Model);
+        DeleteSoundIfUnused(item.Model.CustomSoundFilePath);
         QuickTimers.Remove(item);
         if (QuickTimers.Count == 0) { AddQuickTimerCommand.Execute(null); return; } // всегда хотя бы одна строка
         OnQuickTimersChanged(listChanged: true);
@@ -139,19 +143,14 @@ public sealed partial class MainViewModel
     /// <summary>Ключ «как в разделе «Звук»» в списке устройств (у звонков это пустая строка).</summary>
     internal const string GeneralDeviceKey = "general";
 
-    internal IReadOnlyList<Ringtone> QuickTimerSoundOptions => _quickTimerSoundOptions ??=
-        RingtoneCatalog.BuiltIn.Prepend(new Ringtone(string.Empty, "Общий звонок")).ToList();
-    private IReadOnlyList<Ringtone>? _quickTimerSoundOptions;
-
     internal IReadOnlyList<AudioDeviceInfo> QuickTimerDeviceOptions => _quickTimerDeviceOptions ??=
         AudioDevices.Prepend(new AudioDeviceInfo(GeneralDeviceKey, "Как в разделе «Звук»")).ToList();
     private IReadOnlyList<AudioDeviceInfo>? _quickTimerDeviceOptions;
 
-    internal void PreviewQuickTimerSound(string? ringtoneId, string? deviceId) =>
-        _soundService.PlayPreview(_settings, string.IsNullOrEmpty(ringtoneId) ? null : ringtoneId, deviceId);
+    internal double GeneralVolume => AlarmVolume;
 
-    // Звонок/устройство идущего быстрого таймера; сбрасываются, когда время выбирают иначе (сектор, колесо, сброс).
-    private string? _alarmRingtoneOverride, _alarmDeviceOverride;
+    // Звук идущего быстрого таймера; сбрасывается, когда время выбирают иначе (сектор, колесо, сброс).
+    private SoundChoice? _alarmChoice;
 
     // ---- Глобальные клавиши ----
 
@@ -248,8 +247,7 @@ public sealed partial class MainViewModel
         // Совпадает с сектором кольца — подсветить его; нет — кольцо без выделения.
         SelectedPreset = Presets.FirstOrDefault(p => TimeSpan.FromMinutes(p.Minutes) == duration);
         _engine.Restart(duration);
-        _alarmRingtoneOverride = timer.RingtoneId;
-        _alarmDeviceOverride = timer.AudioDeviceId;
+        _alarmChoice = timer.Sound;
         RaiseStatusDependentChanges();
     }
 
@@ -306,15 +304,26 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         }
     }
 
-    // ---- Звук: всплывашка по кнопке-колокольчику ----
-    public IReadOnlyList<Ringtone> SoundOptions => _owner.QuickTimerSoundOptions;
+    // ---- Звук: всплывашка по кнопке-колокольчику (громкость, звонок, устройство) ----
+    private IReadOnlyList<RingtoneOption>? _soundOptions;
+    /// <summary>Свой список у каждой строки: у пункта «Свой файл…» — файл и длительность этого таймера.</summary>
+    public IReadOnlyList<RingtoneOption> SoundOptions => _soundOptions ??= _owner.CreateRingtoneOptions(general: true, Model.CustomSoundFilePath);
     public IReadOnlyList<AudioDeviceInfo> DeviceOptions => _owner.QuickTimerDeviceOptions;
 
     /// <summary>Id звонка для списка: "" — общий звонок.</summary>
     public string RingtoneKey
     {
         get => Model.RingtoneId ?? string.Empty;
-        set => SetSound(() => Model.RingtoneId = string.IsNullOrEmpty(value) ? null : value);
+        set
+        {
+            if (value == RingtoneCatalog.CustomId && string.IsNullOrEmpty(Model.CustomSoundFilePath))
+            {
+                // «Свой файл…» без файла — сначала выбрать файл; после того, как список закончит обработку щелчка.
+                Dispatcher.CurrentDispatcher.BeginInvoke(BrowseSound);
+                return;
+            }
+            SetSound(() => Model.RingtoneId = string.IsNullOrEmpty(value) ? null : value);
+        }
     }
 
     /// <summary>Id устройства для списка: <see cref="MainViewModel.GeneralDeviceKey"/> — как в разделе «Звук».</summary>
@@ -324,23 +333,78 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         set => SetSound(() => Model.AudioDeviceId = value is null or MainViewModel.GeneralDeviceKey ? null : value);
     }
 
-    /// <summary>Задан свой звук или устройство — колокольчик подсвечен.</summary>
-    public bool HasCustomSound => Model.RingtoneId is not null || Model.AudioDeviceId is not null;
+    /// <summary>Галочка «общая»: громкость из раздела «Звук». Снимается сама, если тронуть ползунок.</summary>
+    public bool UseGeneralVolume
+    {
+        get => Model.Volume is null;
+        set
+        {
+            if (value == UseGeneralVolume) return;
+            SetSound(() => Model.Volume = value ? null : _owner.GeneralVolume);
+        }
+    }
+
+    /// <summary>Ползунок громкости: при «общей» показывает общую; изменение — своя громкость таймера.</summary>
+    public double VolumeValue
+    {
+        get => Model.Volume ?? _owner.GeneralVolume;
+        set
+        {
+            value = Math.Clamp(value, 0, 1);
+            if (Math.Abs(value - VolumeValue) < 0.001) return;
+            SetSound(() => Model.Volume = value);
+        }
+    }
+
+    internal void OnGeneralVolumeChanged()
+    {
+        if (Model.Volume is null) OnPropertyChanged(nameof(VolumeValue));
+    }
+
+    public bool IsCustomFileSelected => Model.RingtoneId == RingtoneCatalog.CustomId;
+    public string CustomFileName => string.IsNullOrEmpty(Model.CustomSoundFilePath) ? "" : System.IO.Path.GetFileName(Model.CustomSoundFilePath);
+
+    public RelayCommand BrowseSoundCommand => _browseSoundCommand ??= new RelayCommand(BrowseSound);
+    private RelayCommand? _browseSoundCommand;
+
+    /// <summary>Выбрать свой файл таймера: копия — в папку звуков программы, прежняя удаляется, если больше не нужна.</summary>
+    private void BrowseSound()
+    {
+        if (_owner.PickAndImportSound() is not { } path)
+        {
+            OnPropertyChanged(nameof(RingtoneKey)); // отмена — выделение в списке вернуть на прежний звонок
+            return;
+        }
+        var previous = Model.CustomSoundFilePath;
+        SetSound(() =>
+        {
+            Model.CustomSoundFilePath = path;
+            Model.RingtoneId = RingtoneCatalog.CustomId;
+        });
+        _owner.UpdateCustomOption(SoundOptions, path);
+        _owner.DeleteSoundIfUnused(previous);
+    }
+
+    /// <summary>Задан свой звук (звонок, устройство или громкость) — колокольчик подсвечен.</summary>
+    public bool HasCustomSound => Model.RingtoneId is not null || Model.AudioDeviceId is not null || Model.Volume is not null;
 
     public string SoundToolTip =>
-        $"Звук: {SoundOptions.FirstOrDefault(r => r.Id == RingtoneKey)?.Title ?? "общий"}\n" +
+        $"Звук: {SoundOptions.FirstOrDefault(r => r.Id == RingtoneKey)?.Title ?? "общий"}" +
+        (IsCustomFileSelected ? $" ({CustomFileName})" : "") + "\n" +
+        $"Громкость: {(Model.Volume is { } v ? $"{Math.Round(v * 100)}%" : "общая")}\n" +
         $"Устройство: {DeviceOptions.FirstOrDefault(d => d.Id == DeviceKey)?.FriendlyName ?? "как в разделе «Звук»"}";
 
-    /// <summary>▶ во всплывашке: звонок — на выбранном для этого таймера устройстве.</summary>
-    public void Preview(string? ringtoneId) => _owner.PreviewQuickTimerSound(ringtoneId, Model.AudioDeviceId);
+    /// <summary>▶/■ во всплывашке: звонок — с громкостью и на устройстве этого таймера.</summary>
+    public void Preview(string ringtoneId) =>
+        _owner.TogglePreview(this, ringtoneId, new SoundChoice(
+            string.IsNullOrEmpty(ringtoneId) ? null : ringtoneId, Model.CustomSoundFilePath, Model.AudioDeviceId, Model.Volume));
 
     private void SetSound(Action assign)
     {
         assign();
-        OnPropertyChanged(nameof(RingtoneKey));
-        OnPropertyChanged(nameof(DeviceKey));
-        OnPropertyChanged(nameof(HasCustomSound));
-        OnPropertyChanged(nameof(SoundToolTip));
+        foreach (var name in new[] { nameof(RingtoneKey), nameof(DeviceKey), nameof(UseGeneralVolume), nameof(VolumeValue),
+                     nameof(IsCustomFileSelected), nameof(CustomFileName), nameof(HasCustomSound), nameof(SoundToolTip) })
+            OnPropertyChanged(name);
         _owner.OnQuickTimersChanged(hotkeys: false);
     }
 
