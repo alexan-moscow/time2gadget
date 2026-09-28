@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:c="clr-namespace:Time2Gadget.Controls"
+        xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
         mc:Ignorable="d"
         Title="Настройки — Тайм2гаджет"
         Width="380" Height="620"
@@ -531,8 +532,28 @@
 
             <!-- ============ Об авторе ============ -->
             <TextBlock Text="Об авторе" Style="{StaticResource Style.SectionHeader}" />
-            <TextBlock Text="{Binding AuthorLine, Mode=OneTime}" Margin="0,0,0,6" />
-            <Button ToolTip="Страница выпусков на GitHub" Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenGitHubCommand}" />
+            <!-- Аватарка высотой в две строки (анимированный GIF — Controls/AnimatedGif), справа имя-ссылка (страница автора —
+                 пока заглушка) и выпуски на GitHub; ниже без изменений — VirusTotal (докладка 2026-09-28). -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+                <Image Grid.RowSpan="2" Width="44" Height="44" c:AnimatedGif.Source="pack://application:,,,/Assets/Avatar/author.gif"
+                       RenderOptions.BitmapScalingMode="HighQuality" ToolTip="Какая-то старая аватарка">
+                    <Image.Clip>
+                        <RectangleGeometry Rect="0,0,44,44" RadiusX="8" RadiusY="8" />
+                    </Image.Clip>
+                </Image>
+                <Button Grid.Column="1" Content="{x:Static vm:MainViewModel.Author}" Style="{StaticResource Style.LinkButton}"
+                        Command="{Binding OpenAuthorPageCommand}" ToolTip="Страница автора — скоро" Margin="10,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" />
+                <Button Grid.Row="1" Grid.Column="1" ToolTip="Страница выпусков на GitHub" Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}"
+                        Command="{Binding OpenGitHubCommand}" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+            </Grid>
             <!-- Отчёт по установщику текущей версии: хэш берётся из GitHub Release (UpdateService.GetVirusTotalUrlAsync). -->
             <Button ToolTip="Отчёт VirusTotal по установщику этой версии" Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
 

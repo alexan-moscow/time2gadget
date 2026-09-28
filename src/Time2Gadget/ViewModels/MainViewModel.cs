@@ -421,7 +421,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand CheckUpdatesCommand { get; private set; } = null!;
     public RelayCommand InstallUpdateCommand { get; private set; } = null!;
 
-    public string CurrentVersionText => $"Версия {_updateService.CurrentVersion}";
+    /// <summary>«Версия 1.0.5 · сентябрь 2026» — дата сборки справа от версии (докладка 2026-09-28; раньше была в «Об авторе»).</summary>
+    public string CurrentVersionText => ReleaseMonth is { } month
+        ? $"Версия {_updateService.CurrentVersion} · {month}"
+        : $"Версия {_updateService.CurrentVersion}";
 
     private string? _availableVersion;
     public string? AvailableVersion
@@ -861,8 +864,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     public const string GitHubUrl = "https://github.com/alexan-moscow/time2gadget/releases";
 
 
-    /// <summary>«alexan-moscow · сентябрь 2026» — месяц/год сборки проставляет сама сборка (AssemblyMetadata ReleaseDate).</summary>
-    public string AuthorLine
+    /// <summary>«сентябрь 2026» — месяц/год сборки проставляет сама сборка (AssemblyMetadata ReleaseDate); null — нет.</summary>
+    private static string? ReleaseMonth
     {
         get
         {
@@ -872,10 +875,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
                 .FirstOrDefault(a => a.Key == "ReleaseDate")?.Value;
             return DateTime.TryParseExact(raw, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
                        System.Globalization.DateTimeStyles.None, out var date)
-                ? $"{Author} · {date.ToString("MMMM yyyy", Russian)}"
-                : Author;
+                ? date.ToString("MMMM yyyy", Russian)
+                : null;
         }
     }
+
+    /// <summary>Ссылка-имя в «Об авторе»: страница автора — пока заглушка (докладка 2026-09-28), адрес будет позже.</summary>
+    public RelayCommand OpenAuthorPageCommand => _openAuthorPageCommand ??= new RelayCommand(() => { });
+    private RelayCommand? _openAuthorPageCommand;
 
     // ---- Позиции окон (докладка 2026-09-28): полный и компактный вид — каждый своя; окно настроек — своя ----
 

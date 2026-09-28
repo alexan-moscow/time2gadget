@@ -42,6 +42,8 @@
   <!-- Сегментный шрифт циферблата DSEG7 (SIL OFL 1.1, Assets/Fonts/DSEG-LICENSE.txt) — docs/DECISIONS.md, 2026-09-27. -->
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
+    <!-- Аватарка автора (раздел «Об авторе», анимированный GIF — Controls/AnimatedGif). -->
+    <Resource Include="Assets\Avatar\author.gif" />
   </ItemGroup>
   <!-- Встроенные звонки (mp3 с Pixabay, выбраны пользователем) — Models/RingtoneCatalog.cs. Имя ресурса = Ringtones.{id}.mp3. -->
   <ItemGroup>
