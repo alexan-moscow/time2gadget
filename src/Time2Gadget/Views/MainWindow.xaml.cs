@@ -40,6 +40,7 @@ public partial class MainWindow : Window
 
     private Storyboard? _dialEffectStoryboard;
     private readonly HintController _hints;
+    private readonly Services.WindowLayoutService _windowLayout;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -63,15 +64,31 @@ public partial class MainWindow : Window
         // Скрытое окно + законченный таймер → иконка трея мигает красным (MainViewModel.UpdateTray).
         IsVisibleChanged += (_, _) => UpdateHiddenState();
         StateChanged += (_, _) => UpdateHiddenState(); // свёрнуто на панель задач (Win+D) — тоже «не видно»
+        // Кнопки на панели задач нет (докладка 2026-09-28: программа живёт только в трее) — свёрнутое окно
+        // осталось бы полоской в углу экрана, поэтому сворачивание (Win+D и т.п.) = убрать в трей.
+        StateChanged += (_, _) =>
+        {
+            if (WindowState != WindowState.Minimized) return;
+            WindowState = WindowState.Normal;
+            _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top);
+            Hide();
+        };
 
         // После сна/переподключения мониторов Windows переносит окна на доступный в тот момент монитор
         // (докладка 2026-09-28: компакт «уехал» на нижний монитор) — возвращаем на сохранённые места.
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+
+        // Окна ДРУГИХ программ — отдельная служба, по настройке (по умолчанию выкл); нужен HWND этого окна
+        // для уведомлений «экран гаснет/включился».
+        _windowLayout = new Services.WindowLayoutService(this);
+        SourceInitialized += (_, _) => _windowLayout.Enabled = _viewModel.RestoreOtherWindows;
+
         Closed += (_, _) =>
         {
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            _windowLayout.Dispose();
         };
     }
 
@@ -171,6 +188,10 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.ProgressFraction):
                 UpdateCompactProgressBar();
+                break;
+            case nameof(MainViewModel.RestoreOtherWindows):
+            case "": // сброс настроек — перечитать всё
+                _windowLayout.Enabled = _viewModel.RestoreOtherWindows;
                 break;
             case nameof(MainViewModel.IsFinished):
                 UpdateCompactProgressBar();

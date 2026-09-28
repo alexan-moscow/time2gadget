@@ -632,6 +632,19 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Возвращать окна других программ на мониторы после сна — служба живёт в MainWindow (нужен HWND).</summary>
+    public bool RestoreOtherWindows
+    {
+        get => _settings.RestoreOtherWindows;
+        set
+        {
+            if (_settings.RestoreOtherWindows == value) return;
+            _settings.RestoreOtherWindows = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>
     /// Таймер пробуждения — только пока идёт отсчёт; на момент окончания (сейчас + осталось). Пауза/сброс/
     /// окончание снимают его; добавление времени — переставляет (PowerService сам игнорирует мелкие расхождения).

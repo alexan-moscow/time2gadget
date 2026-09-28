@@ -34,6 +34,9 @@ public sealed class AppSettings
 
     /// <summary>Включать погасшие мониторы, когда таймер закончился (компьютер работает, экраны выключены по простою). По умолчанию да.</summary>
     public bool WakeDisplayOnFinish { get; set; } = true;
+
+    /// <summary>Возвращать окна других программ на их мониторы после сна/гашения мониторов (Services/WindowLayoutService). По умолчанию выкл.</summary>
+    public bool RestoreOtherWindows { get; set; } = false;
     /// <summary>По умолчанию — да; при первом запуске App включает автозапуск в реестре (см. App.xaml.cs).</summary>
     public bool LaunchAtStartup { get; set; } = true;
 

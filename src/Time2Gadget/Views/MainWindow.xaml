@@ -11,7 +11,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        ShowInTaskbar="True"
+        ShowInTaskbar="False"
         Topmost="{Binding IsAlwaysOnTop}"
         WindowStartupLocation="CenterScreen"
         Closing="OnWindowClosing"
