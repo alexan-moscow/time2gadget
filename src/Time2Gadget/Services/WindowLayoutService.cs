@@ -19,8 +19,17 @@ namespace Time2Gadget.Services;
 public sealed class WindowLayoutService : IDisposable
 {
     private static readonly TimeSpan SnapshotDebounce = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan[] RestoreAttemptDelays =
-        { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(25) };
+    /// <summary>
+    /// Попытки расставить окна от момента «экран включился/пробуждение/смена мониторов» (докладка 2026-09-28:
+    /// было 1/3/6/12/25 с — ощутимая пауза). Частые в начале: монитор обычно появляется за 1–4 с.
+    /// Плюс на каждое «монитор вернулся» расписание запускается заново — реакция почти мгновенная.
+    /// </summary>
+    internal static readonly TimeSpan[] RestoreAttemptDelays =
+        new[] { 0.3, 0.8, 1.5, 2.5, 4, 6, 9, 13, 20, 30 }.Select(TimeSpan.FromSeconds).ToArray();
+
+    /// <summary>После того как все мониторы на месте — ещё столько попыток (включая первую удачную): часть окон Windows двигает с опозданием.</summary>
+    private const int AttemptsAfterMonitorsBack = 3;
+    private int _attemptsSinceBack;
     /// <summary>Если монитор так и не вернулся (отключили насовсем) — через столько принимаем новую конфигурацию.</summary>
     private static readonly TimeSpan MaxFreeze = TimeSpan.FromMinutes(10);
 
@@ -199,6 +208,7 @@ public sealed class WindowLayoutService : IDisposable
     {
         if (_snapshot.Count == 0) return;
         _restoreAttempt = 0;
+        _attemptsSinceBack = 0;
         _restoreTimer.Stop();
         _restoreTimer.Interval = RestoreAttemptDelays[0];
         _restoreTimer.Start();
@@ -207,13 +217,17 @@ public sealed class WindowLayoutService : IDisposable
     private void OnRestoreTick(object? sender, EventArgs e)
     {
         bool allMonitorsBack = MonitorCount >= _snapshotMonitors;
-        if (allMonitorsBack) RestoreAll();
+        if (allMonitorsBack)
+        {
+            RestoreAll();
+            _attemptsSinceBack++;
+        }
 
         _restoreAttempt++;
-        if (_restoreAttempt >= RestoreAttemptDelays.Length || (allMonitorsBack && _restoreAttempt >= 2))
+        if (_restoreAttempt >= RestoreAttemptDelays.Length || _attemptsSinceBack >= AttemptsAfterMonitorsBack)
         {
-            // Две попытки после возвращения мониторов (окна некоторых программ Windows двигает с опозданием) —
-            // потом снова обновляем снимок по событиям.
+            // Несколько попыток после возвращения мониторов (окна некоторых программ Windows двигает с
+            // опозданием) — потом снова обновляем снимок по событиям.
             _restoreTimer.Stop();
             if (allMonitorsBack)
             {

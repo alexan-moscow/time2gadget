@@ -97,8 +97,8 @@ public partial class MainWindow : Window
     // окно стоит там, куда его переставила Windows. Поэтому несколько попыток с растущей паузой: как только
     // сохранённое место снова видно на экране — ставим окно туда. Сохранённое место при этом не перезаписывается
     // (переставленная Windows позиция нигде не сохраняется — сохраняем только после перетаскивания/переключения).
-    private static readonly TimeSpan[] RestoreAttemptDelays =
-        { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(25) };
+    // То же расписание, что у окон других программ (частые попытки в начале, 2026-09-28).
+    private static readonly TimeSpan[] RestoreAttemptDelays = Services.WindowLayoutService.RestoreAttemptDelays;
     private DispatcherTimer? _restoreTimer;
     private int _restoreAttempt;
 

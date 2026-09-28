@@ -190,6 +190,9 @@ public sealed class TrayService : ITrayService
         {
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
+            // Обнуляем: при выходе окно закрывается ПОСЛЕ этого, и его «скрыто» вызывает Update — обращение к
+            // освобождённому NotifyIcon роняло процесс (краш при выходе, 2026-09-28). Update при null — ничего не делает.
+            _notifyIcon = null;
         }
         if (_dynamicIconHandle != IntPtr.Zero)
         {

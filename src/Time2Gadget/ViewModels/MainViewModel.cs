@@ -1133,6 +1133,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     private void UpdateTray()
     {
+        if (_disposed) return; // выход: трей уже закрыт, а окно ещё сообщает «скрыто»
         var tooltip = Status switch
         {
             TimerStatus.Running => $"Тайм2гаджет — осталось {Converters.TimeSpanToStringConverter.Format(RemainingTime)}",
@@ -1187,8 +1188,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        _disposed = true;
         _uiTimer.Stop();
         _trayEffectTimer?.Stop();
         _silentAutoCloseTimer?.Stop();
