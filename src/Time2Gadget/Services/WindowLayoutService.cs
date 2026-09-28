@@ -42,6 +42,7 @@ public sealed class WindowLayoutService : IDisposable
     private Dictionary<IntPtr, WINDOWPLACEMENT> _snapshot = new();
     private int _snapshotMonitors;
     private DateTime? _frozenSince;
+    private bool _displayWentOff; // было «экран гаснет» — следующее «включился» настоящее
     private int _restoreAttempt;
     private bool _enabled;
     private IntPtr _hookSystem, _hookObject, _powerNotify;
@@ -154,10 +155,14 @@ public sealed class WindowLayoutService : IDisposable
         }
     }
 
-    /// <summary>Обычные окна программ: видимые или свёрнутые, без владельца, не служебные, не свои.</summary>
+    /// <summary>
+    /// Обычные окна программ: видимые (в т.ч. свёрнутые на панель задач), без владельца, не служебные, не свои.
+    /// Скрытые — нет (докладка 2026-09-28): окно программы, убранной в трей, свёрнуто И скрыто; «вернуть» его
+    /// значило показать — кнопка появлялась на панели задач (Tamriel Trade Centre Client).
+    /// </summary>
     private bool IsCandidate(IntPtr hwnd)
     {
-        if (!IsWindowVisible(hwnd) && !IsIconic(hwnd)) return false;
+        if (!IsWindowVisible(hwnd)) return false;
         if (GetWindow(hwnd, GwOwner) != IntPtr.Zero) return false;
         if ((GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExToolWindow) != 0) return false;
         if (GetWindowTextLength(hwnd) == 0) return false;
@@ -185,12 +190,16 @@ public sealed class WindowLayoutService : IDisposable
                     _debounce.Stop();
                     TakeSnapshot("экран гаснет");
                     Freeze();
+                    _displayWentOff = true;
                 }
-                else if (setting.Data == 1) // экран включился
+                else if (setting.Data == 1 && _displayWentOff) // экран включился после того, как гас
                 {
+                    _displayWentOff = false;
                     Log($"экран включился: мониторов {MonitorCount}");
                     ScheduleRestore();
                 }
+                // «Экран включён» без предшествующего «погас» — это текущее состояние, которое Windows присылает сразу
+                // при регистрации уведомления (докладка 2026-09-28: каждый запуск программы расставлял все окна).
             }
         }
         return IntPtr.Zero;
@@ -257,6 +266,7 @@ public sealed class WindowLayoutService : IDisposable
         foreach (var (hwnd, saved) in _snapshot)
         {
             if (!IsWindow(hwnd)) continue; // окно закрыли
+            if (!IsWindowVisible(hwnd)) continue; // спрятали (например, в трей) после снимка — показывать нельзя
             var current = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
             if (!GetWindowPlacement(hwnd, ref current)) { Log($"  {Describe(hwnd)}: GetWindowPlacement отказ, код {Marshal.GetLastWin32Error()}"); continue; }
             bool minimized = saved.showCmd == SwShowMinimized || IsIconic(hwnd);

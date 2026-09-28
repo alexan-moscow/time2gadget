@@ -97,8 +97,8 @@ public sealed class AppSettings
     /// </summary>
     public int AlarmRepeatCount { get; set; } = 2;
 
-    /// <summary>Визуальный эффект циферблата во время отсчёта. По умолчанию отключён.</summary>
-    public RunningVisualEffect RunningEffect { get; set; } = RunningVisualEffect.None;
+    /// <summary>Визуальный эффект циферблата во время отсчёта. По умолчанию — «Встречные волны» (решение пользователя 2026-09-28).</summary>
+    public RunningVisualEffect RunningEffect { get; set; } = RunningVisualEffect.Waves;
 
     /// <summary>Визуальный эффект циферблата при завершении. По умолчанию — «Радужная волна» (решение пользователя 2026-09-27).</summary>
     public FinishVisualEffect FinishEffect { get; set; } = FinishVisualEffect.ColorCycle;
