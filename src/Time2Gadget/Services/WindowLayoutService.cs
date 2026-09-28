@@ -129,9 +129,10 @@ public sealed class WindowLayoutService : IDisposable
 
     private void Freeze() => _frozenSince ??= DateTime.UtcNow;
 
-    private void TakeSnapshot()
+    /// <param name="reason">Не null — снимок «в последний момент» (гашение экрана/сон): пишется в журнал со свёрнутыми окнами.</param>
+    private void TakeSnapshot(string? reason = null)
     {
-        if (IsFrozen) return;
+        if (IsFrozen) { if (reason is not null) Log($"снимок ({reason}) пропущен: заморожен с {_frozenSince:HH:mm:ss}"); return; }
         var snapshot = new Dictionary<IntPtr, WINDOWPLACEMENT>();
         EnumWindows((hwnd, _) =>
         {
@@ -144,6 +145,13 @@ public sealed class WindowLayoutService : IDisposable
         }, IntPtr.Zero);
         _snapshot = snapshot;
         _snapshotMonitors = MonitorCount;
+
+        if (reason is not null)
+        {
+            Log($"снимок ({reason}): мониторов {_snapshotMonitors}, окон {snapshot.Count}");
+            foreach (var (hwnd, p) in snapshot.Where(kv => kv.Value.showCmd == SwShowMinimized))
+                Log($"  свёрнуто: {Describe(hwnd)} разворачивается в {Rect(p)}");
+        }
     }
 
     /// <summary>Обычные окна программ: видимые или свёрнутые, без владельца, не служебные, не свои.</summary>
@@ -158,7 +166,8 @@ public sealed class WindowLayoutService : IDisposable
         if (DwmGetWindowAttribute(hwnd, DwmwaCloaked, out int cloaked, sizeof(int)) == 0 && cloaked != 0) return false; // скрытые UWP/другой рабочий стол
         var cls = new StringBuilder(64);
         GetClassName(hwnd, cls, cls.Capacity);
-        return cls.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd");
+        // Служебные окна рабочего стола/панели задач и DWM (найдено по журналу 2026-09-28: «DWM Notification Window»).
+        return cls.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Dwm");
     }
 
     // ---------------- Сон / мониторы ----------------
@@ -174,11 +183,12 @@ public sealed class WindowLayoutService : IDisposable
                 if (setting.Data == 0) // экран гаснет — запомнить в последний момент, пока мониторы ещё на месте
                 {
                     _debounce.Stop();
-                    TakeSnapshot();
+                    TakeSnapshot("экран гаснет");
                     Freeze();
                 }
                 else if (setting.Data == 1) // экран включился
                 {
+                    Log($"экран включился: мониторов {MonitorCount}");
                     ScheduleRestore();
                 }
             }
@@ -190,8 +200,8 @@ public sealed class WindowLayoutService : IDisposable
     {
         _owner.Dispatcher.BeginInvoke(() =>
         {
-            if (e.Mode == Microsoft.Win32.PowerModes.Suspend) { _debounce.Stop(); TakeSnapshot(); Freeze(); }
-            else if (e.Mode == Microsoft.Win32.PowerModes.Resume) ScheduleRestore();
+            if (e.Mode == Microsoft.Win32.PowerModes.Suspend) { _debounce.Stop(); TakeSnapshot("сон"); Freeze(); }
+            else if (e.Mode == Microsoft.Win32.PowerModes.Resume) { Log($"пробуждение: мониторов {MonitorCount}"); ScheduleRestore(); }
         });
     }
 
@@ -199,6 +209,7 @@ public sealed class WindowLayoutService : IDisposable
     {
         _owner.Dispatcher.BeginInvoke(() =>
         {
+            Log($"смена мониторов: сейчас {MonitorCount}, в снимке {_snapshotMonitors}");
             if (MonitorCount < _snapshotMonitors) Freeze(); // монитор пропал — снимок не трогаем
             ScheduleRestore();
         });
@@ -242,12 +253,16 @@ public sealed class WindowLayoutService : IDisposable
 
     private void RestoreAll()
     {
+        Log($"восстановление: мониторов {MonitorCount}, окон в снимке {_snapshot.Count}");
         foreach (var (hwnd, saved) in _snapshot)
         {
             if (!IsWindow(hwnd)) continue; // окно закрыли
             var current = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-            if (!GetWindowPlacement(hwnd, ref current)) continue;
-            if (current.showCmd == saved.showCmd && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
+            if (!GetWindowPlacement(hwnd, ref current)) { Log($"  {Describe(hwnd)}: GetWindowPlacement отказ, код {Marshal.GetLastWin32Error()}"); continue; }
+            bool minimized = saved.showCmd == SwShowMinimized || IsIconic(hwnd);
+            // Свёрнутые — ВСЕГДА (докладка 2026-09-28): у свёрнутого окна Windows может сообщать прежнее место
+            // разворачивания, а развернуть его всё равно на основном мониторе; обычные — только если сдвинуты.
+            if (!minimized && current.showCmd == saved.showCmd && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
 
             var p = saved;
             // Без перехвата фокуса: обычные — «показать, не активируя», свёрнутые — «свернуть, не активируя».
@@ -258,8 +273,45 @@ public sealed class WindowLayoutService : IDisposable
                 SwShowNormal => SwShowNoActivate,
                 _ => saved.showCmd // развёрнутые — SW_SHOWMAXIMIZED: разворачиваются на мониторе из rcNormalPosition
             };
-            SetWindowPlacement(hwnd, ref p);
+            bool ok = SetWindowPlacement(hwnd, ref p);
+            int error = ok ? 0 : Marshal.GetLastWin32Error();
+            var check = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+            GetWindowPlacement(hwnd, ref check);
+            Log($"  {Describe(hwnd)}: было {Rect(current)} show={current.showCmd} → ставим {Rect(saved)} show={p.showCmd}; " +
+                (ok ? $"ok, стало {Rect(check)} show={check.showCmd}" : $"ОТКАЗ, код {error}{(error == 5 ? " (нет прав — окно запущено от администратора?)" : "")}"));
         }
+    }
+
+    // ---------------- Журнал (только при включённой функции) ----------------
+    // %APPDATA%\Time2Gadget\window-layout.log — чтобы по реальному сну/гашению мониторов было видно, что запомнено
+    // и что сделано (эти ситуации не воспроизводятся в тестах). Обрезается до последних ~300 строк.
+
+    private static readonly string LogPath = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Time2Gadget", "window-layout.log");
+
+    private static void Log(string line)
+    {
+        try
+        {
+            var lines = System.IO.File.Exists(LogPath) ? System.IO.File.ReadAllLines(LogPath).ToList() : new List<string>();
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}  {line}");
+            if (lines.Count > 300) lines.RemoveRange(0, lines.Count - 300);
+            System.IO.File.WriteAllLines(LogPath, lines);
+        }
+        catch { /* журнал — не критично */ }
+    }
+
+    private static string Rect(WINDOWPLACEMENT p) =>
+        $"({p.rcNormalPosition.Left},{p.rcNormalPosition.Top}-{p.rcNormalPosition.Right},{p.rcNormalPosition.Bottom})";
+
+    private static string Describe(IntPtr hwnd)
+    {
+        var title = new StringBuilder(80);
+        GetWindowText(hwnd, title, title.Capacity);
+        GetWindowThreadProcessId(hwnd, out var pid);
+        string name;
+        try { name = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { name = "?"; }
+        return $"[{name}] «{title}»";
     }
 
     private static int MonitorCount => GetSystemMetrics(80); // SM_CMONITORS
@@ -310,10 +362,11 @@ public sealed class WindowLayoutService : IDisposable
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hwnd, uint cmd);
     [DllImport("user32.dll")] private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
     [DllImport("user32.dll")] private static extern int GetWindowTextLength(IntPtr hwnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hwnd, StringBuilder text, int max);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder name, int max);
-    [DllImport("user32.dll")] private static extern bool GetWindowPlacement(IntPtr hwnd, ref WINDOWPLACEMENT placement);
-    [DllImport("user32.dll")] private static extern bool SetWindowPlacement(IntPtr hwnd, ref WINDOWPLACEMENT placement);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool GetWindowPlacement(IntPtr hwnd, ref WINDOWPLACEMENT placement);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPlacement(IntPtr hwnd, ref WINDOWPLACEMENT placement);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
 }
