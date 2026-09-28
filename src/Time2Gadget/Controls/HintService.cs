@@ -95,12 +95,11 @@ public sealed class HintController
         {
             Child = _bubble,
             AllowsTransparency = true,
-            Placement = PlacementMode.Custom,
-            CustomPopupPlacementCallback = PlaceAroundCursor,
-            PlacementTarget = host,
+            Placement = PlacementMode.AbsolutePoint, // место считаем сами (PlaceAtCursor) — в экранных координатах
             IsHitTestVisible = false,
             Focusable = false
         };
+        _popup.Opened += (_, _) => MakeClickThrough();
 
         _delayTimer = new DispatcherTimer { Interval = ShowDelay };
         _delayTimer.Tick += (_, _) => { _delayTimer.Stop(); TryShow(); };
@@ -120,11 +119,7 @@ public sealed class HintController
             return;
 
         _restPoint = p;
-        if (Window.GetWindow(_host) is { } window)
-        {
-            _restPointInWindow = e.GetPosition(window);
-            _popup.PlacementTarget = window; // смещение Popup считается в координатах цели без учёта масштаба вида
-        }
+        if (Window.GetWindow(_host) is { } window) _restPointInWindow = e.GetPosition(window);
         Hide();
         _delayTimer.Stop();
         _delayTimer.Start();
@@ -149,32 +144,55 @@ public sealed class HintController
 
         if (content is UIElement element) _bubble.Child = element;
         else { _text.Text = content.ToString(); _bubble.Child = _text; }
-        _popup.HorizontalOffset = _popup.VerticalOffset = 0; // место выбирает PlaceAroundCursor
-        _popup.IsOpen = false; // ещё гасла прежняя — переоткрыть, чтобы место посчиталось заново
+        if (!PlaceAtCursor()) return;
+        _popup.IsOpen = false; // ещё гасла прежняя — переоткрыть на новом месте
         _popup.IsOpen = true;
         _bubble.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, FadeIn) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
     }
 
     /// <summary>
-    /// Место подсказки (докладка 2026-09-28: у края экрана подсказка «пыталась показаться и пропадала»): варианты по
-    /// порядку — справа-снизу от курсора, слева-снизу, справа-сверху, слева-сверху; WPF берёт первый, что целиком
-    /// помещается на экране. Курсор подсказка не накрывает ни в одном варианте. Координаты — в физических пикселях
-    /// относительно окна (так их считает Popup), поэтому точку курсора переводим с учётом DPI.
+    /// Место подсказки (докладка 2026-09-28: у края экрана подсказки «моргали» — вставали под курсор, окно получало
+    /// «мышь ушла», гасило их, мышь «возвращалась» — и по кругу). Считаем сами в пикселях экрана по рабочей области
+    /// монитора с курсором: справа-снизу от курсора; не влезает справа — слева, снизу — над курсором; в конце —
+    /// прижать к краям. Результат — абсолютная точка (в DIP, как ждёт Popup).
     /// </summary>
-    private CustomPopupPlacement[] PlaceAroundCursor(Size popupSize, Size targetSize, Point offset)
+    private bool PlaceAtCursor()
     {
-        var dpi = VisualTreeHelper.GetDpi(_popup.PlacementTarget as Visual ?? _host);
-        double x = _restPointInWindow.X * dpi.DpiScaleX, y = _restPointInWindow.Y * dpi.DpiScaleY;
+        if (Window.GetWindow(_host) is not { } window || PresentationSource.FromVisual(window) is null) return false;
+        var dpi = VisualTreeHelper.GetDpi(window);
+        var cursor = window.PointToScreen(_restPointInWindow); // физические пиксели
+
+        _bubble.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double w = _bubble.DesiredSize.Width * dpi.DpiScaleX, h = _bubble.DesiredSize.Height * dpi.DpiScaleY;
+        var area = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)cursor.X, (int)cursor.Y)).WorkingArea;
+
         double gapX = CursorOffset / 2 * dpi.DpiScaleX, below = CursorOffset * dpi.DpiScaleY, above = 4 * dpi.DpiScaleY;
-        return new[]
-        {
-            new CustomPopupPlacement(new Point(x + gapX, y + below), PopupPrimaryAxis.None),
-            new CustomPopupPlacement(new Point(x - popupSize.Width - gapX, y + below), PopupPrimaryAxis.None),
-            new CustomPopupPlacement(new Point(x + gapX, y - popupSize.Height - above), PopupPrimaryAxis.None),
-            new CustomPopupPlacement(new Point(x - popupSize.Width - gapX, y - popupSize.Height - above), PopupPrimaryAxis.None),
-        };
+        double x = cursor.X + gapX, y = cursor.Y + below;
+        if (x + w > area.Right) x = cursor.X - gapX - w;
+        if (y + h > area.Bottom) y = cursor.Y - above - h;
+        x = Math.Max(area.Left, Math.Min(x, area.Right - w));
+        y = Math.Max(area.Top, Math.Min(y, area.Bottom - h));
+
+        _popup.HorizontalOffset = x / dpi.DpiScaleX;
+        _popup.VerticalOffset = y / dpi.DpiScaleY;
+        return true;
     }
+
+    /// <summary>
+    /// Окно подсказки «сквозное» для мыши (WS_EX_TRANSPARENT): даже оказавшись под курсором, оно не уводит мышь
+    /// с главного окна — иначе подсказка гасла и тут же показывалась снова.
+    /// </summary>
+    private void MakeClickThrough()
+    {
+        if (PresentationSource.FromVisual(_bubble) is not System.Windows.Interop.HwndSource source) return;
+        const int GwlExStyle = -20, WsExTransparent = 0x20, WsExLayered = 0x80000;
+        var style = GetWindowLong(source.Handle, GwlExStyle);
+        SetWindowLong(source.Handle, GwlExStyle, style | WsExTransparent | WsExLayered);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
 
     private void Hide()
     {
