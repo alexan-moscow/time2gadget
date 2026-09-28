@@ -147,6 +147,14 @@ public sealed class HintController
         if (!PlaceAtCursor()) return;
         _popup.IsOpen = false; // ещё гасла прежняя — переоткрыть на новом месте
         _popup.IsOpen = true;
+        // Окно подсказки открывается ещё с размером ПРЕДЫДУЩЕЙ (например, большой легенды) и Windows «удерживает его
+        // на экране», сдвигая влево-вверх; после раскладки размер уже свой — пересчитать место и переставить
+        // (смена смещения заставляет Popup переставиться). Подсказка в этот момент ещё прозрачная (fade-in).
+        _popup.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            if (!_popup.IsOpen || !PlaceAtCursor()) return;
+            _popup.HorizontalOffset += 0.01;
+        });
         _bubble.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, FadeIn) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
     }
@@ -163,6 +171,10 @@ public sealed class HintController
         var dpi = VisualTreeHelper.GetDpi(window);
         var cursor = window.PointToScreen(_restPointInWindow); // физические пиксели
 
+        // Сменился только текст — рамка считает себя измеренной и отдала бы размер ПРЕДЫДУЩЕЙ подсказки (найдено 2026-09-28:
+        // после большой легенды кнопки автозакрытия подсказки соседних кнопок улетали далеко от курсора).
+        (_bubble.Child as UIElement)?.InvalidateMeasure();
+        _bubble.InvalidateMeasure();
         _bubble.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double w = _bubble.DesiredSize.Width * dpi.DpiScaleX, h = _bubble.DesiredSize.Height * dpi.DpiScaleY;
         var area = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)cursor.X, (int)cursor.Y)).WorkingArea;
