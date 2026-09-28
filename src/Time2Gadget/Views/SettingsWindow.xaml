@@ -551,11 +551,15 @@
                 <Button Grid.Column="1" Content="{x:Static vm:MainViewModel.Author}" Style="{StaticResource Style.LinkButton}"
                         Command="{Binding OpenAuthorPageCommand}" ToolTip="Страница автора — скоро" Margin="10,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center" />
-                <Button Grid.Row="1" Grid.Column="1" ToolTip="Страница выпусков на GitHub" Content="GitHub — выпуски" Style="{StaticResource Style.LinkButton}"
-                        Command="{Binding OpenGitHubCommand}" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                <!-- Вторая строка: релизы на GitHub и правее — отчёт VirusTotal по установщику текущей версии
+                     (хэш берётся из GitHub Release — UpdateService.GetVirusTotalUrlAsync). -->
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                    <Button ToolTip="Страница выпусков на GitHub" Content="GitHub релизы" Style="{StaticResource Style.LinkButton}"
+                            Command="{Binding OpenGitHubCommand}" VerticalAlignment="Center" />
+                    <Button ToolTip="Отчёт VirusTotal по установщику этой версии" Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}"
+                            Command="{Binding OpenVirusTotalCommand}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
             </Grid>
-            <!-- Отчёт по установщику текущей версии: хэш берётся из GitHub Release (UpdateService.GetVirusTotalUrlAsync). -->
-            <Button ToolTip="Отчёт VirusTotal по установщику этой версии" Content="Проверка на VirusTotal" Style="{StaticResource Style.LinkButton}" Command="{Binding OpenVirusTotalCommand}" Margin="0,4,0,0" />
 
         </StackPanel>
     </ScrollViewer>
