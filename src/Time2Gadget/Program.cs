@@ -16,7 +16,11 @@ public static class Program
         VelopackApp.Build()
             // Удаление через «Приложения»: убрать запись автозапуска из реестра, иначе она осталась бы
             // ссылкой на удалённый exe (автозапуск включён по умолчанию, 2026-09-27).
-            .OnBeforeUninstallFastCallback(_ => Services.AutostartService.SetEnabled(false))
+            .OnBeforeUninstallFastCallback(_ =>
+            {
+                Services.AutostartService.SetEnabled(false);
+                Services.ElevationService.DeleteTask(allowUac: false); // задача «с правами администратора», если была
+            })
             .Run();
 
         var app = new App();

@@ -37,6 +37,12 @@ public sealed class AppSettings
 
     /// <summary>Возвращать окна других программ на их мониторы после сна/гашения мониторов (Services/WindowLayoutService). По умолчанию выкл.</summary>
     public bool RestoreOtherWindows { get; set; } = false;
+
+    /// <summary>
+    /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
+    /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.
+    /// </summary>
+    public bool RunElevated { get; set; } = false;
     /// <summary>По умолчанию — да; при первом запуске App включает автозапуск в реестре (см. App.xaml.cs).</summary>
     public bool LaunchAtStartup { get; set; } = true;
 

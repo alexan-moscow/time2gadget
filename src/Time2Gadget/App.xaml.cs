@@ -17,30 +17,54 @@ public partial class App : Application
     private const string InstanceMutexName = @"Local\Time2Gadget.SingleInstance";
     private const string ShowEventName = @"Local\Time2Gadget.ShowWindow";
 
+    // Та же просьба «покажи окно», но системным сообщением: копия с обычными правами не может открыть объекты
+    // копии, запущенной с правами администратора (другой уровень целостности), а разрешённое сообщение доходит
+    // (ChangeWindowMessageFilterEx). Нужно с режимом «Запускать с правами администратора» (2026-09-28).
+    private static readonly int ShowMessage = RegisterWindowMessage("Time2Gadget.ShowWindow");
+
     private MainViewModel? _viewModel;
     private Mutex? _instanceMutex;
     private EventWaitHandle? _showEvent;
+    private System.Windows.Interop.HwndSource? _showListener;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool isFirstInstance);
+        bool isFirstInstance;
+        try
+        {
+            _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out isFirstInstance);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            isFirstInstance = false; // мьютекс есть, но создан копией с правами администратора — она и запущена
+        }
+
         if (!isFirstInstance)
         {
-            try
-            {
-                using var existing = EventWaitHandle.OpenExisting(ShowEventName);
-                existing.Set();
-            }
-            catch (WaitHandleCannotBeOpenedException)
-            {
-                // Первая копия ещё не успела создать событие (запуск в ту же долю секунды) — просто выходим.
-            }
-            _instanceMutex.Dispose();
+            SignalRunningInstance();
+            _instanceMutex?.Dispose();
             _instanceMutex = null;
             Shutdown();
             return;
+        }
+
+        // Режим «с правами администратора»: запуск с обычными правами передаёт управление задаче Планировщика
+        // (повышение без UAC) и выходит. LaunchedByTask — защита от зацикливания, если задача не дала повышения.
+        var startupSettings = new SettingsService().Load();
+        if (startupSettings.RunElevated && !ElevationService.IsElevated && !ElevationService.LaunchedByTask
+            && ElevationService.TaskExists())
+        {
+            _instanceMutex!.ReleaseMutex(); // до запуска задачи — иначе новая копия решит, что уже запущена
+            _instanceMutex.Dispose();
+            _instanceMutex = null;
+            if (ElevationService.RunTask())
+            {
+                Shutdown();
+                return;
+            }
+            _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _); // задача не запустилась — работаем как есть
         }
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -73,6 +97,7 @@ public partial class App : Application
             Shutdown();
         };
         _viewModel.ShowRequested += (_, _) => ShowMainWindow(window);
+        _viewModel.RestartElevatedRequested += (_, _) => RestartElevated();
 
         _viewModel.InitializeTray();
 
@@ -83,6 +108,54 @@ public partial class App : Application
         ThreadPool.RegisterWaitForSingleObject(_showEvent,
             (_, _) => Dispatcher.BeginInvoke(() => ShowMainWindow(window)),
             null, Timeout.Infinite, executeOnlyOnce: false);
+
+        // Невидимое окно БЕЗ владельца — только такие получают широковещательные сообщения (главное окно
+        // без кнопки на панели задач имеет скрытого владельца). Сообщение разрешено и от копий с меньшими правами.
+        _showListener = new System.Windows.Interop.HwndSource(new System.Windows.Interop.HwndSourceParameters("Time2Gadget.ShowListener")
+        {
+            Width = 0, Height = 0, WindowStyle = 0, ParentWindow = IntPtr.Zero
+        });
+        ChangeWindowMessageFilterEx(_showListener.Handle, ShowMessage, 1 /* MSGFLT_ALLOW */, IntPtr.Zero);
+        _showListener.AddHook((IntPtr _, int msg, IntPtr _, IntPtr _, ref bool handled) =>
+        {
+            if (msg == ShowMessage) { ShowMainWindow(window); handled = true; }
+            return IntPtr.Zero;
+        });
+    }
+
+    /// <summary>Повторный запуск: попросить уже запущенную копию показать окно (событием и сообщением).</summary>
+    private static void SignalRunningInstance()
+    {
+        try
+        {
+            using var existing = EventWaitHandle.OpenExisting(ShowEventName);
+            existing.Set();
+        }
+        catch (Exception ex) when (ex is WaitHandleCannotBeOpenedException or UnauthorizedAccessException)
+        {
+            // Нет события (копия ещё стартует) или оно у копии с правами администратора — остаётся сообщение.
+        }
+        PostMessage(new IntPtr(0xFFFF) /* HWND_BROADCAST */, ShowMessage, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// Включили «Запускать с правами администратора» (задача уже создана): перезапуститься через задачу.
+    /// Мьютекс освобождается ДО запуска — иначе новая копия решит, что программа уже запущена, и закроется.
+    /// </summary>
+    private void RestartElevated()
+    {
+        _instanceMutex?.ReleaseMutex();
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+        if (ElevationService.RunTask())
+        {
+            _viewModel?.Dispose();
+            Shutdown();
+            return;
+        }
+        _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
+        MessageBox.Show("Не удалось перезапустить программу с правами администратора. Настройка сохранена — сработает при следующем запуске.",
+            "Тайм2гаджет", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private static void ShowMainWindow(Window window)
@@ -94,9 +167,17 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _showListener?.Dispose();
         _showEvent?.Dispose();
-        _instanceMutex?.ReleaseMutex();
+        try { _instanceMutex?.ReleaseMutex(); } catch (ApplicationException) { /* уже освобождён */ }
         _instanceMutex?.Dispose();
         base.OnExit(e);
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int RegisterWindowMessage(string name);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ChangeWindowMessageFilterEx(IntPtr hwnd, int msg, uint action, IntPtr changeFilterStruct);
 }

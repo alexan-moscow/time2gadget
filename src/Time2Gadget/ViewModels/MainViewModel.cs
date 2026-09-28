@@ -645,6 +645,42 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Нужен перезапуск с правами администратора (задача Планировщика уже создана) — выполняет App.</summary>
+    public event EventHandler? RestartElevatedRequested;
+
+    /// <summary>
+    /// «Запускать с правами администратора» (подпункт возврата окон, 2026-09-28). Вкл — создать задачу
+    /// Планировщика (один раз через UAC) и перезапуститься через неё; отказ в UAC — галочка возвращается.
+    /// Выкл — удалить задачу; текущий запуск остаётся с правами до перезапуска.
+    /// </summary>
+    public bool RunElevated
+    {
+        get => _settings.RunElevated;
+        set
+        {
+            if (_settings.RunElevated == value) return;
+            if (value && !ElevationService.CreateTask())
+            {
+                OnPropertyChanged(); // UAC отклонён/ошибка — галочку вернуть в «выкл»
+                System.Windows.MessageBox.Show("Не удалось включить запуск с правами администратора: разрешение не получено.",
+                    "Тайм2гаджет", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                return;
+            }
+            if (!value) ElevationService.DeleteTask();
+
+            _settings.RunElevated = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ElevationStatusText));
+
+            if (value && !ElevationService.IsElevated) RestartElevatedRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public string ElevationStatusText => ElevationService.IsElevated
+        ? "Сейчас программа работает с правами администратора."
+        : "Сейчас программа работает с обычными правами.";
+
     /// <summary>
     /// Таймер пробуждения — только пока идёт отсчёт; на момент окончания (сейчас + осталось). Пауза/сброс/
     /// окончание снимают его; добавление времени — переставляет (PowerService сам игнорирует мелкие расхождения).
@@ -900,6 +936,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         var lastUpdateCheck = _settings.LastUpdateCheckUtc;
+        if (_settings.RunElevated) ElevationService.DeleteTask(); // по умолчанию выкл — задача не нужна
         var defaults = new AppSettings();
         foreach (var p in typeof(AppSettings).GetProperties().Where(p => p.CanRead && p.CanWrite))
             p.SetValue(_settings, p.GetValue(defaults));
