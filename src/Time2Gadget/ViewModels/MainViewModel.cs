@@ -677,6 +677,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool IsRunningElevated => ElevationService.IsElevated;
+
     public string ElevationStatusText => ElevationService.IsElevated
         ? "Сейчас программа работает с правами администратора."
         : "Сейчас программа работает с обычными правами.";
