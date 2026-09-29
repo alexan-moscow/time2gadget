@@ -178,7 +178,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                            <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                         </Grid.RowDefinitions>
                         <!-- Указатель мыши в окне (докладка 2026-09-29): справа — общая глобальная клавиша «свободен / снова в окне». -->
                         <CheckBox Grid.Row="3" Content="Не выпускать указатель мыши из окна" IsChecked="{Binding ConfineCursor}" VerticalAlignment="Center"
@@ -187,6 +187,14 @@
                                      ToolTip="Сочетание: указатель свободен / снова в окне (для всех таких окон). Щелчок — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
                         <TextBlock Grid.Row="4" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
                                    Text="Пока окно активно, указатель не выходит за его границы. Сочетание справа временно освобождает указатель и снова ограничивает его." />
+                        <!-- Быстрое открытие этого окна (докладка 2026-09-29): глобальная клавиша, по умолчанию выкл. -->
+                        <CheckBox Grid.Row="5" Content="Быстрое открытие этого окна настроек" IsChecked="{Binding QuickOpenEnabled}" VerticalAlignment="Center"
+                                  Margin="0,6,0,0" ToolTip="Сочетание справа открывает это окно откуда угодно" />
+                        <c:HotkeyBox Grid.Row="5" Grid.Column="1" BindingValue="{Binding QuickOpenKey}" Width="150" Margin="12,8,0,2"
+                                     IsEnabled="{Binding QuickOpenEnabled}"
+                                     ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
+                        <TextBlock Grid.Row="6" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                                   Text="Сочетание открывает это окно из любой программы или игры, и в списке сразу выбрано окно, которое было активным." />
                         <CheckBox Content="Без рамки и заголовка" IsChecked="{Binding Borderless}" VerticalAlignment="Center"
                                   ToolTip="Снять с окна рамку и заголовок — «окно без рамки», как «Remove borders» в SRWE" />
                         <CheckBox Grid.Row="1" Content="Сообщать программе, что размер изменён" IsChecked="{Binding NotifyResize}" VerticalAlignment="Center"
@@ -310,7 +318,7 @@
                             <TextBlock Text="{Binding ProfilePlaceholder}" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.TextSecondary}" Opacity="0.8" FontStyle="Italic" />
                         </Grid>
-                        <Button Grid.Column="1" Content="Убрать профиль" Command="{Binding ClearProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                        <Button Grid.Column="1" Content="Очистить" Command="{Binding ClearProfileCommand}" Style="{StaticResource Style.SettingsButton}"
                                 Width="150" Margin="12,4,0,4" IsEnabled="{Binding HasProfile}"
                                 ToolTip="Сбросить выбор на «Выберите профиль» (профиль не удаляется и продолжает применяться, где включено)" />
                     </Grid>

@@ -104,6 +104,8 @@ public partial class MainWindow : Window
         _appWindowMemory.IsProfiled = key => _viewModel.FindProfileFor(key) is not null;
         SourceInitialized += (_, _) => UpdateWindowProfileService();
         _viewModel.WindowProfilesChanged += (_, _) => UpdateWindowProfileService();
+        // Быстрое открытие окна «Размер и положение окон программ» клавишей — с выбранным окном, активным в момент нажатия.
+        _viewModel.WindowProfilesRequested += (_, foreground) => WindowProfilesWindow.ShowSingle(_viewModel, null, foreground);
 
         // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
         PreviewKeyDown += OnWindowKeyDown;

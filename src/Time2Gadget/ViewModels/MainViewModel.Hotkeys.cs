@@ -17,7 +17,25 @@ public sealed partial class MainViewModel
     public const int MaxQuickTimers = 5;
     /// <summary>Id глобальных клавиш для GlobalHotkeyService: действия 1–4, быстрые таймеры — 10 + номер строки.</summary>
     public const int ShowHideHotkeyId = 1, StartPauseHotkeyId = 2, ResetHotkeyId = 3, CompactHotkeyId = 4, CursorConfineHotkeyId = 5,
-        QuickTimerHotkeyIdBase = 10;
+        WindowProfilesHotkeyId = 6, QuickTimerHotkeyIdBase = 10;
+
+    // ---- Быстрое открытие окна «Размер и положение окон программ» (докладка 2026-09-29): галочка и клавиша — в самом окне ----
+
+    /// <summary>Клавиша включена — регистрируется глобально; по умолчанию выкл.</summary>
+    public bool WindowProfilesHotkeyEnabled
+    {
+        get => _settings.WindowProfilesHotkeyEnabled;
+        set => SetGlobal(value, _settings.WindowProfilesHotkeyEnabled, v => _settings.WindowProfilesHotkeyEnabled = v, null);
+    }
+
+    public HotkeyBinding WindowProfilesKey
+    {
+        get => _settings.WindowProfilesKey ?? HotkeyBinding.Empty;
+        set => SetKey(value, (s, v) => s.WindowProfilesKey = v, global: true);
+    }
+
+    /// <summary>Открыть (вывести вперёд) окно «Размер и положение окон программ»; аргумент — окно, активное в момент нажатия.</summary>
+    public event EventHandler<IntPtr>? WindowProfilesRequested;
 
     // ---- «Не выпускать указатель мыши из окна» (докладка 2026-09-29): клавиша — в окне «Размер и положение окон программ» ----
 
@@ -197,6 +215,8 @@ public sealed partial class MainViewModel
             if (global && !key.IsEmpty && !map.ContainsValue(key)) map[id] = key;
         if (CursorConfine?.HasWindows == true && !CursorConfineKey.IsEmpty && !map.ContainsValue(CursorConfineKey))
             map[CursorConfineHotkeyId] = CursorConfineKey;
+        if (WindowProfilesHotkeyEnabled && !WindowProfilesKey.IsEmpty && !map.ContainsValue(WindowProfilesKey))
+            map[WindowProfilesHotkeyId] = WindowProfilesKey;
         for (int i = 0; i < QuickTimers.Count; i++)
             if (QuickTimers[i].Model.IsUsable && !map.ContainsValue(QuickTimers[i].Model.Binding))
                 map[QuickTimerHotkeyIdBase + i] = QuickTimers[i].Model.Binding;
@@ -217,6 +237,7 @@ public sealed partial class MainViewModel
         ResetHotkeyId => "Сброс",
         CompactHotkeyId => "Компактный вид",
         CursorConfineHotkeyId => "Указатель мыши в окне",
+        WindowProfilesHotkeyId => "Размер и положение окон программ",
         _ => "Показать / скрыть"
     };
 
@@ -235,12 +256,14 @@ public sealed partial class MainViewModel
 
     private void RefreshHotkeyWarnings()
     {
-        var keys = ActionKeys().Append((CursorConfineHotkeyId, CursorConfineKey, true)).Where(a => _failedHotkeyIds.Contains(a.Item1))
+        var keys = ActionKeys().Append((CursorConfineHotkeyId, CursorConfineKey, true)).Append((WindowProfilesHotkeyId, WindowProfilesKey, true))
+            .Where(a => _failedHotkeyIds.Contains(a.Item1))
             .Select(a => $"{ActionName(a.Item1)}: «{a.Item2}» занято другой программой — выберите другое сочетание.").ToList();
 
         // Одно и то же сочетание в двух местах: глобальное перехватывает его у окна таймера.
         var all = ActionKeys().Select(a => (Name: ActionName(a.Id), a.Key)).ToList();
         all.Add((ActionName(CursorConfineHotkeyId), CursorConfineKey));
+        if (WindowProfilesHotkeyEnabled) all.Add((ActionName(WindowProfilesHotkeyId), WindowProfilesKey));
         all.AddRange(QuickTimers.Select(q => ($"Таймер {q.Number}", q.Model.Binding)));
         var duplicates = all.Where(a => !a.Key.IsEmpty).GroupBy(a => a.Key).Where(g => g.Count() > 1)
             .Select(g => $"«{g.Key}» назначено дважды: {string.Join(", ", g.Select(x => x.Name))}.");
@@ -277,6 +300,9 @@ public sealed partial class MainViewModel
                     _trayService.ShowBalloon("Тайм2гаджет", confine.Toggle()
                         ? $"Указатель мыши снова не выходит из окна. {CursorConfineKey} — выключить."
                         : $"Указатель мыши свободен. {CursorConfineKey} — снова ограничить окном.");
+                return;
+            case WindowProfilesHotkeyId:
+                WindowProfilesRequested?.Invoke(this, Services.NativeWindows.ForegroundWindow);
                 return;
         }
         int index = id - QuickTimerHotkeyIdBase;

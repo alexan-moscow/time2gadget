@@ -140,22 +140,8 @@ public partial class SettingsWindow : Window
 
     private void OnEffectDropDownClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
 
-    private WindowProfilesWindow? _windowProfiles;
-
-    /// <summary>«Профили размера окон» — одно окно; повторное нажатие просто выводит его вперёд.</summary>
-    private void OnOpenWindowProfiles(object sender, RoutedEventArgs e)
-    {
-        if (_windowProfiles is null)
-        {
-            _windowProfiles = new WindowProfilesWindow(_viewModel) { Owner = this };
-            _windowProfiles.Closed += (_, _) => _windowProfiles = null;
-            _windowProfiles.Show();
-        }
-        else
-        {
-            _windowProfiles.Activate();
-        }
-    }
+    /// <summary>«Размер и положение окон программ» — одно окно; повторное нажатие просто выводит его вперёд.</summary>
+    private void OnOpenWindowProfiles(object sender, RoutedEventArgs e) => WindowProfilesWindow.ShowSingle(_viewModel, this);
 
     /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
     private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();

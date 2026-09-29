@@ -63,6 +63,13 @@ public sealed class AppSettings
     public HotkeyBinding CursorConfineKey { get; set; } =
         HotkeyBinding.FromKey(System.Windows.Input.Key.End, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
+    /// <summary>Глобальная клавиша «Быстрое открытие окна «Размер и положение окон программ»» включена (докладка 2026-09-29). По умолчанию выкл.</summary>
+    public bool WindowProfilesHotkeyEnabled { get; set; } = false;
+
+    /// <summary>Сочетание для быстрого открытия окна «Размер и положение окон программ», по умолчанию Ctrl+Shift+Home.</summary>
+    public HotkeyBinding WindowProfilesKey { get; set; } =
+        HotkeyBinding.FromKey(System.Windows.Input.Key.Home, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

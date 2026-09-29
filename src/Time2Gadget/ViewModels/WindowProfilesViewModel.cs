@@ -176,12 +176,18 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     private void PickForeground()
     {
-        var info = NativeWindows.Describe(NativeWindows.ForegroundWindow);
-        if (info is null || info.ProcessId == (uint)Environment.ProcessId)
-        {
+        if (!SelectWindow(NativeWindows.ForegroundWindow))
             Status = "Активным осталось окно Тайм2гаджета — нажмите «Указать окно» и за 3 секунды переключитесь в нужное окно (Alt+Tab).";
-            return;
-        }
+    }
+
+    /// <summary>
+    /// Выбрать окно по HWND («Указать окно», быстрое открытие клавишей — окно, активное в момент нажатия). Нет в списке
+    /// (спрятано фильтрами) — добавить первым. false — окна нет или оно Тайм2гаджета.
+    /// </summary>
+    public bool SelectWindow(IntPtr hwnd)
+    {
+        var info = NativeWindows.Describe(hwnd);
+        if (info is null || info.ProcessId == (uint)Environment.ProcessId) return false;
         var item = Windows.FirstOrDefault(w => w.Info.Handle == info.Handle);
         if (item is null)
         {
@@ -191,6 +197,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         }
         SelectedWindow = item;
         Status = $"Выбрано: {item.ExeName}";
+        return true;
     }
 
     // ---------------- Положение и размер ----------------
@@ -216,6 +223,19 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     {
         get => _main.CursorConfineKey;
         set { _main.CursorConfineKey = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Быстрое открытие этого окна глобальной клавишей — настройка программы (MainViewModel).</summary>
+    public bool QuickOpenEnabled
+    {
+        get => _main.WindowProfilesHotkeyEnabled;
+        set { _main.WindowProfilesHotkeyEnabled = value; OnPropertyChanged(); }
+    }
+
+    public Models.HotkeyBinding QuickOpenKey
+    {
+        get => _main.WindowProfilesKey;
+        set { _main.WindowProfilesKey = value; OnPropertyChanged(); }
     }
 
     // Строка статуса — своя у каждого окна (докладка 2026-09-29: «Применено» оставалось при выборе другого окна).
