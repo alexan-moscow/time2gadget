@@ -32,7 +32,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private readonly DispatcherTimer _recordTimer, _saveTimer;
     private readonly HashSet<IntPtr> _pendingRecord = new();
     private readonly HashSet<IntPtr> _known = new();              // окна, уже бывшие видимыми, — новыми не считаем
-    private readonly Dictionary<IntPtr, Rect32> _placedByUs = new(); // куда поставили — чтобы попытки не спорили с человеком
+    private readonly HashSet<IntPtr> _movedByUser = new();          // окно тащил человек — больше не трогаем
     private Dictionary<string, SavedPlacement> _memory = new();
     private DateTime _pausedUntil;
     private IntPtr _hookSystem, _hookObject;
@@ -69,7 +69,7 @@ public sealed class AppWindowMemoryService : IDisposable
         // Уже открытые окна — не «новые»: их не двигаем, только запоминаем.
         EnumWindows((hwnd, _) => { if (IsWindowVisible(hwnd)) { _known.Add(hwnd); Record(hwnd); } return true; }, IntPtr.Zero);
         // 0x000B перемещение/размер закончены … 0x0017 развёрнуто из свёрнутого; 0x8001 уничтожено, 0x8002 показано … 0x800B координаты изменились.
-        _hookSystem = SetWinEventHook(0x000B, 0x0017, IntPtr.Zero, _winEventProc, 0, 0, WineventOutOfContext);
+        _hookSystem = SetWinEventHook(0x000A, 0x0017, IntPtr.Zero, _winEventProc, 0, 0, WineventOutOfContext); // 0x000A — начали тащить
         _hookObject = SetWinEventHook(0x8001, 0x800B, IntPtr.Zero, _winEventProc, 0, 0, WineventOutOfContext);
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplayChange;
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
@@ -86,7 +86,7 @@ public sealed class AppWindowMemoryService : IDisposable
         if (_saveTimer.IsEnabled) { _saveTimer.Stop(); Save(); }
         _pendingRecord.Clear();
         _known.Clear();
-        _placedByUs.Clear();
+        _movedByUser.Clear();
     }
 
     // Windows переставляет окна при смене мониторов и после сна — такие места не запоминаем.
@@ -101,13 +101,20 @@ public sealed class AppWindowMemoryService : IDisposable
     private void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (idObject != 0 || idChild != 0 || hwnd == IntPtr.Zero) return; // только сами окна, не их содержимое/курсор
-        const uint EventObjectDestroy = 0x8001, EventObjectShow = 0x8002;
+        const uint EventSystemMoveSizeStart = 0x000A, EventObjectDestroy = 0x8001, EventObjectShow = 0x8002;
         if (evt == EventObjectDestroy)
         {
             // Номер окна Windows может выдать новому окну — забываем закрытое, иначе новое сочли бы «знакомым».
             _known.Remove(hwnd);
-            _placedByUs.Remove(hwnd);
             _pendingRecord.Remove(hwnd);
+            _movedByUser.Remove(hwnd);
+            return;
+        }
+        if (evt == EventSystemMoveSizeStart)
+        {
+            // Окно начал тащить человек — контрольные попытки его больше не трогают (докладка 2026-09-29: окно ShareX,
+            // сдвинутое сразу после появления, возвращалось на запомненное место).
+            _movedByUser.Add(hwnd);
             return;
         }
         if (evt == EventObjectShow && _known.Add(hwnd))
@@ -150,14 +157,14 @@ public sealed class AppWindowMemoryService : IDisposable
     {
         foreach (var delay in ApplyAttemptDelays)
         {
-            if (delay == TimeSpan.Zero) { Apply(hwnd, first: true); continue; }
+            if (delay == TimeSpan.Zero) { Apply(hwnd); continue; }
             var timer = new DispatcherTimer { Interval = delay };
-            timer.Tick += (_, _) => { timer.Stop(); Apply(hwnd, first: false); };
+            timer.Tick += (_, _) => { timer.Stop(); Apply(hwnd); };
             timer.Start();
         }
     }
 
-    private void Apply(IntPtr hwnd, bool first)
+    private void Apply(IntPtr hwnd)
     {
         if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
         if (GetKey(hwnd) is not { } key || IsProfiled?.Invoke(key) == true || !_memory.TryGetValue(key, out var saved)) return;
@@ -170,14 +177,14 @@ public sealed class AppWindowMemoryService : IDisposable
         if (current.rcNormalPosition.Equals(target) && curMax == saved.Maximized) return; // уже на месте
 
         // Контрольная попытка: окно успел сдвинуть человек (не программа при запуске) — не спорим.
-        if (!first && _placedByUs.TryGetValue(hwnd, out var ours) && !current.rcNormalPosition.Equals(ours) && IsMouseButtonDown()) return;
+        if (_movedByUser.Contains(hwnd) || IsMouseButtonDown()) return; // человек двигает/двигал окно — не спорим
         if (!IsOnSomeMonitor(target)) return; // монитор, где окно было, сейчас отключён
 
         var p = current;
         p.rcNormalPosition = target;
         p.showCmd = saved.Maximized ? SwShowMaximized : SwShowNoActivate;
         p.flags = 0;
-        if (SetWindowPlacement(hwnd, ref p)) _placedByUs[hwnd] = target;
+        SetWindowPlacement(hwnd, ref p);
     }
 
     /// <summary>У программы открыто ещё одно видимое окно того же вида — непонятно, какое куда: не трогаем.</summary>

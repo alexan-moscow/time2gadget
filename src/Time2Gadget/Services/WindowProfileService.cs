@@ -24,7 +24,8 @@ public sealed class WindowProfileService : IDisposable
     private readonly Dictionary<IntPtr, string?> _keys = new();          // кэш «окно → ключ программы» (OpenProcess — не на каждое событие)
     private readonly Dictionary<IntPtr, DispatcherTimer> _debounce = new();
     private readonly Dictionary<IntPtr, List<DateTime>> _applies = new();
-    private IntPtr _hook;
+    private IntPtr _hook, _hookMove;
+    private readonly HashSet<IntPtr> _movedByUser = new(); // окно перетащил человек — профиль его больше не тянет назад
     private bool _enabled;
 
     public WindowProfileService(Func<string, WindowSizeProfile?> findProfile)
@@ -44,11 +45,15 @@ public sealed class WindowProfileService : IDisposable
             {
                 // 0x8001 уничтожено, 0x8002 показано … 0x800B координаты изменились.
                 _hook = SetWinEventHook(0x8001, 0x800B, IntPtr.Zero, _winEventProc, 0, 0, 0);
+                _hookMove = SetWinEventHook(0x000A, 0x000A, IntPtr.Zero, _winEventProc, 0, 0, 0); // начали тащить окно
                 ApplyToOpenWindows();
             }
             else
             {
                 if (_hook != IntPtr.Zero) UnhookWinEvent(_hook);
+                if (_hookMove != IntPtr.Zero) UnhookWinEvent(_hookMove);
+                _hookMove = IntPtr.Zero;
+                _movedByUser.Clear();
                 _hook = IntPtr.Zero;
                 foreach (var t in _debounce.Values) t.Stop();
                 _debounce.Clear();
@@ -66,6 +71,7 @@ public sealed class WindowProfileService : IDisposable
         if (!_enabled) return;
         _keys.Clear();
         _applies.Clear();
+        _movedByUser.Clear(); // профиль только что назначили/изменили — это явное желание, применяем и к сдвинутым руками
         foreach (var w in NativeWindows.EnumerateWindows(allWindows: false))
             if (w.ProgramKey is { } key && _findProfile(key) is { } profile)
                 Apply(w.Handle, profile);
@@ -74,16 +80,22 @@ public sealed class WindowProfileService : IDisposable
     private void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (idObject != 0 || idChild != 0 || hwnd == IntPtr.Zero) return; // только сами окна
-        const uint EventObjectDestroy = 0x8001, EventObjectShow = 0x8002, EventObjectLocationChange = 0x800B;
+        const uint EventSystemMoveSizeStart = 0x000A, EventObjectDestroy = 0x8001, EventObjectShow = 0x8002, EventObjectLocationChange = 0x800B;
         switch (evt)
         {
             case EventObjectDestroy:
                 _keys.Remove(hwnd);
                 _applies.Remove(hwnd);
+                _movedByUser.Remove(hwnd);
                 if (_debounce.Remove(hwnd, out var t)) t.Stop();
+                break;
+            case EventSystemMoveSizeStart:
+                // Окно тащит человек — профиль до повторного открытия окна его не тянет назад (докладка 2026-09-29).
+                _movedByUser.Add(hwnd);
                 break;
             case EventObjectShow:
                 _keys.Remove(hwnd); // номер окна мог достаться новому окну
+                _movedByUser.Remove(hwnd);
                 if (ProfileFor(hwnd) is not null) ScheduleStart(hwnd);
                 break;
             case EventObjectLocationChange:
@@ -128,6 +140,7 @@ public sealed class WindowProfileService : IDisposable
 
     private void Apply(IntPtr hwnd, WindowSizeProfile profile)
     {
+        if (_movedByUser.Contains(hwnd)) return; // перетащили руками — ручное положение главнее
         if (!NativeWindows.IsAlive(hwnd) || NativeWindows.GetBounds(hwnd) is not { } b) return;
         var target = new WindowBounds(profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless);
         bool matches = b.X == target.X && b.Y == target.Y && b.Width == target.Width && b.Height == target.Height
