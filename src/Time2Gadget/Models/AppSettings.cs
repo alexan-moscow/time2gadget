@@ -44,6 +44,15 @@ public sealed class AppSettings
     /// </summary>
     public bool RememberAppWindows { get; set; } = false;
 
+    /// <summary>
+    /// Закрепить фоны рабочего стола: слайд-шоу Windows остановлено, на каждом мониторе — его текущая картинка
+    /// (Services/WallpaperService, докладка 2026-09-29). По умолчанию выкл.
+    /// </summary>
+    public bool PinWallpapers { get; set; } = false;
+
+    /// <summary>Откуда шло слайд-шоу до закрепления — чтобы вернуть его, когда закрепление снимут.</summary>
+    public WallpaperSlideshowBackup? WallpaperSlideshowBackup { get; set; }
+
     /// <summary>Профили размера окон (окно «Профили размера окон», докладка 2026-09-29).</summary>
     public List<WindowSizeProfile> WindowProfiles { get; set; } = new();
 

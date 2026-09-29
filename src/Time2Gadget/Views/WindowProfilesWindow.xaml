@@ -122,8 +122,8 @@
                     </StackPanel>
                     <Button Grid.Column="1" Command="{Binding TakeFromWindowCommand}" Style="{StaticResource Style.SettingsButton}"
                             Padding="8,3" Margin="10,0,0,0" FontSize="11" IsEnabled="{Binding HasSelection}"
-                            ToolTip="Заполнить поля ниже по тому, как окно стоит сейчас">
-                        <TextBlock Text="Скопировать текущие&#x0a;настройки окна" TextAlignment="Center" />
+                            ToolTip="Поля заполняются сами при выборе окна. Если окно с тех пор сдвинули или изменили — перечитать его заново">
+                        <TextBlock Text="Перечитать окно" TextAlignment="Center" />
                     </Button>
                 </Grid>
 

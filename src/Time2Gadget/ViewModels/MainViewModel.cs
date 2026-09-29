@@ -651,6 +651,57 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // ---- Фон рабочего стола (докладка 2026-09-29, Services/WallpaperService.cs) ----
+    private System.Windows.Threading.DispatcherTimer? _wallpaperTimer;
+
+    /// <summary>
+    /// Закрепить фоны: слайд-шоу Windows останавливается, на каждом мониторе остаётся его картинка. Пока галочка стоит,
+    /// раз в минуту проверяем: слайд-шоу снова включили в Windows — закрепляем новые картинки. Сняли — слайд-шоу возвращается.
+    /// </summary>
+    public bool PinWallpapers
+    {
+        get => _settings.PinWallpapers;
+        set
+        {
+            if (_settings.PinWallpapers == value) return;
+            _settings.PinWallpapers = value;
+            if (value) PinWallpapersNow();
+            else
+            {
+                _wallpaperTimer?.Stop();
+                if (_settings.WallpaperSlideshowBackup is { } backup && !WallpaperService.IsSlideshow())
+                    WallpaperService.Restore(backup);
+                _settings.WallpaperSlideshowBackup = null;
+            }
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PinWallpapersStatus));
+        }
+    }
+
+    public string PinWallpapersStatus => !PinWallpapers ? string.Empty
+        : _settings.WallpaperSlideshowBackup is not null
+            ? "Слайд-шоу остановлено — картинки на мониторах закреплены."
+            : "Слайд-шоу Windows сейчас не идёт — закреплять нечего. Включите его (Параметры → Персонализация → Фон), и через минуту картинки закрепятся.";
+
+    /// <summary>При запуске и по галочке: закрепить, если идёт слайд-шоу; дальше — проверка раз в минуту.</summary>
+    public void PinWallpapersNow()
+    {
+        if (!_settings.PinWallpapers) return;
+        if (WallpaperService.Pin() is { } backup)
+        {
+            _settings.WallpaperSlideshowBackup = backup;
+            _settingsService.Save(_settings);
+            OnPropertyChanged(nameof(PinWallpapersStatus));
+        }
+        if (_wallpaperTimer is null)
+        {
+            _wallpaperTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+            _wallpaperTimer.Tick += (_, _) => PinWallpapersNow();
+        }
+        _wallpaperTimer.Start();
+    }
+
     /// <summary>Возвращать окна других программ на мониторы после сна — служба живёт в MainWindow (нужен HWND).</summary>
     public bool RestoreOtherWindows
     {
@@ -1015,6 +1066,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             != System.Windows.MessageBoxResult.Yes)
             return;
 
+        PinWallpapers = false; // по умолчанию выкл — вернуть слайд-шоу, пока известно, откуда оно шло
         var lastUpdateCheck = _settings.LastUpdateCheckUtc;
         var (windowProfiles, windowAssignments) = (_settings.WindowProfiles, _settings.WindowProfileAssignments);
         if (_settings.RunElevated) ElevationService.DeleteTask(); // по умолчанию выкл — задача не нужна

@@ -485,6 +485,25 @@
             <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
 
+            <!-- ============ Фон рабочего стола (докладка 2026-09-29, Services/WallpaperService.cs) ============ -->
+            <TextBlock Text="Фон рабочего стола" Style="{StaticResource Style.SectionHeader}" />
+            <CheckBox ToolTip="Остановить смену картинок слайд-шоу Windows — на каждом мониторе остаётся его текущая картинка" IsChecked="{Binding PinWallpapers}">
+                <TextBlock Text="Закрепить фоны рабочего стола (остановить слайд-шоу)" TextWrapping="Wrap" />
+            </CheckBox>
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                       Text="Слайд-шоу Windows ставит разные картинки на разные мониторы, но меняет их не реже раза в сутки. С галочкой смена останавливается: на каждом мониторе остаётся та картинка, что сейчас. Снимите галочку — слайд-шоу пойдёт снова из той же папки." />
+            <TextBlock Text="{Binding PinWallpapersStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,2,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PinWallpapers}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
             <!-- ============ Окна программ (объединено 2026-09-29): всё, что Тайм2гаджет делает с окнами ДРУГИХ программ —
                  возврат после сна (WindowLayoutService), место между запусками (AppWindowMemoryService), размер и положение
                  по профилям (окно WindowProfilesWindow, WindowProfileService) и права администратора для всего этого. ============ -->
