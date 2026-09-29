@@ -27,7 +27,14 @@ public sealed class WindowProfileService : IDisposable
     private readonly Dictionary<IntPtr, List<DateTime>> _applies = new();
     private IntPtr _hook, _hookMove;
     private readonly HashSet<IntPtr> _movedByUser = new(); // окно перетащил человек — профиль его больше не тянет назад
+    private readonly HashSet<IntPtr> _announced = new();   // о каких окнах уже сообщили WindowProfiled
     private bool _enabled;
+
+    /// <summary>Профиль обработан для нового окна — по одному разу на окно (окно «Размер и положение окон программ» добавляет его в список).</summary>
+    public event EventHandler<IntPtr>? WindowProfiled;
+
+    /// <summary>Окно, о котором сообщали <see cref="WindowProfiled"/>, закрыто.</summary>
+    public event EventHandler<IntPtr>? WindowGone;
 
     /// <param name="setCursorConfine">Отметить окно «не выпускать указатель мыши» по профилю (MainViewModel.SetCursorConfine).</param>
     public WindowProfileService(Func<string, WindowSizeProfile?> findProfile, Action<IntPtr, bool>? setCursorConfine = null)
@@ -57,6 +64,7 @@ public sealed class WindowProfileService : IDisposable
                 if (_hookMove != IntPtr.Zero) UnhookWinEvent(_hookMove);
                 _hookMove = IntPtr.Zero;
                 _movedByUser.Clear();
+                _announced.Clear();
                 _hook = IntPtr.Zero;
                 foreach (var t in _debounce.Values) t.Stop();
                 _debounce.Clear();
@@ -91,6 +99,7 @@ public sealed class WindowProfileService : IDisposable
                 _applies.Remove(hwnd);
                 _movedByUser.Remove(hwnd);
                 if (_debounce.Remove(hwnd, out var t)) t.Stop();
+                if (_announced.Remove(hwnd)) WindowGone?.Invoke(this, hwnd);
                 break;
             case EventSystemMoveSizeStart:
                 // Окно тащит человек — профиль до повторного открытия окна его не тянет назад (докладка 2026-09-29).
@@ -146,6 +155,7 @@ public sealed class WindowProfileService : IDisposable
         if (_movedByUser.Contains(hwnd)) return; // перетащили руками — ручное положение главнее
         if (!NativeWindows.IsAlive(hwnd) || NativeWindows.GetBounds(hwnd) is not { } b) return;
         _setCursorConfine?.Invoke(hwnd, profile.ConfineCursor); // и когда окно уже на месте
+        if (_announced.Add(hwnd)) WindowProfiled?.Invoke(this, hwnd);
         var target = new WindowBounds(profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless);
         bool matches = b.X == target.X && b.Y == target.Y && b.Width == target.Width && b.Height == target.Height
                        && (!profile.Borderless || b.Borderless);

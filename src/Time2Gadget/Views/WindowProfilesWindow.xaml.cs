@@ -16,6 +16,12 @@ public partial class WindowProfilesWindow : Window
         Loaded += (_, _) => FitHeightToOptions();
     }
 
+    /// <summary>Служба профилей применила профиль к новому окну — если это окно открыто, окно появится в списке.</summary>
+    public static void NotifyWindowProfiled(IntPtr hwnd) => _current?._viewModel.OnWindowProfiled(hwnd);
+
+    /// <summary>Окно с профилем закрыто — убрать из списка.</summary>
+    public static void NotifyWindowGone(IntPtr hwnd) => _current?._viewModel.OnWindowGone(hwnd);
+
     /// <summary>
     /// Одно окно на программу: из настроек (owner — окно настроек) и по клавише быстрого открытия (без владельца — по центру
     /// монитора с указателем; <paramref name="select"/> — окно, активное в момент нажатия, сразу выбирается в списке).

@@ -99,6 +99,35 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         RefreshWindowMarks();
     }
 
+    // Окна с автоприменяемым профилем появляются в списке сами (докладка 2026-09-29: «открыл игру — и видишь её в списке»).
+    // Без опроса: служба профилей (Services/WindowProfileService) сообщает о каждом новом окне, к которому применила
+    // профиль, — по одному разу на окно; и о закрытии такого окна. Выбор и поля при этом не трогаются.
+
+    private static readonly IComparer<WindowItem> ListOrder = Comparer<WindowItem>.Create((a, b) =>
+    {
+        int c = StringComparer.OrdinalIgnoreCase.Compare(a.ExeName, b.ExeName);
+        return c != 0 ? c : string.CompareOrdinal(a.Info.Title, b.Info.Title);
+    });
+
+    /// <summary>Профиль применён к новому окну — добавить его на своё место (если его ещё нет).</summary>
+    public void OnWindowProfiled(IntPtr hwnd)
+    {
+        if (Windows.Any(w => w.Info.Handle == hwnd) || NativeWindows.Describe(hwnd) is not { } info || info.Handle != hwnd) return;
+        var item = new WindowItem(info, IconOf(info.ExePath));
+        int index = 0;
+        while (index < Windows.Count && ListOrder.Compare(Windows[index], item) <= 0) index++;
+        Windows.Insert(index, item);
+        RefreshWindowMarks();
+    }
+
+    /// <summary>Окно с профилем закрыто — убрать из списка.</summary>
+    public void OnWindowGone(IntPtr hwnd)
+    {
+        if (Windows.FirstOrDefault(w => w.Info.Handle == hwnd) is not { } item) return;
+        if (ReferenceEquals(item, SelectedWindow)) SelectedWindow = null;
+        Windows.Remove(item);
+    }
+
     private ImageSource? IconOf(string? exePath)
     {
         if (exePath is null) return null;

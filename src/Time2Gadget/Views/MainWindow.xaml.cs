@@ -102,6 +102,9 @@ public partial class MainWindow : Window
         _viewModel.CursorConfine = _cursorConfine;
         _windowProfileService = new Services.WindowProfileService(key => _viewModel.FindProfileFor(key), _viewModel.SetCursorConfine);
         _appWindowMemory.IsProfiled = key => _viewModel.FindProfileFor(key) is not null;
+        // Окно с автоприменяемым профилем открылось/закрылось — список окна «Размер и положение окон программ» (если оно открыто).
+        _windowProfileService.WindowProfiled += (_, hwnd) => WindowProfilesWindow.NotifyWindowProfiled(hwnd);
+        _windowProfileService.WindowGone += (_, hwnd) => WindowProfilesWindow.NotifyWindowGone(hwnd);
         SourceInitialized += (_, _) => UpdateWindowProfileService();
         _viewModel.WindowProfilesChanged += (_, _) => UpdateWindowProfileService();
         // Быстрое открытие окна «Размер и положение окон программ» клавишей — с выбранным окном, активным в момент нажатия.
