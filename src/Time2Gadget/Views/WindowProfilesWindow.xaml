@@ -200,31 +200,89 @@
                         </Button>
                         <Button x:Name="SaveProfileButton" Grid.Row="1" Grid.Column="1" Command="{Binding OpenSaveProfileCommand}"
                                 Style="{StaticResource Style.SettingsButton}" Width="150" Padding="6,3" FontSize="11" Margin="12,2,0,2"
-                                ToolTip="Сохранить значения выше как профиль — его можно применять к любым окнам">
-                            <TextBlock Text="Сохранить как&#x0a;новый профиль" TextAlignment="Center" />
+                                ToolTip="Сохранить значения выше в профиль — выбранный или новый; профиль можно применять к любым окнам">
+                            <TextBlock Text="Сохранить" TextAlignment="Center" />
                         </Button>
-                        <!-- Сохранение (докладка 2026-09-29): поле с НОВЫМ именем по значениям — «Сохранить новый» (имя существующего —
-                             «Перезаписать «имя»»); если профиль выбран — ещё явная «Сохранить в «выбранный»». -->
-                        <Popup PlacementTarget="{Binding ElementName=SaveProfileButton}" Placement="Bottom" HorizontalOffset="-200"
+                        <!-- Сохранение (докладка 2026-09-29) — диалог строками: профиль выбран — «Сохранить в «X»?» [В текущий профиль]
+                             [В новый профиль] [Отмена], «В новый» добавляет строку имени; не выбран — сразу строка имени, ниже приглушённо
+                             «или перезаписать профиль»: список + [Сохранить] → «Перезаписать «X»?» [Да] [Отмена]. Правый край — по кнопке. -->
+                        <Popup PlacementTarget="{Binding ElementName=SaveProfileButton}" Placement="Bottom" HorizontalOffset="-330"
                                StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsSavePopupOpen, Mode=TwoWay}">
-                            <Border Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" Width="380"
+                            <Border Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" Width="480"
                                     Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
                                 <StackPanel>
-                                    <TextBlock Text="Имя нового профиля" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
-                                    <Grid>
+                                    <Grid Visibility="{Binding SaveShowChoice, Converter={StaticResource BoolToVis}}">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
-                                        <Button Grid.Column="1" Content="{Binding SaveNewButtonText}" Command="{Binding SaveProfileCommand}" Style="{StaticResource Style.SettingsButton}"
-                                                Margin="6,0,0,0" IsDefault="True" MaxWidth="200"
+                                        <TextBlock Text="Куда сохранить?" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Content="В текущий профиль" Command="{Binding SaveToSelectedCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                Margin="6,0,0,0" Padding="8,5" ToolTip="{Binding SaveChoiceText}" />
+                                        <Button Grid.Column="2" Content="В новый профиль" Command="{Binding SaveAsNewCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                Margin="6,0,0,0" Padding="8,5" ToolTip="Сохранить как новый профиль — ниже появится поле для имени" />
+                                        <Button Grid.Column="3" Content="Отмена" Command="{Binding CancelSaveCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                Margin="6,0,0,0" Padding="8,5" IsCancel="True" />
+                                    </Grid>
+                                    <Grid Visibility="{Binding SaveShowName, Converter={StaticResource BoolToVis}}">
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SaveShowChoice}" Value="True">
+                                                        <Setter Property="Margin" Value="0,8,0,0" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Новый профиль:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBox Grid.Column="1" Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"
+                                                 ToolTip="Имя предложено по значениям — можно вписать своё" />
+                                        <Button Grid.Column="2" Content="{Binding SaveNewButtonText}" Command="{Binding SaveProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                Margin="6,0,0,0" Padding="8,5" IsDefault="True" MaxWidth="200"
                                                 ToolTip="Сохранить значения как профиль с этим именем (имя существующего профиля — перезаписать его)" />
                                     </Grid>
-                                    <Button Content="{Binding SaveToSelectedText}" Command="{Binding SaveToSelectedCommand}" Style="{StaticResource Style.SettingsButton}"
-                                            HorizontalAlignment="Right" Margin="0,6,0,0" MaxWidth="360"
-                                            Visibility="{Binding CanSaveToSelected, Converter={StaticResource BoolToVis}}"
-                                            ToolTip="Перезаписать выбранный в списке профиль текущими значениями" />
+                                    <!-- «В фоне»: приглушено, пока на него не навели. -->
+                                    <StackPanel Margin="0,10,0,0" Visibility="{Binding SaveShowOverwrite, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Opacity" Value="0.6" />
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="1" /></Trigger>
+                                                    <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="Opacity" Value="1" /></Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="или в профиль:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"
+                                                       Foreground="{StaticResource Brush.TextSecondary}" />
+                                            <ComboBox Grid.Column="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding OverwriteTarget}"
+                                                      ToolTip="Выбрать профиль, в который сохранить значения выше">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <Button Grid.Column="2" Content="Сохранить" Command="{Binding AskOverwriteCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Margin="6,0,0,0" Padding="8,5" IsEnabled="{Binding HasOverwriteTarget}" />
+                                        </Grid>
+                                        <Grid Margin="0,6,0,0" Visibility="{Binding IsOverwriteConfirm, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding OverwriteQuestion}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding OverwriteQuestion}" />
+                                            <Button Grid.Column="1" Content="Да" Command="{Binding ConfirmOverwriteCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Margin="6,0,0,0" Padding="14,5" />
+                                            <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelOverwriteCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Margin="6,0,0,0" Padding="8,5" />
+                                        </Grid>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </Popup>

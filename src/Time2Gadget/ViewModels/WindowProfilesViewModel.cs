@@ -370,7 +370,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             Set(ref _selectedProfile, value);
             OnPropertyChanged(nameof(HasProfile));
             OnPropertyChanged(nameof(ProfilePlaceholder));
-            RefreshSaveButtons();
+            OnPropertyChanged(nameof(SaveChoiceText));
             RefreshAssignment();
         }
     }
@@ -381,58 +381,108 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     public string? ProfilePlaceholder => SelectedProfile is not null ? null
         : Profiles.Count == 0 ? "Нет созданных профилей" : "Выберите профиль";
 
-    // «Сохранить как профиль» (докладка 2026-09-29, по отзыву): выбор в списке больше не решает, куда сохранять. Во всплывающем
-    // поле — НОВОЕ имя по значениям: «Сохранить новый» (имя существующего — «Перезаписать «имя»»); если профиль выбран —
-    // ещё явная кнопка «Сохранить в «выбранный»».
+    // «Сохранить» (докладка 2026-09-29, по отзыву) — всплывающий диалог у кнопки, всё строками:
+    //  • профиль выбран — вопрос «Сохранить в «X»?»: [В текущий профиль] [В новый профиль] [Отмена];
+    //    «В новый профиль» — ниже строка: имя (предложено по значениям, можно своё) + [Сохранить];
+    //  • профиль не выбран — сразу строка с именем + [Сохранить]; ниже приглушённо «или перезаписать профиль»: список + [Сохранить]
+    //    → «Перезаписать «X»?» [Да] [Отмена].
 
     private string _newProfileName = string.Empty;
     public string NewProfileName
     {
         get => _newProfileName;
-        set { Set(ref _newProfileName, value); RefreshSaveButtons(); }
+        set { Set(ref _newProfileName, value); OnPropertyChanged(nameof(SaveNewButtonText)); }
     }
 
     private WindowSizeProfile? ProfileNamed(string name) =>
         Profiles.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
-    public string SaveNewButtonText => ProfileNamed(NewProfileName) is { } p ? $"Перезаписать «{p.Name}»" : "Сохранить новый";
-
-    /// <summary>«Сохранить в «выбранный»» — только если профиль выбран и в поле не его имя (иначе основная кнопка и так перезапишет).</summary>
-    public bool CanSaveToSelected => SelectedProfile is { } p && !ReferenceEquals(ProfileNamed(NewProfileName), p);
-    public string SaveToSelectedText => SelectedProfile is { } p ? $"Сохранить в «{p.Name}»" : string.Empty;
-
-    private void RefreshSaveButtons()
-    {
-        OnPropertyChanged(nameof(SaveNewButtonText));
-        OnPropertyChanged(nameof(CanSaveToSelected));
-        OnPropertyChanged(nameof(SaveToSelectedText));
-    }
+    /// <summary>Вписали имя существующего профиля — кнопка честно говорит, что перезапишет его.</summary>
+    public string SaveNewButtonText => ProfileNamed(NewProfileName) is { } p ? $"Перезаписать «{p.Name}»" : "Сохранить";
 
     private bool _isSavePopupOpen;
     public bool IsSavePopupOpen { get => _isSavePopupOpen; set => Set(ref _isSavePopupOpen, value); }
 
+    private bool _saveShowChoice, _saveShowName, _saveShowOverwrite;
+    /// <summary>Строка вопроса «в текущий или в новый» (профиль выбран).</summary>
+    public bool SaveShowChoice { get => _saveShowChoice; private set => Set(ref _saveShowChoice, value); }
+    /// <summary>Строка с именем нового профиля.</summary>
+    public bool SaveShowName { get => _saveShowName; private set => Set(ref _saveShowName, value); }
+    /// <summary>Приглушённый блок «или перезаписать профиль» (профиль не выбран, но профили есть).</summary>
+    public bool SaveShowOverwrite { get => _saveShowOverwrite; private set => Set(ref _saveShowOverwrite, value); }
+
+    /// <summary>Подсказка «В текущий профиль» — с именем (в строке вопроса длинное имя не помещалось).</summary>
+    public string SaveChoiceText => SelectedProfile is { } p ? $"Перезаписать «{p.Name}» значениями выше" : string.Empty;
+
+    private WindowSizeProfile? _overwriteTarget;
+    /// <summary>Профиль, выбранный в блоке «или перезаписать профиль».</summary>
+    public WindowSizeProfile? OverwriteTarget
+    {
+        get => _overwriteTarget;
+        set { Set(ref _overwriteTarget, value); IsOverwriteConfirm = false; OnPropertyChanged(nameof(HasOverwriteTarget)); }
+    }
+    public bool HasOverwriteTarget => OverwriteTarget is not null;
+
+    private bool _isOverwriteConfirm;
+    /// <summary>Показан вопрос «Перезаписать «X»?» [Да] [Отмена].</summary>
+    public bool IsOverwriteConfirm
+    {
+        get => _isOverwriteConfirm;
+        private set { Set(ref _isOverwriteConfirm, value); OnPropertyChanged(nameof(OverwriteQuestion)); }
+    }
+    public string OverwriteQuestion => OverwriteTarget is { } p ? $"Перезаписать «{p.Name}»?" : string.Empty;
+
     public RelayCommand OpenSaveProfileCommand => _openSaveProfileCommand ??= new RelayCommand(() =>
     {
         NewProfileName = $"{Width}×{Height} в ({X}, {Y}){(Borderless ? ", без рамки" : "")}";
+        bool selected = SelectedProfile is not null;
+        SaveShowChoice = selected;
+        SaveShowName = !selected;
+        SaveShowOverwrite = !selected && Profiles.Count > 0;
+        OverwriteTarget = null;
+        OnPropertyChanged(nameof(SaveChoiceText));
         IsSavePopupOpen = true;
     });
     private RelayCommand? _openSaveProfileCommand;
+
+    /// <summary>«В новый профиль» — показать строку с именем.</summary>
+    public RelayCommand SaveAsNewCommand => _saveAsNewCommand ??= new RelayCommand(() => SaveShowName = true);
+    private RelayCommand? _saveAsNewCommand;
+
+    public RelayCommand CancelSaveCommand => _cancelSaveCommand ??= new RelayCommand(() => IsSavePopupOpen = false);
+    private RelayCommand? _cancelSaveCommand;
 
     /// <summary>Сохранить по имени из поля: новое — новый профиль, имя существующего — перезаписать его.</summary>
     public RelayCommand SaveProfileCommand => _saveProfileCommand ??= new RelayCommand(() =>
     {
         var name = NewProfileName.Trim();
-        if (name.Length == 0) { Status = "Введите имя профиля"; return; }
+        if (name.Length == 0) return;
         SaveInto(ProfileNamed(name) ?? AddProfile(name));
     });
     private RelayCommand? _saveProfileCommand;
 
-    /// <summary>Перезаписать выбранный профиль текущими значениями.</summary>
+    /// <summary>«В текущий профиль» — перезаписать выбранный профиль текущими значениями.</summary>
     public RelayCommand SaveToSelectedCommand => _saveToSelectedCommand ??= new RelayCommand(() =>
     {
         if (SelectedProfile is { } p) SaveInto(p);
     });
     private RelayCommand? _saveToSelectedCommand;
+
+    /// <summary>«Сохранить» у списка «или перезаписать профиль» — сначала спросить.</summary>
+    public RelayCommand AskOverwriteCommand => _askOverwriteCommand ??= new RelayCommand(() =>
+    {
+        if (OverwriteTarget is not null) IsOverwriteConfirm = true;
+    });
+    private RelayCommand? _askOverwriteCommand;
+
+    public RelayCommand ConfirmOverwriteCommand => _confirmOverwriteCommand ??= new RelayCommand(() =>
+    {
+        if (OverwriteTarget is { } p) SaveInto(p);
+    });
+    private RelayCommand? _confirmOverwriteCommand;
+
+    public RelayCommand CancelOverwriteCommand => _cancelOverwriteCommand ??= new RelayCommand(() => IsOverwriteConfirm = false);
+    private RelayCommand? _cancelOverwriteCommand;
 
     private WindowSizeProfile AddProfile(string name)
     {
