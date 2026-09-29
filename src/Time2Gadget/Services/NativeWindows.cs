@@ -58,9 +58,20 @@ public static class NativeWindows
 
     public static bool IsAlive(IntPtr hwnd) => hwnd != IntPtr.Zero && IsWindow(hwnd);
 
+    /// <summary>Окно свёрнуто — его место берётся из «обычного» положения, а не служебных (-32000, -32000).</summary>
+    public static bool IsMinimized(IntPtr hwnd) => IsIconic(hwnd);
+
     public static WindowBounds? GetBounds(IntPtr hwnd)
     {
-        if (!GetWindowRect(hwnd, out var r)) return null;
+        RECT r;
+        if (IsIconic(hwnd))
+        {
+            // У свёрнутого окна GetWindowRect — служебные (-32000, -32000); место, куда оно развернётся, — в placement.
+            var p = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+            if (!GetWindowPlacement(hwnd, ref p)) return null;
+            r = p.rcNormalPosition;
+        }
+        else if (!GetWindowRect(hwnd, out r)) return null;
         long style = GetWindowLongPtr(hwnd, GwlStyle).ToInt64();
         return new WindowBounds(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, (style & WsCaption) != WsCaption && (style & WsThickFrame) == 0);
     }
@@ -163,6 +174,10 @@ public static class NativeWindows
     private const uint SwpNoZOrder = 0x4, SwpNoActivate = 0x10, SwpFrameChanged = 0x20, SwpNoOwnerZOrder = 0x200;
 
     [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPLACEMENT { public int length, flags, showCmd; public POINT ptMinPosition, ptMaxPosition; public RECT rcNormalPosition; }
+    [DllImport("user32.dll")] private static extern bool GetWindowPlacement(IntPtr hwnd, ref WINDOWPLACEMENT placement);
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc proc, IntPtr lParam);

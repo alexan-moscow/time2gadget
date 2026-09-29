@@ -33,6 +33,18 @@ public partial class SettingsWindow : Window
             Top = saved.Y;
         }
         Closing += (_, _) => _viewModel.SaveSettingsWindowPosition(Left, Top);
+        // Место сохраняется и сразу после того, как окно перетащили (докладка 2026-09-29: сохранялось только при закрытии —
+        // и при смене экрана, например игра сменила разрешение, окно «прыгало» на прошлое место). Только по концу
+        // перетаскивания человеком (WM_EXITSIZEMOVE), не на любой сдвиг: сдвиг от Windows при гашении монитора сохранять нельзя.
+        SourceInitialized += (_, _) =>
+            System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(this).Handle)?.AddHook(OnWndProc);
+    }
+
+    private IntPtr OnWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WmExitSizeMove = 0x0232;
+        if (msg == WmExitSizeMove) _viewModel.SaveSettingsWindowPosition(Left, Top);
+        return IntPtr.Zero;
     }
 
     /// <summary>После сна/смены мониторов — вернуть на сохранённое место, если оно снова видно (см. MainWindow).</summary>

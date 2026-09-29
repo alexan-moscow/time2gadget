@@ -661,7 +661,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.RestoreOtherWindows = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
-            OnPropertyChanged(nameof(CanRunElevated));
         }
     }
 
@@ -675,7 +674,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.RememberAppWindows = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
-            OnPropertyChanged(nameof(CanRunElevated));
         }
     }
 
@@ -693,8 +691,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             ? _settings.WindowProfiles.FirstOrDefault(p => p.Name == a.ProfileName)
             : null;
 
-    /// <summary>«Запускать с правами администратора» имеет смысл, когда программа двигает чужие окна (любая из двух функций).</summary>
-    public bool CanRunElevated => RestoreOtherWindows || RememberAppWindows;
 
     /// <summary>Нужен перезапуск с правами администратора (задача Планировщика уже создана) — выполняет App.</summary>
     public event EventHandler? RestartElevatedRequested;

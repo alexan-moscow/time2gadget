@@ -482,46 +482,45 @@
             <TextBlock Text="Сон и мониторы" Style="{StaticResource Style.SectionHeader}" />
             <CheckBox ToolTip="Разбудить компьютер к окончанию таймера (таймер пробуждения Windows)" Content="Будить компьютер из сна к окончанию таймера" IsChecked="{Binding WakeFromSleepOnFinish}" />
             <CheckBox ToolTip="Включить погасшие мониторы, когда таймер закончился" Content="Включать мониторы, когда таймер закончился" IsChecked="{Binding WakeDisplayOnFinish}" />
+            <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+
+            <!-- ============ Окна программ (объединено 2026-09-29): всё, что Тайм2гаджет делает с окнами ДРУГИХ программ —
+                 возврат после сна (WindowLayoutService), место между запусками (AppWindowMemoryService), размер и положение
+                 по профилям (окно WindowProfilesWindow, WindowProfileService) и права администратора для всего этого. ============ -->
+            <TextBlock Text="Окна программ" Style="{StaticResource Style.SectionHeader}" />
             <CheckBox ToolTip="После сна вернуть окна программ на их мониторы" IsChecked="{Binding RestoreOtherWindows}">
                 <TextBlock Text="Возвращать окна других программ на их мониторы после сна и/или гашения мониторов" TextWrapping="Wrap" />
             </CheckBox>
-            <!-- Окна программ между их запусками (докладка 2026-09-28, Services/AppWindowMemoryService). -->
             <CheckBox ToolTip="Оконные программы и игры при новом запуске открываются на прежнем месте и того же размера" IsChecked="{Binding RememberAppWindows}">
                 <TextBlock Text="Открывать окна программ там, где их закрыли" TextWrapping="Wrap" />
             </CheckBox>
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,4"
                        Text="Закрыли программу или игру в окне — при следующем запуске окно встанет на то же место и будет того же размера. Полноэкранные окна и «полный экран в окне» не трогаются; программы с несколькими окнами одного вида (например, папки проводника) — тоже." />
-            <!-- Подпункт обеих функций про чужие окна: окна программ «от администратора» Windows даёт двигать только
-                 программе с такими же правами (докладка 2026-09-28). Services/ElevationService. -->
-            <StackPanel Margin="20,2,0,0" IsEnabled="{Binding CanRunElevated}">
-                <CheckBox ToolTip="Нужно, чтобы двигать окна программ, запущенных от администратора" IsChecked="{Binding RunElevated}">
-                    <TextBlock Text="Запускать с правами администратора" TextWrapping="Wrap" />
-                </CheckBox>
-                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
-                           Text="Нужно для окон программ, запущенных от администратора (иначе Windows не даёт их двигать) — для обеих функций выше. Разрешение спрашивается один раз при включении, дальше запуск без запросов." />
-                <!-- Текущий режим — выделен и переносится (длинный вариант «…с правами администратора» не влезал, 2026-09-28). -->
-                <TextBlock Text="{Binding ElevationStatusText, Mode=OneTime}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Margin="20,4,0,0">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsRunningElevated, Mode=OneTime}" Value="True">
-                                    <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </StackPanel>
-            <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
-                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
-
-            <!-- ============ Профили размера окон (докладка 2026-09-29) — отдельное окно Views/WindowProfilesWindow ============ -->
-            <TextBlock Text="Профили размера окон" Style="{StaticResource Style.SectionHeader}" />
+            <Button Content="Размер и положение окон программ…" Click="OnOpenWindowProfiles" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" Margin="0,6,0,2"
+                    ToolTip="Окно без рамки, точное место и размер, быстрые кнопки по краям монитора; профили, которые применяются к программе сами" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"
-                       Text="Положение, размер и рамка окон программ и игр: быстрые кнопки по углам и сторонам монитора, точные значения, «окно без рамки». Настройку можно сохранить профилем и применять к программе автоматически." />
-            <Button Content="Открыть профили размера окон…" Click="OnOpenWindowProfiles" Style="{StaticResource Style.SettingsButton}"
-                    HorizontalAlignment="Left" ToolTip="Окно с настройкой положения и размера окон других программ" />
+                       Text="Для отдельных программ и игр: «окно без рамки», точное место и размер, быстрые кнопки по краям монитора. Удачную настройку можно сохранить профилем и применять к программе автоматически." />
+            <!-- Окна программ «от администратора» Windows даёт двигать только программе с такими же правами. Services/ElevationService. -->
+            <CheckBox ToolTip="Нужно, чтобы двигать окна программ, запущенных от администратора" IsChecked="{Binding RunElevated}">
+                <TextBlock Text="Запускать с правами администратора" TextWrapping="Wrap" />
+            </CheckBox>
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                       Text="Нужно для окон программ, запущенных от администратора (иначе Windows не даёт их двигать) — для всех функций выше. Разрешение спрашивается один раз при включении, дальше запуск без запросов." />
+            <!-- Текущий режим — выделен и переносится (длинный вариант «…с правами администратора» не влезал, 2026-09-28). -->
+            <TextBlock Text="{Binding ElevationStatusText, Mode=OneTime}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Margin="20,4,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsRunningElevated, Mode=OneTime}" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
 
             <!-- ============ Обновления — внизу (автопроверка при запуске и раз в сутки идёт сама) ============ -->
             <TextBlock x:Name="UpdatesSection" Text="Обновления" Style="{StaticResource Style.SectionHeader}" />

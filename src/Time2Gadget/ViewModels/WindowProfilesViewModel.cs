@@ -23,7 +23,7 @@ public sealed class WindowItem
     public string Title => string.IsNullOrEmpty(Info.Title) ? $"(без заголовка, {Info.ClassName})" : Info.Title;
 }
 
-/// <summary>Монитор для быстрых кнопок: «1 — 3840×1080 (основной)».</summary>
+/// <summary>Монитор для быстрых кнопок: «2 — 3840×1080, основной».</summary>
 public sealed record MonitorOption(int Index, System.Drawing.Rectangle Bounds, System.Drawing.Rectangle WorkArea, string Label);
 
 /// <summary>
@@ -113,6 +113,11 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasSelection));
             OnPropertyChanged(nameof(SelectedHeader));
             if (value is not null) TakeFromWindow(silent: true);
+            // Программе уже назначен профиль — сразу выбрать его; нет — пусто с подсказкой «Выберите профиль».
+            SelectedProfile = value?.Info.ProgramKey is { } key
+                              && _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key) is { } a
+                ? Profiles.FirstOrDefault(p => p.Name == a.ProfileName)
+                : null;
             RefreshAssignment();
         }
     }
@@ -194,13 +199,13 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             return;
         }
         (X, Y, Width, Height, Borderless) = (b.X, b.Y, b.Width, b.Height, b.Borderless);
-        SelectedMonitor = Monitors.ElementAtOrDefault(NativeWindows.MonitorIndexOf(b)) ?? SelectedMonitor;
+        SetMonitorSilently(Monitors.ElementAtOrDefault(NativeWindows.MonitorIndexOf(b)) ?? SelectedMonitor);
         UpdateCurrentText(b);
         if (!silent) Status = "Поля заполнены по текущему окну";
     }
 
     private void UpdateCurrentText(WindowBounds b) =>
-        CurrentText = $"Сейчас: {b.Width}×{b.Height} в ({b.X}, {b.Y}), {(b.Borderless ? "без рамки" : "с рамкой")}";
+        CurrentText = $"Сейчас: {b.Width}×{b.Height} в ({b.X}, {b.Y}), {(b.Borderless ? "без рамки" : "с рамкой")}, монитор {NativeWindows.MonitorIndexOf(b) + 1}{(SelectedWindow is { } sw && NativeWindows.IsMinimized(sw.Info.Handle) ? " (свёрнуто)" : "")}";
 
     public RelayCommand ApplyCommand => _applyCommand ??= new RelayCommand(Apply);
     private RelayCommand? _applyCommand;
@@ -221,7 +226,41 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     public ObservableCollection<MonitorOption> Monitors { get; } = new();
 
     private MonitorOption? _selectedMonitor;
-    public MonitorOption? SelectedMonitor { get => _selectedMonitor; set => Set(ref _selectedMonitor, value); }
+    private bool _silentMonitorChange;
+
+    /// <summary>
+    /// Монитор для быстрых кнопок. Выбор другого монитора пользователем сразу переносит окно туда (докладка 2026-09-29):
+    /// то же положение относительно угла рабочей области и тот же размер, не выходя за край.
+    /// </summary>
+    public MonitorOption? SelectedMonitor
+    {
+        get => _selectedMonitor;
+        set
+        {
+            if (Equals(_selectedMonitor, value)) return;
+            var old = _selectedMonitor;
+            Set(ref _selectedMonitor, value);
+            if (!_silentMonitorChange && old is not null && value is not null) MoveToMonitor(old, value);
+        }
+    }
+
+    private void SetMonitorSilently(MonitorOption? monitor)
+    {
+        _silentMonitorChange = true;
+        SelectedMonitor = monitor;
+        _silentMonitorChange = false;
+    }
+
+    private void MoveToMonitor(MonitorOption from, MonitorOption to)
+    {
+        if (SelectedWindow is null) return;
+        var (a, b) = (from.WorkArea, to.WorkArea);
+        int x = b.Left + (X - a.Left), y = b.Top + (Y - a.Top);
+        if (Width <= b.Width) x = Math.Clamp(x, b.Left, b.Right - Width);
+        if (Height <= b.Height) y = Math.Clamp(y, b.Top, b.Bottom - Height);
+        (X, Y) = (x, y);
+        Apply();
+    }
 
     private void RefreshMonitors()
     {
@@ -231,9 +270,9 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         for (int i = 0; i < list.Count; i++)
         {
             var (bounds, work, primary) = list[i];
-            Monitors.Add(new MonitorOption(i, bounds, work, $"{i + 1} — {bounds.Width}×{bounds.Height}{(primary ? " (основной)" : "")}"));
+            Monitors.Add(new MonitorOption(i, bounds, work, $"{i + 1} — {bounds.Width}×{bounds.Height}{(primary ? ", основной" : "")}"));
         }
-        SelectedMonitor = Monitors.ElementAtOrDefault(selected) ?? Monitors.FirstOrDefault();
+        SetMonitorSilently(Monitors.ElementAtOrDefault(selected) ?? Monitors.FirstOrDefault());
     }
 
     /// <summary>
@@ -274,10 +313,20 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     public WindowSizeProfile? SelectedProfile
     {
         get => _selectedProfile;
-        set { Set(ref _selectedProfile, value); OnPropertyChanged(nameof(HasProfile)); RefreshAssignment(); }
+        set
+        {
+            Set(ref _selectedProfile, value);
+            OnPropertyChanged(nameof(HasProfile));
+            OnPropertyChanged(nameof(ProfilePlaceholder));
+            RefreshAssignment();
+        }
     }
 
     public bool HasProfile => SelectedProfile is not null;
+
+    /// <summary>Приглушённая подсказка в пустом списке профилей; null — профиль выбран (подсказки нет).</summary>
+    public string? ProfilePlaceholder => SelectedProfile is not null ? null
+        : Profiles.Count == 0 ? "Нет созданных профилей" : "Выберите профиль";
 
     private string _newProfileName = string.Empty;
     public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }
