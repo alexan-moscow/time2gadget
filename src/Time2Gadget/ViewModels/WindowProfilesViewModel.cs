@@ -214,10 +214,15 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is not { } w) return;
         if (!NativeWindows.IsAlive(w.Info.Handle)) { Status = "Окно закрыто — обновите список"; return; }
-        bool ok = NativeWindows.Apply(w.Info.Handle, new WindowBounds(X, Y, Width, Height, Borderless), NotifyResize);
-        Status = ok
-            ? "Применено"
-            : "Не удалось — окно программы, запущенной от администратора? Включите «Запускать с правами администратора» в настройках.";
+        var target = new WindowBounds(X, Y, Width, Height, Borderless);
+        var released = AssignedProfile?.Name;
+        bool autoOff = ReleaseAutoApplyForManualChange(target); // до применения — иначе служба вернула бы окно по профилю
+        bool ok = NativeWindows.Apply(w.Info.Handle, target, NotifyResize);
+        Status = !ok
+            ? "Не удалось — окно программы, запущенной от администратора? Включите «Запускать с правами администратора» в настройках."
+            : autoOff
+                ? $"Применено. Автоприменение «{released}» выключено: окно изменено вручную."
+                : "Применено";
         if (NativeWindows.GetBounds(w.Info.Handle) is { } now) UpdateCurrentText(now);
     }
 
@@ -331,6 +336,18 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     private string _newProfileName = string.Empty;
     public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }
 
+    // «Сохранить как профиль» (под «Применить», докладка 2026-09-29): рядом всплывает поле имени, уже заполненное
+    // по значениям полей — можно сразу нажать «Сохранить» или переименовать.
+    private bool _isSavePopupOpen;
+    public bool IsSavePopupOpen { get => _isSavePopupOpen; set => Set(ref _isSavePopupOpen, value); }
+
+    public RelayCommand OpenSaveProfileCommand => _openSaveProfileCommand ??= new RelayCommand(() =>
+    {
+        NewProfileName = SelectedProfile?.Name ?? $"{Width}×{Height} в ({X}, {Y}){(Borderless ? ", без рамки" : "")}";
+        IsSavePopupOpen = true;
+    });
+    private RelayCommand? _openSaveProfileCommand;
+
     public RelayCommand SaveProfileCommand => _saveProfileCommand ??= new RelayCommand(SaveProfile);
     private RelayCommand? _saveProfileCommand;
 
@@ -351,6 +368,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         SelectedProfile = null;
         SelectedProfile = profile;
         NewProfileName = string.Empty;
+        IsSavePopupOpen = false;
         Status = $"Профиль «{name}» сохранён";
     }
 
@@ -376,33 +394,67 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     // ---------------- Автоприменение ----------------
 
-    /// <summary>Выбранный профиль применяется к программе выбранного окна автоматически (при каждом её запуске и если она сама поменяет размер).</summary>
-    public bool AutoApply
+    // «Применять постоянно» (докладка 2026-09-29) — переключатель в строке профиля: включён — выбранный профиль применяется
+    // к программе выбранного окна сам (при каждом запуске и если программа поменяет окно); повторное нажатие — выключить.
+
+    /// <summary>Назначенный программе выбранного окна профиль (применяется постоянно) или null.</summary>
+    private WindowSizeProfile? AssignedProfile =>
+        SelectedWindow?.Info.ProgramKey is { } key && _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key) is { } a
+            ? Profiles.FirstOrDefault(p => p.Name == a.ProfileName)
+            : null;
+
+    /// <summary>Переключатель «Применять постоянно»: включён, если программе назначен именно выбранный профиль.</summary>
+    public bool ApplyPermanently
     {
-        get => SelectedWindow?.Info.ProgramKey is { } key && SelectedProfile is { } p
-               && _main.Settings.WindowProfileAssignments.Any(a => a.ProgramKey == key && a.ProfileName == p.Name);
+        get => SelectedProfile is { } p && ReferenceEquals(AssignedProfile, p);
         set
         {
-            if (SelectedWindow?.Info is not { ProgramKey: { } key } info) return;
+            if (value == ApplyPermanently) return;
+            if (!value)
+            {
+                if (DisableAutoApply() is { } name) Status = $"«{name}» больше не применяется постоянно. Профиль остался в списке, окно — где стоит.";
+                return;
+            }
+            if (SelectedWindow?.Info is not { ProgramKey: { } key } info || SelectedProfile is not { } profile) return;
             _main.Settings.WindowProfileAssignments.RemoveAll(a => a.ProgramKey == key);
-            if (value && SelectedProfile is { } p)
-                _main.Settings.WindowProfileAssignments.Add(new WindowProfileAssignment { ProgramKey = key, ProgramName = info.ExeName, ProfileName = p.Name });
-            SaveAndNotify();
+            _main.Settings.WindowProfileAssignments.Add(new WindowProfileAssignment { ProgramKey = key, ProgramName = info.ExeName, ProfileName = profile.Name });
+            SaveAndNotify(); // служба сразу применит профиль к открытому окну
             RefreshAssignment();
-            Status = value ? $"«{SelectedProfile?.Name}» будет применяться к {info.ExeName} автоматически" : $"Автоприменение для {info.ExeName} выключено";
+            Status = $"«{profile.Name}» применяется к {info.ExeName} постоянно — при каждом запуске и если программа сама поменяет окно";
         }
     }
 
-    /// <summary>Какой профиль сейчас назначен программе выбранного окна (строка под галочкой).</summary>
-    public string AssignmentText =>
-        SelectedWindow?.Info.ProgramKey is { } key && _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key) is { } a
-            ? $"Этой программе назначен профиль «{a.ProfileName}»"
-            : "Этой программе профиль не назначен";
+    public string ApplyPermanentlyToolTip => AssignedProfile is { } p
+        ? $"Сейчас к этой программе постоянно применяется «{p.Name}». Щелчок по включённой кнопке — выключить."
+        : "Применять выбранный профиль к этой программе постоянно: при каждом её запуске и если она сама поменяет окно.";
+
+    /// <summary>Снять назначение с программы выбранного окна; возвращает имя снятого профиля.</summary>
+    private string? DisableAutoApply()
+    {
+        if (SelectedWindow?.Info.ProgramKey is not { } key || AssignedProfile is not { } p) return null;
+        _main.Settings.WindowProfileAssignments.RemoveAll(a => a.ProgramKey == key);
+        SaveAndNotify();
+        RefreshAssignment();
+        return p.Name;
+    }
+
+    /// <summary>
+    /// Окно меняют вручную (быстрые кнопки, монитор, «Применить» с другими значениями, другой профиль), а программе
+    /// назначен профиль — снять автоприменение (докладка 2026-09-29): иначе служба тут же вернула бы окно по профилю.
+    /// </summary>
+    private bool ReleaseAutoApplyForManualChange(WindowBounds target)
+    {
+        if (AssignedProfile is not { } p) return false;
+        bool sameAsProfile = p.X == target.X && p.Y == target.Y && p.Width == target.Width && p.Height == target.Height && p.Borderless == target.Borderless;
+        if (sameAsProfile) return false;
+        DisableAutoApply();
+        return true;
+    }
 
     private void RefreshAssignment()
     {
-        OnPropertyChanged(nameof(AutoApply));
-        OnPropertyChanged(nameof(AssignmentText));
+        OnPropertyChanged(nameof(ApplyPermanently));
+        OnPropertyChanged(nameof(ApplyPermanentlyToolTip));
     }
 
     private void SaveAndNotify()

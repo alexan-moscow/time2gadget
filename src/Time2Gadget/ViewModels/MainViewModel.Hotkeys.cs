@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows.Threading;
-using System.Windows.Threading;
 using Time2Gadget.Models;
 
 namespace Time2Gadget.ViewModels;
