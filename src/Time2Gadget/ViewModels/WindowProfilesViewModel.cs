@@ -112,6 +112,9 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             Set(ref _selectedWindow, value);
             OnPropertyChanged(nameof(HasSelection));
             OnPropertyChanged(nameof(SelectedHeader));
+            // Статус — последний этого окна (или пусто), а не того, что было выбрано до него.
+            _status = value is not null && _statuses.TryGetValue(value.Info.Handle, out var s) ? s : string.Empty;
+            OnPropertyChanged(nameof(Status));
             if (value is not null) TakeFromWindow(silent: true);
             // Программе уже назначен профиль — сразу выбрать его; нет — пусто с подсказкой «Выберите профиль».
             SelectedProfile = value?.Info.ProgramKey is { } key
@@ -195,8 +198,18 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         set { _main.CursorConfineKey = value; OnPropertyChanged(); }
     }
 
+    // Строка статуса — своя у каждого окна (докладка 2026-09-29: «Применено» оставалось при выборе другого окна).
+    private readonly Dictionary<IntPtr, string> _statuses = new();
     private string _status = string.Empty;
-    public string Status { get => _status; private set => Set(ref _status, value); }
+    public string Status
+    {
+        get => _status;
+        private set
+        {
+            Set(ref _status, value);
+            if (SelectedWindow is { } w) _statuses[w.Info.Handle] = value;
+        }
+    }
 
     public RelayCommand TakeFromWindowCommand => _takeFromWindowCommand ??= new RelayCommand(() => TakeFromWindow(silent: false));
     private RelayCommand? _takeFromWindowCommand;
@@ -325,7 +338,14 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     // ---------------- Профили ----------------
 
-    public ObservableCollection<WindowSizeProfile> Profiles { get; } = new();
+    /// <summary>
+    /// Первый пункт списка — «— без профиля —» (докладка 2026-09-29): снять выбор и, если профиль применялся постоянно,
+    /// выключить это — без удаления профиля. В настройках не хранится.
+    /// </summary>
+    public static readonly WindowSizeProfile NoProfileItem = new() { Name = "— без профиля —" };
+
+    /// <summary>Список для выбора: «без профиля» + сохранённые профили.</summary>
+    public ObservableCollection<WindowSizeProfile> Profiles { get; } = new() { NoProfileItem };
 
     private WindowSizeProfile? _selectedProfile;
     public WindowSizeProfile? SelectedProfile
@@ -333,6 +353,13 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         get => _selectedProfile;
         set
         {
+            if (ReferenceEquals(value, NoProfileItem))
+            {
+                // «Без профиля»: снять постоянное применение (если было) и очистить выбор — профиль не удаляется.
+                if (DisableAutoApply() is { } name) Status = $"«{name}» больше не применяется к этой программе. Профиль остался в списке.";
+                value = null;
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(() => OnPropertyChanged(nameof(SelectedProfile)));
+            }
             Set(ref _selectedProfile, value);
             OnPropertyChanged(nameof(HasProfile));
             OnPropertyChanged(nameof(ProfilePlaceholder));
@@ -346,7 +373,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     /// <summary>Приглушённая подсказка в пустом списке профилей; null — профиль выбран (подсказки нет).</summary>
     public string? ProfilePlaceholder => SelectedProfile is not null ? null
-        : Profiles.Count == 0 ? "Нет созданных профилей" : "Выберите профиль";
+        : Profiles.Count <= 1 ? "Нет созданных профилей" : "Выберите профиль"; // первый пункт — «без профиля»
 
     private string _newProfileName = string.Empty;
     public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }

@@ -174,9 +174,9 @@
                         <CheckBox Grid.Row="3" Content="Не выпускать указатель мыши из окна" IsChecked="{Binding ConfineCursor}" VerticalAlignment="Center"
                                   Margin="0,6,0,0" ToolTip="Пока окно активно, указатель не выходит за его границы; другое окно (Alt+Tab) — свободен" />
                         <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding CursorConfineKey}" Width="170" Margin="12,8,0,2"
-                                     ToolTip="Клавиша: указатель свободен / снова в окне (для всех таких окон). Щелчок — назначить другую: сочетание с Ctrl/Shift/Alt/Win или кнопка мыши" />
+                                     ToolTip="Сочетание: указатель свободен / снова в окне (для всех таких окон). Щелчок — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
                         <TextBlock Grid.Row="4" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
-                                   Text="Пока окно активно, указатель не уходит на другой монитор. Клавиша справа временно освобождает его и снова ограничивает." />
+                                   Text="Пока окно активно, указатель не выходит за его границы. Сочетание справа временно освобождает указатель и снова ограничивает его." />
                         <CheckBox Content="Без рамки и заголовка" IsChecked="{Binding Borderless}" VerticalAlignment="Center"
                                   ToolTip="Снять с окна рамку и заголовок — «окно без рамки», как «Remove borders» в SRWE" />
                         <CheckBox Grid.Row="1" Content="Сообщать программе, что размер изменён" IsChecked="{Binding NotifyResize}" VerticalAlignment="Center"
