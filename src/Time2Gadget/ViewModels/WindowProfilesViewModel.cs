@@ -336,6 +336,8 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             Set(ref _selectedProfile, value);
             OnPropertyChanged(nameof(HasProfile));
             OnPropertyChanged(nameof(ProfilePlaceholder));
+            OnPropertyChanged(nameof(SaveProfileButtonText));
+            OnPropertyChanged(nameof(SavePopupHint));
             RefreshAssignment();
         }
     }
@@ -351,6 +353,13 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     // «Сохранить как профиль» (под «Применить», докладка 2026-09-29): рядом всплывает поле имени, уже заполненное
     // по значениям полей — можно сразу нажать «Сохранить» или переименовать.
+    /// <summary>Профиль не выбран — «Сохранить как профиль»; выбран — «Сохранить в профиль» (имя уже подставлено: сохранить — перезаписать его).</summary>
+    public string SaveProfileButtonText => SelectedProfile is null ? "Сохранить как профиль" : "Сохранить в профиль";
+
+    public string SavePopupHint => SelectedProfile is { } p
+        ? $"Сохранить — перезаписать «{p.Name}». Другое имя — новый профиль."
+        : "Имя нового профиля";
+
     private bool _isSavePopupOpen;
     public bool IsSavePopupOpen { get => _isSavePopupOpen; set => Set(ref _isSavePopupOpen, value); }
 

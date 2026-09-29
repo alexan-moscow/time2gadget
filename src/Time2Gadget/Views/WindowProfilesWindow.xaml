@@ -70,6 +70,8 @@
                         ToolTip="Перечитать список окон и мониторов" />
                 <Button Content="{Binding PickButtonText}" Command="{Binding PickWindowCommand}" Style="{StaticResource Style.SettingsButton}"
                         ToolTip="Нажмите и за 3 секунды переключитесь в нужное окно (Alt+Tab) — для игр, которых нет в списке" />
+                <TextBlock Text="3 с — Alt+Tab&#x0a;в нужное окно" FontSize="10" Foreground="{StaticResource Brush.TextSecondary}"
+                           VerticalAlignment="Center" Margin="6,0,0,0" />
             </StackPanel>
             <CheckBox DockPanel.Dock="Top" Content="Показать все окна" IsChecked="{Binding ShowAllWindows}" Margin="0,8,0,6"
                       ToolTip="Без фильтров: окна без заголовка, служебные и дочерние — если нужного окна нет в списке" />
@@ -183,7 +185,7 @@
                                    Text="Нужно играм: без этого часть игр продолжает рисовать картинку в старом размере." />
                         <Button Grid.Column="1" Content="Применить" Command="{Binding ApplyCommand}" Style="{StaticResource Style.SettingsButton}"
                                 Width="170" Margin="12,2,0,2" ToolTip="Поставить окно по значениям выше" />
-                        <Button x:Name="SaveProfileButton" Grid.Row="1" Grid.Column="1" Content="Сохранить как профиль" Command="{Binding OpenSaveProfileCommand}"
+                        <Button x:Name="SaveProfileButton" Grid.Row="1" Grid.Column="1" Content="{Binding SaveProfileButtonText}" Command="{Binding OpenSaveProfileCommand}"
                                 Style="{StaticResource Style.SettingsButton}" Width="170" Margin="12,2,0,2"
                                 ToolTip="Сохранить значения выше как профиль — его можно применять к любым окнам" />
                         <!-- Имя профиля — всплывает у кнопки, уже заполненное по значениям. -->
@@ -192,7 +194,7 @@
                             <Border Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" Width="330"
                                     Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
                                 <StackPanel>
-                                    <TextBlock Text="Имя профиля (то же имя — перезаписать)" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="{Binding SavePopupHint}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -211,8 +213,12 @@
                 <!-- ============ Профили — отдельный раздел: одна строка «список — Применить — Применять постоянно — ✕» ============ -->
                 <StackPanel IsEnabled="{Binding HasSelection}">
                     <TextBlock Text="Профили" Style="{StaticResource Style.SectionHeader}" />
-                    <StackPanel Orientation="Horizontal">
-                        <Grid Width="200">
+                    <!-- Список растягивается: «✕» — ровно по правому краю кнопок «Применить» / «Сохранить…» выше. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid>
                             <!-- Длинное имя — обрезается многоточием, целиком — в подсказке (в раскрытом списке видно полностью). -->
                             <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
                                       ToolTip="{Binding SelectedProfile.Name, FallbackValue='Сохранённые профили — применяются к любому окну'}">
@@ -225,10 +231,10 @@
                             <TextBlock Text="{Binding ProfilePlaceholder}" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.TextSecondary}" Opacity="0.8" FontStyle="Italic" />
                         </Grid>
-                        <Button Content="Применить" Command="{Binding ApplyProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                        <Button Grid.Column="1" Content="Применить" Command="{Binding ApplyProfileCommand}" Style="{StaticResource Style.SettingsButton}"
                                 Margin="6,4,0,4" IsEnabled="{Binding HasProfile}" ToolTip="Поставить окно по выбранному профилю" />
                         <!-- Переключатель: включён — профиль применяется к этой программе сам; повторное нажатие — выключить. -->
-                        <ToggleButton IsChecked="{Binding ApplyPermanently}" IsEnabled="{Binding HasProfile}" Margin="6,4,0,4"
+                        <ToggleButton Grid.Column="2" IsChecked="{Binding ApplyPermanently}" IsEnabled="{Binding HasProfile}" Margin="6,4,0,4"
                                       ToolTip="{Binding ApplyPermanentlyToolTip}">
                             <ToggleButton.Style>
                                 <Style TargetType="ToggleButton">
@@ -266,9 +272,9 @@
                                 </Style>
                             </ToggleButton.Style>
                         </ToggleButton>
-                        <Button Content="✕" Command="{Binding DeleteProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                        <Button Grid.Column="3" Content="✕" Command="{Binding DeleteProfileCommand}" Style="{StaticResource Style.SettingsButton}"
                                 Margin="6,4,0,4" Padding="10,6" IsEnabled="{Binding HasProfile}" ToolTip="Удалить выбранный профиль" />
-                    </StackPanel>
+                    </Grid>
                     <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,2,0,0"
                                Text="Один профиль можно применять к любому числу программ. Если изменить окно вручную (кнопки, монитор, «Применить»), постоянное применение просто выключится." />
 
