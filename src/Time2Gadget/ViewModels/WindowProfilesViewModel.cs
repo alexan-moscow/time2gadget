@@ -8,8 +8,8 @@ using Time2Gadget.Services;
 
 namespace Time2Gadget.ViewModels;
 
-/// <summary>Строка списка окон: иконка программы, exe, заголовок.</summary>
-public sealed class WindowItem
+/// <summary>Строка списка окон: иконка программы, exe, заголовок и метка «профиль», если к программе он применяется постоянно.</summary>
+public sealed class WindowItem : INotifyPropertyChanged
 {
     public WindowItem(WindowInfo info, ImageSource? icon)
     {
@@ -21,6 +21,23 @@ public sealed class WindowItem
     public ImageSource? Icon { get; }
     public string ExeName => Info.ExeName;
     public string Title => string.IsNullOrEmpty(Info.Title) ? $"(без заголовка, {Info.ClassName})" : Info.Title;
+
+    private string? _permanentProfile;
+    /// <summary>Имя профиля, постоянно применяемого к программе окна; null — нет (метки нет).</summary>
+    public string? PermanentProfile
+    {
+        get => _permanentProfile;
+        set
+        {
+            if (_permanentProfile == value) return;
+            _permanentProfile = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PermanentProfile)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasPermanentProfile)));
+        }
+    }
+    public bool HasPermanentProfile => PermanentProfile is not null;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 /// <summary>Монитор для быстрых кнопок: «2 — 3840×1080, основной».</summary>
@@ -79,6 +96,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
                      .OrderBy(w => w.ExeName, StringComparer.OrdinalIgnoreCase).ThenBy(w => w.Title))
             Windows.Add(new WindowItem(info, IconOf(info.ExePath)));
         SelectedWindow = Windows.FirstOrDefault(w => w.Info.Handle == selected);
+        RefreshWindowMarks();
     }
 
     private ImageSource? IconOf(string? exePath)
@@ -169,6 +187,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         {
             item = new WindowItem(info, IconOf(info.ExePath));
             Windows.Insert(0, item);
+            RefreshWindowMarks();
         }
         SelectedWindow = item;
         Status = $"Выбрано: {item.ExeName}";
@@ -512,10 +531,66 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         return true;
     }
 
+    /// <summary>Метка «профиль» у окон, к программам которых профиль применяется постоянно.</summary>
+    private void RefreshWindowMarks()
+    {
+        foreach (var w in Windows)
+            w.PermanentProfile = w.Info.ProgramKey is { } key
+                ? _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key)?.ProfileName
+                : null;
+    }
+
+    /// <summary>«Убрать профиль» — сбросить поле на «Выберите профиль» (профиль и его постоянное применение не трогаются).</summary>
+    public RelayCommand ClearProfileCommand => _clearProfileCommand ??= new RelayCommand(() => SelectedProfile = null);
+    private RelayCommand? _clearProfileCommand;
+
+    // «Переименовать»: всплывает поле с текущим именем; назначения программам переименовываются вместе с профилем.
+    private bool _isRenamePopupOpen;
+    public bool IsRenamePopupOpen { get => _isRenamePopupOpen; set => Set(ref _isRenamePopupOpen, value); }
+
+    private string _renameName = string.Empty;
+    public string RenameName
+    {
+        get => _renameName;
+        set { Set(ref _renameName, value); OnPropertyChanged(nameof(CanRename)); OnPropertyChanged(nameof(RenameHint)); }
+    }
+
+    /// <summary>Новое имя не пустое, отличается и не занято другим профилем.</summary>
+    public bool CanRename => SelectedProfile is { } p && RenameName.Trim().Length > 0 && RenameName.Trim() != p.Name
+                             && (ProfileNamed(RenameName) is null || ReferenceEquals(ProfileNamed(RenameName), p));
+
+    public string RenameHint => SelectedProfile is { } p && ProfileNamed(RenameName) is { } other && !ReferenceEquals(other, p)
+        ? "Такое имя уже есть" : "Новое имя профиля";
+
+    public RelayCommand OpenRenameCommand => _openRenameCommand ??= new RelayCommand(() =>
+    {
+        if (SelectedProfile is not { } p) return;
+        RenameName = p.Name;
+        IsRenamePopupOpen = true;
+    });
+    private RelayCommand? _openRenameCommand;
+
+    public RelayCommand RenameCommand => _renameCommand ??= new RelayCommand(() =>
+    {
+        if (!CanRename || SelectedProfile is not { } p) return;
+        string oldName = p.Name, newName = RenameName.Trim();
+        p.Name = newName;
+        foreach (var a in _main.Settings.WindowProfileAssignments.Where(a => a.ProfileName == oldName)) a.ProfileName = newName;
+        SaveAndNotify();
+        // Профиль не сообщает об изменении имени — переставить его в списке, чтобы поле показало новое имя.
+        int index = Profiles.IndexOf(p);
+        Profiles.RemoveAt(index);
+        Profiles.Insert(index, p);
+        SelectedProfile = p;
+        IsRenamePopupOpen = false;
+    });
+    private RelayCommand? _renameCommand;
+
     private void RefreshAssignment()
     {
         OnPropertyChanged(nameof(ApplyPermanently));
         OnPropertyChanged(nameof(ApplyPermanentlyToolTip));
+        RefreshWindowMarks();
     }
 
     private void SaveAndNotify()
