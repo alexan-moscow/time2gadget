@@ -516,6 +516,13 @@
             <TextBlock Text="Пока таймер идёт, программа не мешает компьютеру и мониторам засыпать. Пробуждение из сна работает, если в схеме питания Windows разрешены таймеры пробуждения."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
 
+            <!-- ============ Профили размера окон (докладка 2026-09-29) — отдельное окно Views/WindowProfilesWindow ============ -->
+            <TextBlock Text="Профили размера окон" Style="{StaticResource Style.SectionHeader}" />
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"
+                       Text="Положение, размер и рамка окон программ и игр: быстрые кнопки по углам и сторонам монитора, точные значения, «окно без рамки». Настройку можно сохранить профилем и применять к программе автоматически." />
+            <Button Content="Открыть профили размера окон…" Click="OnOpenWindowProfiles" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" ToolTip="Окно с настройкой положения и размера окон других программ" />
+
             <!-- ============ Обновления — внизу (автопроверка при запуске и раз в сутки идёт сама) ============ -->
             <TextBlock x:Name="UpdatesSection" Text="Обновления" Style="{StaticResource Style.SectionHeader}" />
             <TextBlock Text="{Binding CurrentVersionText}" Foreground="{StaticResource Brush.TextSecondary}" />

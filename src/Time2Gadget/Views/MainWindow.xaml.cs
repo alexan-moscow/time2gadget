@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private readonly HintController _hints;
     private readonly Services.WindowLayoutService _windowLayout;
     private readonly Services.AppWindowMemoryService _appWindowMemory;
+    private readonly Services.WindowProfileService _windowProfileService;
     private readonly Services.GlobalHotkeyService _globalHotkeys;
 
     public MainWindow(MainViewModel viewModel)
@@ -91,6 +92,12 @@ public partial class MainWindow : Window
         // Окна программ между их запусками — тоже по настройке (докладка 2026-09-28, по умолчанию выкл).
         _appWindowMemory = new Services.AppWindowMemoryService();
         SourceInitialized += (_, _) => _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
+        // Профили размера окон: автоприменение к программам с назначенным профилем (докладка 2026-09-29); у таких
+        // программ память окон не срабатывает — профиль главнее.
+        _windowProfileService = new Services.WindowProfileService(key => _viewModel.FindProfileFor(key));
+        _appWindowMemory.IsProfiled = key => _viewModel.FindProfileFor(key) is not null;
+        SourceInitialized += (_, _) => UpdateWindowProfileService();
+        _viewModel.WindowProfilesChanged += (_, _) => UpdateWindowProfileService();
 
         // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
         PreviewKeyDown += OnWindowKeyDown;
@@ -110,6 +117,7 @@ public partial class MainWindow : Window
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             _windowLayout.Dispose();
             _appWindowMemory.Dispose();
+            _windowProfileService.Dispose();
         };
     }
 
@@ -183,6 +191,14 @@ public partial class MainWindow : Window
             OpenSettings();
             _settingsWindow?.ScrollToOffset(scroll);
         }
+    }
+
+    /// <summary>Служба профилей работает, пока есть хоть одно назначение; изменения — сразу применить к открытым окнам.</summary>
+    private void UpdateWindowProfileService()
+    {
+        bool wasEnabled = _windowProfileService.Enabled;
+        _windowProfileService.Enabled = _viewModel.Settings.WindowProfileAssignments.Count > 0;
+        if (wasEnabled && _windowProfileService.Enabled) _windowProfileService.ApplyToOpenWindows();
     }
 
     /// <summary>

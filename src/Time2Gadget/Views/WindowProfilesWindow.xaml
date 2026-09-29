@@ -1,0 +1,179 @@
+<Window x:Class="Time2Gadget.Views.WindowProfilesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Профили размера окон — Тайм2гаджет"
+        Width="820" Height="600" MinWidth="700" MinHeight="520"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <!-- Докладка 2026-09-29 (по образцу Simple Runtime Window Editor): ViewModels/WindowProfilesViewModel. -->
+    <Window.Resources>
+        <!-- Строка списка окон/профилей — тёмная, выбранная подсвечена акцентом (как в меню быстрых таймеров). -->
+        <Style x:Key="Style.ListItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="6,3">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Квадратная кнопка быстрого выравнивания (угол/сторона/центр монитора). -->
+        <Style x:Key="Style.AlignButton" TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <Style x:Key="Style.Caption" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,10,0,4" />
+        </Style>
+
+        <Style x:Key="Style.NumberBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Margin" Value="4,0,12,0" />
+            <Setter Property="TextAlignment" Value="Right" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ============ Окна ============ -->
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Окна" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                <Button Content="Обновить" Command="{Binding RefreshCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,0,6,0"
+                        ToolTip="Перечитать список окон и мониторов" />
+                <Button Content="{Binding PickButtonText}" Command="{Binding PickWindowCommand}" Style="{StaticResource Style.SettingsButton}"
+                        ToolTip="Нажмите и за 3 секунды переключитесь в нужное окно (Alt+Tab) — для игр, которых нет в списке" />
+            </StackPanel>
+            <CheckBox DockPanel.Dock="Top" Content="Показать все окна" IsChecked="{Binding ShowAllWindows}" Margin="0,8,0,6"
+                      ToolTip="Без фильтров: окна без заголовка, служебные и дочерние — если нужного окна нет в списке" />
+            <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow}" Background="{StaticResource Brush.SurfaceSector}"
+                     BorderThickness="0" ItemContainerStyle="{StaticResource Style.ListItem}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Image Source="{Binding Icon}" Width="16" Height="16" VerticalAlignment="Top" Margin="0,2,0,0" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding ExeName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Title}" FontSize="11" Opacity="0.75" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- ============ Выбранное окно ============ -->
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Выбранное окно" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding SelectedHeader}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding CurrentText}" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,2,0,0" />
+
+                <StackPanel IsEnabled="{Binding HasSelection}">
+                    <!-- Быстро: прижать к углу/стороне рабочей области монитора (без панели задач). -->
+                    <TextBlock Text="Быстро — на мониторе" Style="{StaticResource Style.Caption}" />
+                    <ComboBox ItemsSource="{Binding Monitors}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedMonitor}"
+                              HorizontalAlignment="Left" MinWidth="220" ToolTip="Монитор для быстрых кнопок" />
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <UniformGrid Rows="3" Columns="3">
+                            <Button Content="↖" Command="{Binding AlignCommand}" CommandParameter="TL" Style="{StaticResource Style.AlignButton}" ToolTip="В левый верхний угол" />
+                            <Button Content="↑" Command="{Binding AlignCommand}" CommandParameter="T" Style="{StaticResource Style.AlignButton}" ToolTip="Вверх, по центру" />
+                            <Button Content="↗" Command="{Binding AlignCommand}" CommandParameter="TR" Style="{StaticResource Style.AlignButton}" ToolTip="В правый верхний угол" />
+                            <Button Content="←" Command="{Binding AlignCommand}" CommandParameter="L" Style="{StaticResource Style.AlignButton}" ToolTip="Влево, по центру" />
+                            <Button Content="·" Command="{Binding AlignCommand}" CommandParameter="C" Style="{StaticResource Style.AlignButton}" ToolTip="По центру монитора" />
+                            <Button Content="→" Command="{Binding AlignCommand}" CommandParameter="R" Style="{StaticResource Style.AlignButton}" ToolTip="Вправо, по центру" />
+                            <Button Content="↙" Command="{Binding AlignCommand}" CommandParameter="BL" Style="{StaticResource Style.AlignButton}" ToolTip="В левый нижний угол" />
+                            <Button Content="↓" Command="{Binding AlignCommand}" CommandParameter="B" Style="{StaticResource Style.AlignButton}" ToolTip="Вниз, по центру" />
+                            <Button Content="↘" Command="{Binding AlignCommand}" CommandParameter="BR" Style="{StaticResource Style.AlignButton}" ToolTip="В правый нижний угол" />
+                        </UniformGrid>
+                        <StackPanel Margin="12,2,0,0">
+                            <Button Content="Во всю высоту слева" Command="{Binding AlignCommand}" CommandParameter="FullLeft" Style="{StaticResource Style.SettingsButton}"
+                                    Margin="0,0,0,4" ToolTip="Прижать к левому краю и растянуть по высоте (ширина как в поле)" />
+                            <Button Content="Во всю высоту справа" Command="{Binding AlignCommand}" CommandParameter="FullRight" Style="{StaticResource Style.SettingsButton}"
+                                    Margin="0,0,0,4" ToolTip="Прижать к правому краю и растянуть по высоте (ширина как в поле)" />
+                            <Button Content="Во весь монитор" Command="{Binding AlignCommand}" CommandParameter="Full" Style="{StaticResource Style.SettingsButton}"
+                                    Margin="0" ToolTip="Растянуть на всю рабочую область монитора (без панели задач)" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Вручную. -->
+                    <TextBlock Text="Вручную (пиксели экрана)" Style="{StaticResource Style.Caption}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="X" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding X}" Style="{StaticResource Style.NumberBox}" />
+                        <TextBlock Text="Y" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding Y}" Style="{StaticResource Style.NumberBox}" />
+                        <TextBlock Text="Ширина" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding Width}" Style="{StaticResource Style.NumberBox}" />
+                        <TextBlock Text="Высота" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding Height}" Style="{StaticResource Style.NumberBox}" />
+                    </StackPanel>
+                    <CheckBox Content="Без рамки и заголовка" IsChecked="{Binding Borderless}" Margin="0,8,0,0"
+                              ToolTip="Снять с окна рамку и заголовок — «окно без рамки», как «Remove borders» в SRWE" />
+                    <CheckBox Content="Сообщать программе, что размер изменён (для игр)" IsChecked="{Binding NotifyResize}"
+                              ToolTip="После смены размера послать сигнал «размер изменён» (WM_EXITSIZEMOVE): многие игры только по нему перестраивают картинку под новое окно" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Применить" Command="{Binding ApplyCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,0,6,0"
+                                ToolTip="Поставить окно по значениям выше" />
+                        <Button Content="Взять с окна" Command="{Binding TakeFromWindowCommand}" Style="{StaticResource Style.SettingsButton}"
+                                ToolTip="Заполнить поля по тому, как окно стоит сейчас" />
+                    </StackPanel>
+
+                    <!-- Профили. -->
+                    <TextBlock Text="Профили" Style="{StaticResource Style.Caption}" />
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" MinWidth="220"
+                                  ToolTip="Сохранённые профили — применяются к любому окну" />
+                        <Button Content="Применить профиль" Command="{Binding ApplyProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                                Margin="6,4,6,4" IsEnabled="{Binding HasProfile}" ToolTip="Поставить окно по выбранному профилю" />
+                        <Button Content="Удалить" Command="{Binding DeleteProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                                IsEnabled="{Binding HasProfile}" ToolTip="Удалить выбранный профиль" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" Width="220" VerticalContentAlignment="Center"
+                                 ToolTip="Имя нового профиля (то же имя — перезаписать)" />
+                        <Button Content="Сохранить как профиль" Command="{Binding SaveProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                                Margin="6,4,0,4" ToolTip="Сохранить значения полей как профиль" />
+                    </StackPanel>
+                    <CheckBox Content="Применять выбранный профиль к этой программе автоматически" IsChecked="{Binding AutoApply}" Margin="0,8,0,0"
+                              IsEnabled="{Binding HasProfile}"
+                              ToolTip="При каждом запуске программы и если она сама поменяет размер окна" />
+                    <TextBlock Text="{Binding AssignmentText}" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11" Margin="20,0,0,0" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="{StaticResource Brush.Accent}" Margin="0,12,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

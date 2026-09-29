@@ -44,6 +44,12 @@ public sealed class AppSettings
     /// </summary>
     public bool RememberAppWindows { get; set; } = false;
 
+    /// <summary>Профили размера окон (окно «Профили размера окон», докладка 2026-09-29).</summary>
+    public List<WindowSizeProfile> WindowProfiles { get; set; } = new();
+
+    /// <summary>Какой профиль применять к какой программе автоматически.</summary>
+    public List<WindowProfileAssignment> WindowProfileAssignments { get; set; } = new();
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

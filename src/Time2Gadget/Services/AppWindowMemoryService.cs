@@ -60,6 +60,9 @@ public sealed class AppWindowMemoryService : IDisposable
 
     public void Dispose() => Enabled = false;
 
+    /// <summary>У программы есть профиль размера окна — её окна ведёт профиль, память их не трогает (докладка 2026-09-29).</summary>
+    public Func<string, bool>? IsProfiled { get; set; }
+
     private void Start()
     {
         Load();
@@ -129,7 +132,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private void Record(IntPtr hwnd)
     {
         if (DateTime.UtcNow < _pausedUntil || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
-        if (GetKey(hwnd) is not { } key || IsFullScreen(hwnd)) return;
+        if (GetKey(hwnd) is not { } key || IsFullScreen(hwnd) || IsProfiled?.Invoke(key) == true) return;
         var p = NewPlacement();
         if (!GetWindowPlacement(hwnd, ref p)) return;
         if (p.showCmd == SwShowMinimized && (p.flags & WpfRestoreToMaximized) == 0) p.showCmd = SwShowNormal; // свёрнутое — открыть обычным
@@ -157,7 +160,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private void Apply(IntPtr hwnd, bool first)
     {
         if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
-        if (GetKey(hwnd) is not { } key || !_memory.TryGetValue(key, out var saved)) return;
+        if (GetKey(hwnd) is not { } key || IsProfiled?.Invoke(key) == true || !_memory.TryGetValue(key, out var saved)) return;
         if (IsFullScreen(hwnd) || HasSiblingOfSameKind(hwnd, key)) return;
 
         var current = NewPlacement();
@@ -208,17 +211,8 @@ public sealed class AppWindowMemoryService : IDisposable
         string className = cls.ToString();
         if (className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Dwm" or "#32770"
             or "Windows.UI.Core.CoreWindow" or "ApplicationFrameWindow") return null; // рабочий стол, панель задач, диалоги, UWP
-        return ProcessPath(pid) is { } exe ? $"{exe.ToLowerInvariant()}|{StableClassName(className)}" : null;
+        return NativeWindows.MakeProgramKey(NativeWindows.ProcessPath(pid), className); // общий ключ с профилями размера окон
     }
-
-    /// <summary>
-    /// Имя класса без частей, меняющихся от запуска к запуску: WPF — «HwndWrapper[Программа;;GUID]», WinForms —
-    /// «WindowsForms10.Window.8.app.0.хэш_r..._ad1». Иначе память никогда не совпала бы с новым окном.
-    /// </summary>
-    private static string StableClassName(string className) =>
-        className.StartsWith("HwndWrapper[", StringComparison.Ordinal) ? "HwndWrapper"
-        : className.StartsWith("WindowsForms10.", StringComparison.Ordinal) ? "WindowsForms10"
-        : className;
 
     /// <summary>Окно во весь монитор — полноэкранная игра/видео или «полный экран в окне»: не трогаем.</summary>
     private static bool IsFullScreen(IntPtr hwnd)
@@ -236,19 +230,6 @@ public sealed class AppWindowMemoryService : IDisposable
     private static bool IsOnSomeMonitor(Rect32 r) => MonitorFromRect(ref r, MonitorDefaultToNull) != IntPtr.Zero;
 
     private static bool IsMouseButtonDown() => (GetAsyncKeyState(0x01) & 0x8000) != 0; // левая кнопка — окно тащат
-
-    private static string? ProcessPath(uint pid)
-    {
-        var h = OpenProcess(ProcessQueryLimitedInformation, false, pid);
-        if (h == IntPtr.Zero) return null;
-        try
-        {
-            var sb = new StringBuilder(1024);
-            int size = sb.Capacity;
-            return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString() : null;
-        }
-        finally { CloseHandle(h); }
-    }
 
     // ---------------- Файл памяти ----------------
 
@@ -299,7 +280,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private const uint WineventOutOfContext = 0;
     private const int GwOwner = 4, GwlStyle = -16, GwlExStyle = -20, DwmwaCloaked = 14;
     private const long WsExToolWindow = 0x80, WsChild = 0x40000000, WsMaximize = 0x01000000, WsCaption = 0x00C00000;
-    private const uint MonitorDefaultToNull = 0, MonitorDefaultToNearest = 2, ProcessQueryLimitedInformation = 0x1000;
+    private const uint MonitorDefaultToNull = 0, MonitorDefaultToNearest = 2;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect32
@@ -343,7 +324,4 @@ public sealed class AppWindowMemoryService : IDisposable
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
-    [DllImport("kernel32.dll")] private static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
-    [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder name, ref int size);
 }

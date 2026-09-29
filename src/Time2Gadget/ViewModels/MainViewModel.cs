@@ -679,6 +679,20 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Настройки для окна «Профили размера окон» (своя ViewModel — WindowProfilesViewModel) и службы профилей.</summary>
+    internal AppSettings Settings => _settings;
+    internal void SaveSettings() => _settingsService.Save(_settings);
+
+    /// <summary>Изменились профили или назначения — служба автоприменения и память окон перечитывают их.</summary>
+    public event EventHandler? WindowProfilesChanged;
+    internal void RaiseWindowProfilesChanged() => WindowProfilesChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Профиль, назначенный программе (ключ «exe + вид окна»), или null.</summary>
+    internal WindowSizeProfile? FindProfileFor(string programKey) =>
+        _settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == programKey) is { } a
+            ? _settings.WindowProfiles.FirstOrDefault(p => p.Name == a.ProfileName)
+            : null;
+
     /// <summary>«Запускать с правами администратора» имеет смысл, когда программа двигает чужие окна (любая из двух функций).</summary>
     public bool CanRunElevated => RestoreOtherWindows || RememberAppWindows;
 
@@ -1006,11 +1020,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         var lastUpdateCheck = _settings.LastUpdateCheckUtc;
+        var (windowProfiles, windowAssignments) = (_settings.WindowProfiles, _settings.WindowProfileAssignments);
         if (_settings.RunElevated) ElevationService.DeleteTask(); // по умолчанию выкл — задача не нужна
         var defaults = new AppSettings();
         foreach (var p in typeof(AppSettings).GetProperties().Where(p => p.CanRead && p.CanWrite))
             p.SetValue(_settings, p.GetValue(defaults));
         _settings.LastUpdateCheckUtc = lastUpdateCheck;
+        // Профили размера окон — данные пользователя (как пресеты), сброс настроек их не стирает (2026-09-29).
+        (_settings.WindowProfiles, _settings.WindowProfileAssignments) = (windowProfiles, windowAssignments);
 
         LoadCachedFromSettings();
         AutostartService.SetEnabled(_settings.LaunchAtStartup);
