@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private Storyboard? _dialEffectStoryboard;
     private readonly HintController _hints;
     private readonly Services.WindowLayoutService _windowLayout;
+    private readonly Services.AppWindowMemoryService _appWindowMemory;
     private readonly Services.GlobalHotkeyService _globalHotkeys;
 
     public MainWindow(MainViewModel viewModel)
@@ -87,6 +88,9 @@ public partial class MainWindow : Window
         // для уведомлений «экран гаснет/включился».
         _windowLayout = new Services.WindowLayoutService(this);
         SourceInitialized += (_, _) => _windowLayout.Enabled = _viewModel.RestoreOtherWindows;
+        // Окна программ между их запусками — тоже по настройке (докладка 2026-09-28, по умолчанию выкл).
+        _appWindowMemory = new Services.AppWindowMemoryService();
+        SourceInitialized += (_, _) => _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
 
         // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
         PreviewKeyDown += OnWindowKeyDown;
@@ -105,6 +109,7 @@ public partial class MainWindow : Window
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             _windowLayout.Dispose();
+            _appWindowMemory.Dispose();
         };
     }
 
@@ -231,8 +236,10 @@ public partial class MainWindow : Window
                 UpdateCompactProgressBar();
                 break;
             case nameof(MainViewModel.RestoreOtherWindows):
+            case nameof(MainViewModel.RememberAppWindows):
             case "": // сброс настроек — перечитать всё
                 _windowLayout.Enabled = _viewModel.RestoreOtherWindows;
+                _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
                 break;
             case nameof(MainViewModel.IsFinished):
                 UpdateCompactProgressBar();

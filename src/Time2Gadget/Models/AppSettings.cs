@@ -39,6 +39,12 @@ public sealed class AppSettings
     public bool RestoreOtherWindows { get; set; } = false;
 
     /// <summary>
+    /// Открывать окна программ там, где их закрыли: оконные программы и игры при новом запуске — на прежнем месте и того же
+    /// размера; полноэкранные не трогаются (Services/AppWindowMemoryService, докладка 2026-09-28). По умолчанию выкл.
+    /// </summary>
+    public bool RememberAppWindows { get; set; } = false;
+
+    /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.
     /// </summary>

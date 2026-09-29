@@ -661,8 +661,26 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settings.RestoreOtherWindows = value;
             _settingsService.Save(_settings);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanRunElevated));
         }
     }
+
+    /// <summary>Открывать окна программ там, где их закрыли (Services/AppWindowMemoryService, докладка 2026-09-28).</summary>
+    public bool RememberAppWindows
+    {
+        get => _settings.RememberAppWindows;
+        set
+        {
+            if (_settings.RememberAppWindows == value) return;
+            _settings.RememberAppWindows = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanRunElevated));
+        }
+    }
+
+    /// <summary>«Запускать с правами администратора» имеет смысл, когда программа двигает чужие окна (любая из двух функций).</summary>
+    public bool CanRunElevated => RestoreOtherWindows || RememberAppWindows;
 
     /// <summary>Нужен перезапуск с правами администратора (задача Планировщика уже создана) — выполняет App.</summary>
     public event EventHandler? RestartElevatedRequested;

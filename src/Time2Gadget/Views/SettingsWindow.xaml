@@ -485,14 +485,20 @@
             <CheckBox ToolTip="После сна вернуть окна программ на их мониторы" IsChecked="{Binding RestoreOtherWindows}">
                 <TextBlock Text="Возвращать окна других программ на их мониторы после сна и/или гашения мониторов" TextWrapping="Wrap" />
             </CheckBox>
-            <!-- Подпункт возврата окон (докладка 2026-09-28): окна программ «от администратора» Windows даёт двигать
-                 только программе с такими же правами. Services/ElevationService. -->
-            <StackPanel Margin="20,2,0,0" IsEnabled="{Binding RestoreOtherWindows}">
+            <!-- Окна программ между их запусками (докладка 2026-09-28, Services/AppWindowMemoryService). -->
+            <CheckBox ToolTip="Оконные программы и игры при новом запуске открываются на прежнем месте и того же размера" IsChecked="{Binding RememberAppWindows}">
+                <TextBlock Text="Открывать окна программ там, где их закрыли" TextWrapping="Wrap" />
+            </CheckBox>
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,4"
+                       Text="Закрыли программу или игру в окне — при следующем запуске окно встанет на то же место и будет того же размера. Полноэкранные окна и «полный экран в окне» не трогаются; программы с несколькими окнами одного вида (например, папки проводника) — тоже." />
+            <!-- Подпункт обеих функций про чужие окна: окна программ «от администратора» Windows даёт двигать только
+                 программе с такими же правами (докладка 2026-09-28). Services/ElevationService. -->
+            <StackPanel Margin="20,2,0,0" IsEnabled="{Binding CanRunElevated}">
                 <CheckBox ToolTip="Нужно, чтобы двигать окна программ, запущенных от администратора" IsChecked="{Binding RunElevated}">
                     <TextBlock Text="Запускать с правами администратора" TextWrapping="Wrap" />
                 </CheckBox>
                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
-                           Text="Нужно, чтобы возвращать и окна программ, запущенных от администратора (иначе Windows не даёт их двигать). Разрешение спрашивается один раз при включении, дальше запуск без запросов." />
+                           Text="Нужно для окон программ, запущенных от администратора (иначе Windows не даёт их двигать) — для обеих функций выше. Разрешение спрашивается один раз при включении, дальше запуск без запросов." />
                 <!-- Текущий режим — выделен и переносится (длинный вариант «…с правами администратора» не влезал, 2026-09-28). -->
                 <TextBlock Text="{Binding ElevationStatusText, Mode=OneTime}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Margin="20,4,0,0">
                     <TextBlock.Style>
