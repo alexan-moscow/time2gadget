@@ -184,6 +184,17 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     private bool _notifyResize = true;
     public bool NotifyResize { get => _notifyResize; set => Set(ref _notifyResize, value); }
 
+    private bool _confineCursor;
+    /// <summary>Не выпускать указатель мыши из окна, пока оно активно (Services/CursorConfineService).</summary>
+    public bool ConfineCursor { get => _confineCursor; set => Set(ref _confineCursor, value); }
+
+    /// <summary>Глобальная клавиша «указатель свободен / снова в окне» — общая, хранится в настройках программы.</summary>
+    public Models.HotkeyBinding CursorConfineKey
+    {
+        get => _main.CursorConfineKey;
+        set { _main.CursorConfineKey = value; OnPropertyChanged(); }
+    }
+
     private string _status = string.Empty;
     public string Status { get => _status; private set => Set(ref _status, value); }
 
@@ -199,6 +210,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             return;
         }
         (X, Y, Width, Height, Borderless) = (b.X, b.Y, b.Width, b.Height, b.Borderless);
+        ConfineCursor = _main.CursorConfine?.IsConfined(w.Info.Handle) == true;
         SetMonitorSilently(Monitors.ElementAtOrDefault(NativeWindows.MonitorIndexOf(b)) ?? SelectedMonitor);
         UpdateCurrentText(b);
         if (!silent) Status = "Поля заполнены по текущему окну";
@@ -218,6 +230,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         var released = AssignedProfile?.Name;
         bool autoOff = ReleaseAutoApplyForManualChange(target); // до применения — иначе служба вернула бы окно по профилю
         bool ok = NativeWindows.Apply(w.Info.Handle, target, NotifyResize);
+        _main.SetCursorConfine(w.Info.Handle, ConfineCursor);
         Status = !ok
             ? "Не удалось — окно программы, запущенной от администратора? Включите «Запускать с правами администратора» в настройках."
             : autoOff
@@ -363,7 +376,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             Profiles.Add(profile);
             _main.Settings.WindowProfiles.Add(profile);
         }
-        (profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless, profile.NotifyResize) = (X, Y, Width, Height, Borderless, NotifyResize);
+        (profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless, profile.NotifyResize, profile.ConfineCursor) = (X, Y, Width, Height, Borderless, NotifyResize, ConfineCursor);
         SaveAndNotify();
         SelectedProfile = null;
         SelectedProfile = profile;
@@ -375,7 +388,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     public RelayCommand ApplyProfileCommand => _applyProfileCommand ??= new RelayCommand(() =>
     {
         if (SelectedProfile is not { } p) return;
-        (X, Y, Width, Height, Borderless, NotifyResize) = (p.X, p.Y, p.Width, p.Height, p.Borderless, p.NotifyResize);
+        (X, Y, Width, Height, Borderless, NotifyResize, ConfineCursor) = (p.X, p.Y, p.Width, p.Height, p.Borderless, p.NotifyResize, p.ConfineCursor);
         Apply();
     });
     private RelayCommand? _applyProfileCommand;

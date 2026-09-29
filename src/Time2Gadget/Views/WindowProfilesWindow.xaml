@@ -1,6 +1,7 @@
 <Window x:Class="Time2Gadget.Views.WindowProfilesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
         Title="Размер и положение окон программ — Тайм2гаджет"
         Width="900" Height="620" MinWidth="860" MinHeight="540"
         Background="{StaticResource Brush.Background}"
@@ -54,7 +55,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid x:Name="ContentGrid" Margin="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300" />
             <ColumnDefinition Width="16" />
@@ -94,8 +95,8 @@
         </DockPanel>
 
         <!-- ============ Выбранное окно ============ -->
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
+        <ScrollViewer x:Name="RightScroll" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="RightPanel">
                 <TextBlock Text="Выбранное окно" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,4" />
                 <!-- Имя и текущие параметры, справа — скопировать их в поля ниже (например, выставленное SRWE — и сохранить профилем). -->
                 <Grid>
@@ -165,8 +166,15 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition /><RowDefinition /><RowDefinition />
+                            <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                         </Grid.RowDefinitions>
+                        <!-- Указатель мыши в окне (докладка 2026-09-29): справа — общая глобальная клавиша «свободен / снова в окне». -->
+                        <CheckBox Grid.Row="3" Content="Не выпускать указатель мыши из окна" IsChecked="{Binding ConfineCursor}" VerticalAlignment="Center"
+                                  Margin="0,6,0,0" ToolTip="Пока окно активно, указатель не выходит за его границы; другое окно (Alt+Tab) — свободен" />
+                        <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding CursorConfineKey}" Width="170" Margin="12,8,0,2"
+                                     ToolTip="Клавиша: указатель свободен / снова в окне (для всех таких окон). Щелчок — назначить другую: сочетание с Ctrl/Shift/Alt/Win или кнопка мыши" />
+                        <TextBlock Grid.Row="4" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                                   Text="Пока окно активно, указатель не уходит на другой монитор. Клавиша справа временно освобождает его и снова ограничивает." />
                         <CheckBox Content="Без рамки и заголовка" IsChecked="{Binding Borderless}" VerticalAlignment="Center"
                                   ToolTip="Снять с окна рамку и заголовок — «окно без рамки», как «Remove borders» в SRWE" />
                         <CheckBox Grid.Row="1" Content="Сообщать программе, что размер изменён" IsChecked="{Binding NotifyResize}" VerticalAlignment="Center"
@@ -205,8 +213,15 @@
                     <TextBlock Text="Профили" Style="{StaticResource Style.SectionHeader}" />
                     <StackPanel Orientation="Horizontal">
                         <Grid Width="200">
+                            <!-- Длинное имя — обрезается многоточием, целиком — в подсказке (в раскрытом списке видно полностью). -->
                             <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                                      ToolTip="Сохранённые профили — применяются к любому окну" />
+                                      ToolTip="{Binding SelectedProfile.Name, FallbackValue='Сохранённые профили — применяются к любому окну'}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <TextBlock Text="{Binding ProfilePlaceholder}" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.TextSecondary}" Opacity="0.8" FontStyle="Italic" />
                         </Grid>

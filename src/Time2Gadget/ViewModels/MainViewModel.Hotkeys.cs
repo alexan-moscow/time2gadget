@@ -16,7 +16,29 @@ public sealed partial class MainViewModel
 {
     public const int MaxQuickTimers = 5;
     /// <summary>Id глобальных клавиш для GlobalHotkeyService: действия 1–4, быстрые таймеры — 10 + номер строки.</summary>
-    public const int ShowHideHotkeyId = 1, StartPauseHotkeyId = 2, ResetHotkeyId = 3, CompactHotkeyId = 4, QuickTimerHotkeyIdBase = 10;
+    public const int ShowHideHotkeyId = 1, StartPauseHotkeyId = 2, ResetHotkeyId = 3, CompactHotkeyId = 4, CursorConfineHotkeyId = 5,
+        QuickTimerHotkeyIdBase = 10;
+
+    // ---- «Не выпускать указатель мыши из окна» (докладка 2026-09-29): клавиша — в окне «Размер и положение окон программ» ----
+
+    /// <summary>Глобальная клавиша: временно выключить/включить ограничение указателя. Регистрируется, только пока оно используется.</summary>
+    public HotkeyBinding CursorConfineKey
+    {
+        get => _settings.CursorConfineKey ?? HotkeyBinding.Empty;
+        set => SetKey(value, (s, v) => s.CursorConfineKey = v, global: true);
+    }
+
+    /// <summary>Служба ограничения указателя — создаёт MainWindow.</summary>
+    internal Services.CursorConfineService? CursorConfine { get; set; }
+
+    /// <summary>Отметить окно «не выпускать указатель» или снять; клавиша регистрируется/снимается вместе с первым/последним окном.</summary>
+    internal void SetCursorConfine(IntPtr hwnd, bool confine)
+    {
+        if (CursorConfine is not { } service) return;
+        bool wasInUse = service.HasWindows;
+        service.Set(hwnd, confine);
+        if (wasInUse != service.HasWindows) HotkeysChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     // Сочетания, которые подставляются при включении «везде» (решение пользователя 2026-09-28): Пробел/R глобально
     // мешали бы всем программам. При выключении — обратно клавиши по умолчанию для окна.
@@ -173,6 +195,8 @@ public sealed partial class MainViewModel
         var map = new Dictionary<int, HotkeyBinding>();
         foreach (var (id, key, global) in ActionKeys())
             if (global && !key.IsEmpty && !map.ContainsValue(key)) map[id] = key;
+        if (CursorConfine?.HasWindows == true && !CursorConfineKey.IsEmpty && !map.ContainsValue(CursorConfineKey))
+            map[CursorConfineHotkeyId] = CursorConfineKey;
         for (int i = 0; i < QuickTimers.Count; i++)
             if (QuickTimers[i].Model.IsUsable && !map.ContainsValue(QuickTimers[i].Model.Binding))
                 map[QuickTimerHotkeyIdBase + i] = QuickTimers[i].Model.Binding;
@@ -192,6 +216,7 @@ public sealed partial class MainViewModel
         StartPauseHotkeyId => "Старт / пауза",
         ResetHotkeyId => "Сброс",
         CompactHotkeyId => "Компактный вид",
+        CursorConfineHotkeyId => "Указатель мыши в окне",
         _ => "Показать / скрыть"
     };
 
@@ -210,11 +235,12 @@ public sealed partial class MainViewModel
 
     private void RefreshHotkeyWarnings()
     {
-        var keys = ActionKeys().Where(a => _failedHotkeyIds.Contains(a.Id))
-            .Select(a => $"{ActionName(a.Id)}: «{a.Key}» занято другой программой — выберите другое сочетание.").ToList();
+        var keys = ActionKeys().Append((CursorConfineHotkeyId, CursorConfineKey, true)).Where(a => _failedHotkeyIds.Contains(a.Item1))
+            .Select(a => $"{ActionName(a.Item1)}: «{a.Item2}» занято другой программой — выберите другое сочетание.").ToList();
 
         // Одно и то же сочетание в двух местах: глобальное перехватывает его у окна таймера.
         var all = ActionKeys().Select(a => (Name: ActionName(a.Id), a.Key)).ToList();
+        all.Add((ActionName(CursorConfineHotkeyId), CursorConfineKey));
         all.AddRange(QuickTimers.Select(q => ($"Таймер {q.Number}", q.Model.Binding)));
         var duplicates = all.Where(a => !a.Key.IsEmpty).GroupBy(a => a.Key).Where(g => g.Count() > 1)
             .Select(g => $"«{g.Key}» назначено дважды: {string.Join(", ", g.Select(x => x.Name))}.");
@@ -246,6 +272,12 @@ public sealed partial class MainViewModel
             case StartPauseHotkeyId: StartPauseCommand.Execute(null); return;
             case ResetHotkeyId: ResetCommand.Execute(null); return;
             case CompactHotkeyId: ToggleCompactModeCommand.Execute(null); return;
+            case CursorConfineHotkeyId:
+                if (CursorConfine is { } confine)
+                    _trayService.ShowBalloon("Тайм2гаджет", confine.Toggle()
+                        ? $"Указатель мыши снова не выходит из окна. {CursorConfineKey} — выключить."
+                        : $"Указатель мыши свободен. {CursorConfineKey} — снова ограничить окном.");
+                return;
         }
         int index = id - QuickTimerHotkeyIdBase;
         if (index >= 0 && index < QuickTimers.Count && QuickTimers[index].Model.IsUsable)

@@ -21,6 +21,12 @@ public sealed class WindowSizeProfile
     /// </summary>
     public bool NotifyResize { get; set; } = true;
 
+    /// <summary>
+    /// Не выпускать указатель мыши из окна, пока оно активно (ClipCursor, докладка 2026-09-29) — для игр на широком/двух
+    /// мониторах. Клавиша включить/выключить — AppSettings.CursorConfineKey.
+    /// </summary>
+    public bool ConfineCursor { get; set; }
+
     public override string ToString() => Name;
 }
 

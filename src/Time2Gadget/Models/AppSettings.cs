@@ -50,6 +50,10 @@ public sealed class AppSettings
     /// <summary>Какой профиль применять к какой программе автоматически.</summary>
     public List<WindowProfileAssignment> WindowProfileAssignments { get; set; } = new();
 
+    /// <summary>Глобальная клавиша: временно выключить/включить «Не выпускать указатель мыши из окна» (докладка 2026-09-29).</summary>
+    public HotkeyBinding CursorConfineKey { get; set; } =
+        HotkeyBinding.FromKey(System.Windows.Input.Key.End, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

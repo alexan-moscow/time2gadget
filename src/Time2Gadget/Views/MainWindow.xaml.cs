@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private readonly Services.WindowLayoutService _windowLayout;
     private readonly Services.AppWindowMemoryService _appWindowMemory;
     private readonly Services.WindowProfileService _windowProfileService;
+    private readonly Services.CursorConfineService _cursorConfine;
     private readonly Services.GlobalHotkeyService _globalHotkeys;
 
     public MainWindow(MainViewModel viewModel)
@@ -94,7 +95,10 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
         // Профили размера окон: автоприменение к программам с назначенным профилем (докладка 2026-09-29); у таких
         // программ память окон не срабатывает — профиль главнее.
-        _windowProfileService = new Services.WindowProfileService(key => _viewModel.FindProfileFor(key));
+        // Указатель мыши в окне (докладка 2026-09-29): одна служба на программу, её используют профили и окно профилей.
+        _cursorConfine = new Services.CursorConfineService();
+        _viewModel.CursorConfine = _cursorConfine;
+        _windowProfileService = new Services.WindowProfileService(key => _viewModel.FindProfileFor(key), _viewModel.SetCursorConfine);
         _appWindowMemory.IsProfiled = key => _viewModel.FindProfileFor(key) is not null;
         SourceInitialized += (_, _) => UpdateWindowProfileService();
         _viewModel.WindowProfilesChanged += (_, _) => UpdateWindowProfileService();
@@ -118,6 +122,7 @@ public partial class MainWindow : Window
             _windowLayout.Dispose();
             _appWindowMemory.Dispose();
             _windowProfileService.Dispose();
+            _cursorConfine.Dispose();
         };
     }
 

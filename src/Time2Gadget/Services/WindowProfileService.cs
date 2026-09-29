@@ -19,6 +19,7 @@ public sealed class WindowProfileService : IDisposable
     private const int MaxAppliesPerWindow = 6;
 
     private readonly Func<string, WindowSizeProfile?> _findProfile;
+    private readonly Action<IntPtr, bool>? _setCursorConfine;
     private readonly WinEventDelegate _winEventProc; // держим ссылку — иначе делегат соберёт GC, а хук останется
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly Dictionary<IntPtr, string?> _keys = new();          // кэш «окно → ключ программы» (OpenProcess — не на каждое событие)
@@ -28,9 +29,11 @@ public sealed class WindowProfileService : IDisposable
     private readonly HashSet<IntPtr> _movedByUser = new(); // окно перетащил человек — профиль его больше не тянет назад
     private bool _enabled;
 
-    public WindowProfileService(Func<string, WindowSizeProfile?> findProfile)
+    /// <param name="setCursorConfine">Отметить окно «не выпускать указатель мыши» по профилю (MainViewModel.SetCursorConfine).</param>
+    public WindowProfileService(Func<string, WindowSizeProfile?> findProfile, Action<IntPtr, bool>? setCursorConfine = null)
     {
         _findProfile = findProfile;
+        _setCursorConfine = setCursorConfine;
         _winEventProc = OnWinEvent;
     }
 
@@ -142,6 +145,7 @@ public sealed class WindowProfileService : IDisposable
     {
         if (_movedByUser.Contains(hwnd)) return; // перетащили руками — ручное положение главнее
         if (!NativeWindows.IsAlive(hwnd) || NativeWindows.GetBounds(hwnd) is not { } b) return;
+        _setCursorConfine?.Invoke(hwnd, profile.ConfineCursor); // и когда окно уже на месте
         var target = new WindowBounds(profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless);
         bool matches = b.X == target.X && b.Y == target.Y && b.Width == target.Width && b.Height == target.Height
                        && (!profile.Borderless || b.Borderless);
