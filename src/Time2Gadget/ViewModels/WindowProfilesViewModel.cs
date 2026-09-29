@@ -116,11 +116,12 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
             _status = value is not null && _statuses.TryGetValue(value.Info.Handle, out var s) ? s : string.Empty;
             OnPropertyChanged(nameof(Status));
             if (value is not null) TakeFromWindow(silent: true);
-            // Программе уже назначен профиль — сразу выбрать его; нет — пусто с подсказкой «Выберите профиль».
-            SelectedProfile = value?.Info.ProgramKey is { } key
-                              && _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key) is { } a
-                ? Profiles.FirstOrDefault(p => p.Name == a.ProfileName)
-                : null;
+            // У программы есть постоянный профиль — выбрать его; нет — выбор в списке не сбрасывается (докладка 2026-09-29:
+            // при переходе по окнам профиль «слетал» — а удобно применить один профиль к нескольким окнам подряд).
+            if (value?.Info.ProgramKey is { } key
+                && _main.Settings.WindowProfileAssignments.FirstOrDefault(a => a.ProgramKey == key) is { } a
+                && Profiles.FirstOrDefault(p => p.Name == a.ProfileName) is { } assigned)
+                SelectedProfile = assigned;
             RefreshAssignment();
         }
     }
@@ -338,14 +339,8 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     // ---------------- Профили ----------------
 
-    /// <summary>
-    /// Первый пункт списка — «— без профиля —» (докладка 2026-09-29): снять выбор и, если профиль применялся постоянно,
-    /// выключить это — без удаления профиля. В настройках не хранится.
-    /// </summary>
-    public static readonly WindowSizeProfile NoProfileItem = new() { Name = "— без профиля —" };
-
-    /// <summary>Список для выбора: «без профиля» + сохранённые профили.</summary>
-    public ObservableCollection<WindowSizeProfile> Profiles { get; } = new() { NoProfileItem };
+    /// <summary>Сохранённые профили. Выбранный — «с каким профилем работаю»: применить, «Применять постоянно», удалить.</summary>
+    public ObservableCollection<WindowSizeProfile> Profiles { get; } = new();
 
     private WindowSizeProfile? _selectedProfile;
     public WindowSizeProfile? SelectedProfile
@@ -353,18 +348,10 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
         get => _selectedProfile;
         set
         {
-            if (ReferenceEquals(value, NoProfileItem))
-            {
-                // «Без профиля»: снять постоянное применение (если было) и очистить выбор — профиль не удаляется.
-                if (DisableAutoApply() is { } name) Status = $"«{name}» больше не применяется к этой программе. Профиль остался в списке.";
-                value = null;
-                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(() => OnPropertyChanged(nameof(SelectedProfile)));
-            }
             Set(ref _selectedProfile, value);
             OnPropertyChanged(nameof(HasProfile));
             OnPropertyChanged(nameof(ProfilePlaceholder));
-            OnPropertyChanged(nameof(SaveProfileButtonText));
-            OnPropertyChanged(nameof(SavePopupHint));
+            RefreshSaveButtons();
             RefreshAssignment();
         }
     }
@@ -373,52 +360,77 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
 
     /// <summary>Приглушённая подсказка в пустом списке профилей; null — профиль выбран (подсказки нет).</summary>
     public string? ProfilePlaceholder => SelectedProfile is not null ? null
-        : Profiles.Count <= 1 ? "Нет созданных профилей" : "Выберите профиль"; // первый пункт — «без профиля»
+        : Profiles.Count == 0 ? "Нет созданных профилей" : "Выберите профиль";
+
+    // «Сохранить как профиль» (докладка 2026-09-29, по отзыву): выбор в списке больше не решает, куда сохранять. Во всплывающем
+    // поле — НОВОЕ имя по значениям: «Сохранить новый» (имя существующего — «Перезаписать «имя»»); если профиль выбран —
+    // ещё явная кнопка «Сохранить в «выбранный»».
 
     private string _newProfileName = string.Empty;
-    public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }
+    public string NewProfileName
+    {
+        get => _newProfileName;
+        set { Set(ref _newProfileName, value); RefreshSaveButtons(); }
+    }
 
-    // «Сохранить как профиль» (под «Применить», докладка 2026-09-29): рядом всплывает поле имени, уже заполненное
-    // по значениям полей — можно сразу нажать «Сохранить» или переименовать.
-    /// <summary>Профиль не выбран — «Сохранить как профиль»; выбран — «Сохранить в профиль» (имя уже подставлено: сохранить — перезаписать его).</summary>
-    public string SaveProfileButtonText => SelectedProfile is null ? "Сохранить как профиль" : "Сохранить в профиль";
+    private WindowSizeProfile? ProfileNamed(string name) =>
+        Profiles.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
-    public string SavePopupHint => SelectedProfile is { } p
-        ? $"Сохранить — перезаписать «{p.Name}». Другое имя — новый профиль."
-        : "Имя нового профиля";
+    public string SaveNewButtonText => ProfileNamed(NewProfileName) is { } p ? $"Перезаписать «{p.Name}»" : "Сохранить новый";
+
+    /// <summary>«Сохранить в «выбранный»» — только если профиль выбран и в поле не его имя (иначе основная кнопка и так перезапишет).</summary>
+    public bool CanSaveToSelected => SelectedProfile is { } p && !ReferenceEquals(ProfileNamed(NewProfileName), p);
+    public string SaveToSelectedText => SelectedProfile is { } p ? $"Сохранить в «{p.Name}»" : string.Empty;
+
+    private void RefreshSaveButtons()
+    {
+        OnPropertyChanged(nameof(SaveNewButtonText));
+        OnPropertyChanged(nameof(CanSaveToSelected));
+        OnPropertyChanged(nameof(SaveToSelectedText));
+    }
 
     private bool _isSavePopupOpen;
     public bool IsSavePopupOpen { get => _isSavePopupOpen; set => Set(ref _isSavePopupOpen, value); }
 
     public RelayCommand OpenSaveProfileCommand => _openSaveProfileCommand ??= new RelayCommand(() =>
     {
-        NewProfileName = SelectedProfile?.Name ?? $"{Width}×{Height} в ({X}, {Y}){(Borderless ? ", без рамки" : "")}";
+        NewProfileName = $"{Width}×{Height} в ({X}, {Y}){(Borderless ? ", без рамки" : "")}";
         IsSavePopupOpen = true;
     });
     private RelayCommand? _openSaveProfileCommand;
 
-    public RelayCommand SaveProfileCommand => _saveProfileCommand ??= new RelayCommand(SaveProfile);
-    private RelayCommand? _saveProfileCommand;
-
-    /// <summary>Сохранить поля как профиль; то же имя — перезаписать.</summary>
-    private void SaveProfile()
+    /// <summary>Сохранить по имени из поля: новое — новый профиль, имя существующего — перезаписать его.</summary>
+    public RelayCommand SaveProfileCommand => _saveProfileCommand ??= new RelayCommand(() =>
     {
         var name = NewProfileName.Trim();
         if (name.Length == 0) { Status = "Введите имя профиля"; return; }
-        var profile = Profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
-        if (profile is null)
-        {
-            profile = new WindowSizeProfile { Name = name };
-            Profiles.Add(profile);
-            _main.Settings.WindowProfiles.Add(profile);
-        }
+        SaveInto(ProfileNamed(name) ?? AddProfile(name));
+    });
+    private RelayCommand? _saveProfileCommand;
+
+    /// <summary>Перезаписать выбранный профиль текущими значениями.</summary>
+    public RelayCommand SaveToSelectedCommand => _saveToSelectedCommand ??= new RelayCommand(() =>
+    {
+        if (SelectedProfile is { } p) SaveInto(p);
+    });
+    private RelayCommand? _saveToSelectedCommand;
+
+    private WindowSizeProfile AddProfile(string name)
+    {
+        var profile = new WindowSizeProfile { Name = name };
+        Profiles.Add(profile);
+        _main.Settings.WindowProfiles.Add(profile);
+        return profile;
+    }
+
+    private void SaveInto(WindowSizeProfile profile)
+    {
         (profile.X, profile.Y, profile.Width, profile.Height, profile.Borderless, profile.NotifyResize, profile.ConfineCursor) = (X, Y, Width, Height, Borderless, NotifyResize, ConfineCursor);
-        SaveAndNotify();
+        SaveAndNotify(); // программы с этим профилем «постоянно» сразу получат новые значения
         SelectedProfile = null;
         SelectedProfile = profile;
-        NewProfileName = string.Empty;
         IsSavePopupOpen = false;
-        Status = $"Профиль «{name}» сохранён";
+        Status = $"Профиль «{profile.Name}» сохранён";
     }
 
     public RelayCommand ApplyProfileCommand => _applyProfileCommand ??= new RelayCommand(() =>

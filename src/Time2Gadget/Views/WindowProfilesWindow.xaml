@@ -185,25 +185,31 @@
                                    Text="Нужно играм: без этого часть игр продолжает рисовать картинку в старом размере." />
                         <Button Grid.Column="1" Content="Применить" Command="{Binding ApplyCommand}" Style="{StaticResource Style.SettingsButton}"
                                 Width="170" Margin="12,2,0,2" ToolTip="Поставить окно по значениям выше" />
-                        <Button x:Name="SaveProfileButton" Grid.Row="1" Grid.Column="1" Content="{Binding SaveProfileButtonText}" Command="{Binding OpenSaveProfileCommand}"
+                        <Button x:Name="SaveProfileButton" Grid.Row="1" Grid.Column="1" Content="Сохранить как профиль" Command="{Binding OpenSaveProfileCommand}"
                                 Style="{StaticResource Style.SettingsButton}" Width="170" Margin="12,2,0,2"
                                 ToolTip="Сохранить значения выше как профиль — его можно применять к любым окнам" />
-                        <!-- Имя профиля — всплывает у кнопки, уже заполненное по значениям. -->
-                        <Popup PlacementTarget="{Binding ElementName=SaveProfileButton}" Placement="Bottom" HorizontalOffset="-150"
+                        <!-- Сохранение (докладка 2026-09-29): поле с НОВЫМ именем по значениям — «Сохранить новый» (имя существующего —
+                             «Перезаписать «имя»»); если профиль выбран — ещё явная «Сохранить в «выбранный»». -->
+                        <Popup PlacementTarget="{Binding ElementName=SaveProfileButton}" Placement="Bottom" HorizontalOffset="-200"
                                StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsSavePopupOpen, Mode=TwoWay}">
-                            <Border Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" Width="330"
+                            <Border Padding="8" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" Width="380"
                                     Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding SavePopupHint}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="Имя нового профиля" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
-                                        <Button Grid.Column="1" Content="Сохранить" Command="{Binding SaveProfileCommand}" Style="{StaticResource Style.SettingsButton}"
-                                                Margin="6,0,0,0" IsDefault="True" />
+                                        <Button Grid.Column="1" Content="{Binding SaveNewButtonText}" Command="{Binding SaveProfileCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                Margin="6,0,0,0" IsDefault="True" MaxWidth="200"
+                                                ToolTip="Сохранить значения как профиль с этим именем (имя существующего профиля — перезаписать его)" />
                                     </Grid>
+                                    <Button Content="{Binding SaveToSelectedText}" Command="{Binding SaveToSelectedCommand}" Style="{StaticResource Style.SettingsButton}"
+                                            HorizontalAlignment="Right" Margin="0,6,0,0" MaxWidth="360"
+                                            Visibility="{Binding CanSaveToSelected, Converter={StaticResource BoolToVis}}"
+                                            ToolTip="Перезаписать выбранный в списке профиль текущими значениями" />
                                 </StackPanel>
                             </Border>
                         </Popup>
