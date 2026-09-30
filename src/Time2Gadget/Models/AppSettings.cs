@@ -53,6 +53,15 @@ public sealed class AppSettings
     /// <summary>Откуда шло слайд-шоу до закрепления — чтобы вернуть его, когда закрепление снимут.</summary>
     public WallpaperSlideshowBackup? WallpaperSlideshowBackup { get; set; }
 
+    /// <summary>Своя картинка фона (файл в папке картинок программы); null — Тайм2гаджет фон не ставит (докладка 2026-09-30).</summary>
+    public string? WallpaperImage { get; set; }
+
+    /// <summary>Как картинка ложится на каждый монитор: путь устройства монитора → режим; нет записи — «растянуть».</summary>
+    public Dictionary<string, WallpaperFit> WallpaperModes { get; set; } = new();
+
+    /// <summary>Фон до своей картинки — «✕» возвращает его.</summary>
+    public WallpaperBackupState? WallpaperBefore { get; set; }
+
     /// <summary>Профили размера окон (окно «Профили размера окон», докладка 2026-09-29).</summary>
     public List<WindowSizeProfile> WindowProfiles { get; set; } = new();
 

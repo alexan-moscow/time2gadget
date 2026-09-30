@@ -1,0 +1,125 @@
+<Window x:Class="Time2Gadget.Views.DesktopBackgroundWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:m="clr-namespace:Time2Gadget.Models"
+        Title="Заставка и фон экрана — Тайм2гаджет"
+        Width="640" SizeToContent="Height" MinWidth="560"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanMinimize">
+    <!-- Докладка 2026-09-30: ViewModels/DesktopBackgroundViewModel, состояние — MainViewModel.Wallpaper.cs. -->
+    <Window.Resources>
+        <!-- Иконки режимов: рамка монитора и одна простая фигура, только линии (без заливок). Поле 24×16. -->
+        <Geometry x:Key="Geo.Screen">M3,2 H21 V14 H3 Z</Geometry>
+        <Geometry x:Key="Geo.Stretch">M7,8 H17 M7,8 L9.5,5.8 M7,8 L9.5,10.2 M17,8 L14.5,5.8 M17,8 L14.5,10.2</Geometry>
+        <Geometry x:Key="Geo.Fit">M8,2 V14 M16,2 V14</Geometry>
+        <Geometry x:Key="Geo.Fill">M0,2 H3 M21,2 H24 M0,14 H3 M21,14 H24</Geometry>
+        <Geometry x:Key="Geo.Center">M9,5.5 H15 V10.5 H9 Z</Geometry>
+    </Window.Resources>
+
+    <!-- Прокрутка как в остальных окнах: полоса у правого края окна (поле справа — у содержимого). -->
+    <ScrollViewer Margin="16,16,0,16" VerticalScrollBarVisibility="Auto" Padding="0,0,16,0">
+    <StackPanel>
+        <!-- ============ Слайд-шоу Windows (перенесено из настроек, докладка 2026-09-29) ============ -->
+        <TextBlock Text="Слайд-шоу Windows" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,4" />
+        <StackPanel DataContext="{Binding Main}">
+            <CheckBox ToolTip="Остановить смену картинок слайд-шоу Windows — на каждом мониторе остаётся его текущая картинка" IsChecked="{Binding PinWallpapers}">
+                <TextBlock Text="Закрепить фоны рабочего стола (остановить слайд-шоу)" TextWrapping="Wrap" />
+            </CheckBox>
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                       Text="Слайд-шоу Windows ставит разные картинки на разные мониторы, но меняет их не реже раза в сутки. С галочкой смена останавливается: на каждом мониторе остаётся та картинка, что сейчас. Снимите галочку — слайд-шоу пойдёт снова из той же папки." />
+            <TextBlock Text="{Binding PinWallpapersStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,2,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PinWallpapers}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+
+        <!-- ============ Фон рабочего стола: картинка + режим на каждый монитор + «✕» ============ -->
+        <TextBlock Text="Фон рабочего стола" Style="{StaticResource Style.SectionHeader}" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid>
+                <ComboBox ItemsSource="{Binding Images}" SelectedItem="{Binding SelectedImage}"
+                          ToolTip="{Binding SelectedImage.Label, FallbackValue='Картинка для всех мониторов — выберите из списка или добавьте свои файлы'}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBrowse}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="Выберите файл" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center"
+                           Foreground="{StaticResource Brush.TextSecondary}" Opacity="0.8" FontStyle="Italic">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasImage}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- Кнопки мониторов: «Мон N» и значок режима. -->
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding Monitors}" Margin="6,0,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button x:Name="MonitorButton" Command="{Binding CycleCommand}" ToolTip="{Binding ToolTip}"
+                                Style="{StaticResource Style.SettingsButton}" Margin="0,0,6,0" Padding="8,5">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                <Grid Width="24" Height="16" Margin="6,0,0,0" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Geo.Screen}" StrokeThickness="1.3"
+                                          Stroke="{Binding Foreground, ElementName=MonitorButton}" />
+                                    <Path x:Name="FitIcon" Data="{StaticResource Geo.Stretch}" StrokeThickness="1.3"
+                                          Stroke="{Binding Foreground, ElementName=MonitorButton}" />
+                                </Grid>
+                            </StackPanel>
+                        </Button>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fit}">
+                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fit}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fill}">
+                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fill}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Center}">
+                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Center}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Grid.Column="2" Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.SettingsButton}"
+                    Padding="12,6" ToolTip="Снять свою картинку и режимы — вернуть фон, который был до неё" />
+        </Grid>
+        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
+                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру. «Выбрать свой файл…» копирует картинки (jpg, png) в папку программы. «✕» возвращает фон, который был до этого." />
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,4,0,0" />
+    </StackPanel>
+    </ScrollViewer>
+</Window>

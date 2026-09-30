@@ -95,6 +95,7 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
         // Закреплённые фоны рабочего стола: слайд-шоу могли включить, пока программа не работала (докладка 2026-09-29).
         SourceInitialized += (_, _) => _viewModel.PinWallpapersNow();
+        SourceInitialized += (_, _) => _viewModel.RememberAppliedWallpaper();
         // Профили размера окон: автоприменение к программам с назначенным профилем (докладка 2026-09-29); у таких
         // программ память окон не срабатывает — профиль главнее.
         // Указатель мыши в окне (докладка 2026-09-29): одна служба на программу, её используют профили и окно профилей.
@@ -148,7 +149,26 @@ public partial class MainWindow : Window
         if (e.Mode == Microsoft.Win32.PowerModes.Resume) Dispatcher.BeginInvoke(ScheduleRestorePositions);
     }
 
-    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(ScheduleRestorePositions);
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(ScheduleRestorePositions);
+        Dispatcher.BeginInvoke(ScheduleWallpaperCheck);
+    }
+
+    // Своя картинка фона готовится под размер каждого монитора — после смены мониторов/разрешения перерисовать
+    // (через 3 с, когда мониторы успокоятся; ничего не поменялось — фон не трогается).
+    private DispatcherTimer? _wallpaperCheckTimer;
+
+    private void ScheduleWallpaperCheck()
+    {
+        if (_wallpaperCheckTimer is null)
+        {
+            _wallpaperCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _wallpaperCheckTimer.Tick += (_, _) => { _wallpaperCheckTimer.Stop(); _viewModel.ReapplyWallpaperIfNeeded(); };
+        }
+        _wallpaperCheckTimer.Stop();
+        _wallpaperCheckTimer.Start();
+    }
 
     private void ScheduleRestorePositions()
     {

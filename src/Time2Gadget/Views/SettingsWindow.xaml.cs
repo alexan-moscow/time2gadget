@@ -143,6 +143,9 @@ public partial class SettingsWindow : Window
     /// <summary>«Размер и положение окон программ» — одно окно; повторное нажатие просто выводит его вперёд.</summary>
     private void OnOpenWindowProfiles(object sender, RoutedEventArgs e) => WindowProfilesWindow.ShowSingle(_viewModel, this);
 
+    /// <summary>«Управление заставкой и фоном экрана…» — одно окно; повторное нажатие выводит его вперёд.</summary>
+    private void OnOpenDesktopBackground(object sender, RoutedEventArgs e) => DesktopBackgroundWindow.ShowSingle(_viewModel, this);
+
     /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
     private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();
 

@@ -200,7 +200,7 @@ public sealed class SoundService : ISoundService, IDisposable
     /// программы при каждом обновлении заменяют целиком — свои звуки там пропали бы, поэтому для
     /// установленной версии они живут только в %APPDATA% (docs/DECISIONS.md, 2026-09-27).
     /// </summary>
-    private static bool IsInstalledByVelopack()
+    internal static bool IsInstalledByVelopack()
     {
         var parent = Directory.GetParent(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
         return parent is not null && File.Exists(Path.Combine(parent.FullName, "Update.exe"));
@@ -235,7 +235,7 @@ public sealed class SoundService : ISoundService, IDisposable
     }
 
     /// <summary>Имя для копии: то же, если файла нет или он такой же длины (та же копия); иначе «имя (N).расш».</summary>
-    private static string FreeName(string dest, string source)
+    internal static string FreeName(string dest, string source)
     {
         long size = new FileInfo(source).Length;
         var dir = Path.GetDirectoryName(dest)!;
