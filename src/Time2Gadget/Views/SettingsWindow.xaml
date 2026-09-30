@@ -145,18 +145,15 @@
             <Button Content="Настройка клавиш" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="Старт/пауза, сброс, компактный вид, показать/скрыть; клавиши окон и быстрого открытия окон" />
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,2"
-                       Text="Клавиши таймера (в окне или везде), клавиши окон программ и быстрое открытие окон «Заставка и фон экрана», «Быстрые таймеры»." />
+
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
-            <!-- ============ Быстрые таймеры (докладка 2026-10-01): в окне QuickTimersWindow по кнопке. ============ -->
+            <!-- ============ Быстрые таймеры (докладка 2026-10-01): в окне QuickTimersWindow по кнопке; описание и предупреждения — там же. ============ -->
             <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" />
             <Button Content="Настроить быстрые таймеры" Click="OnOpenQuickTimers" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="До 5 таймеров на своих клавишах: время, клавиша, эффект, звук" />
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,2"
-                       Text="Таймер на своей клавише запускается заново где бы вы ни были, даже когда окно в трее." />
-            <TextBlock Text="{Binding QuickTimersWarning}" Style="{StaticResource Style.HotkeyWarning}" />
+
 
 
             <!-- ============ Сон и мониторы (докладка 2026-09-28, Services/PowerService.cs) ============ -->
