@@ -133,7 +133,7 @@
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Button ToolTip="Выбрать другой файл для этого таймера" Content="Обзор…" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
+                                            <Button ToolTip="Выбрать другой файл для этого таймера" Content="Обзор" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
                                                     Padding="8,2" Margin="0" />
                                             <TextBlock Grid.Column="1" Text="{Binding CustomFileName}" VerticalAlignment="Center" Margin="8,0,0,0"
                                                        TextTrimming="CharacterEllipsis" FontSize="11" ToolTip="{Binding CustomFileName}" />

@@ -9,7 +9,7 @@ using Time2Gadget.Services;
 
 namespace Time2Gadget.ViewModels;
 
-/// <summary>Пункт списка картинок: «Выбрать свой файл…» (первый) или картинка из папки программы.</summary>
+/// <summary>Пункт списка картинок: «Выбрать свой файл» (первый) или картинка из папки программы.</summary>
 public sealed record WallpaperImageOption(string? Path, string Label)
 {
     public bool IsBrowse => Path is null;
@@ -141,7 +141,7 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
     public ObservableCollection<WallpaperImageOption> Images { get; } = new();
     public ObservableCollection<MonitorFitItem> Monitors { get; } = new();
 
-    /// <summary>Выбор в списке: «Выбрать свой файл…» открывает выбор файлов; картинка — сразу ставится на мониторы.</summary>
+    /// <summary>Выбор в списке: «Выбрать свой файл» открывает выбор файлов; картинка — сразу ставится на мониторы.</summary>
     public WallpaperImageOption? SelectedImage
     {
         get => _selectedImage;
@@ -184,7 +184,7 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
     public void Reload()
     {
         Images.Clear();
-        Images.Add(new WallpaperImageOption(null, "Выбрать свой файл…"));
+        Images.Add(new WallpaperImageOption(null, "Выбрать свой файл"));
         foreach (var file in WallpaperService.ListImages())
             Images.Add(new WallpaperImageOption(file, Path.GetFileName(file)));
         _selectedImage = _main.WallpaperImage is { } current

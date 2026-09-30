@@ -87,7 +87,7 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                         Visibility="{Binding IsCustomRingtoneSelected, Converter={StaticResource BoolToVis}}">
-                <Button ToolTip="Выбрать свой файл (.mp3, .wav) — он копируется к программе" Content="Обзор…" Style="{StaticResource Style.SettingsButton}" Command="{Binding BrowseCustomSoundCommand}" />
+                <Button ToolTip="Выбрать свой файл (.mp3, .wav) — он копируется к программе" Content="Обзор" Style="{StaticResource Style.SettingsButton}" Command="{Binding BrowseCustomSoundCommand}" />
                 <TextBlock Text="{Binding CustomSoundFilePath}" VerticalAlignment="Center" Margin="10,0,0,0"
                            TextTrimming="CharacterEllipsis" MaxWidth="200" />
             </StackPanel>
@@ -142,7 +142,7 @@
 
             <!-- ============ Настройка клавиш (докладка 2026-10-01): всё про клавиши — в окне HotkeysWindow по кнопке. ============ -->
             <TextBlock Text="Настройка клавиш" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Настройка клавиш…" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
+            <Button Content="Настройка клавиш" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="Старт/пауза, сброс, компактный вид, показать/скрыть; клавиши окон и быстрого открытия окон" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,2"
@@ -151,7 +151,7 @@
 
             <!-- ============ Быстрые таймеры (докладка 2026-10-01): в окне QuickTimersWindow по кнопке. ============ -->
             <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Настроить быстрые таймеры…" Click="OnOpenQuickTimers" Style="{StaticResource Style.SettingsButton}"
+            <Button Content="Настроить быстрые таймеры" Click="OnOpenQuickTimers" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="До 5 таймеров на своих клавишах: время, клавиша, эффект, звук" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,2"
@@ -169,7 +169,7 @@
             <!-- ============ Заставка и фон экрана (докладка 2026-09-30): вместо раздела «Фон рабочего стола» — кнопка,
                  всё про фон (и «Закрепить фоны») — в окне DesktopBackgroundWindow. ============ -->
             <TextBlock Text="Заставка и фон экрана" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Управление заставкой и фоном экрана…" Click="OnOpenDesktopBackground" Style="{StaticResource Style.SettingsButton}"
+            <Button Content="Управление заставкой и фоном экрана" Click="OnOpenDesktopBackground" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="Своя картинка фона с режимом на каждый монитор, закрепление слайд-шоу Windows" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"
@@ -187,7 +187,7 @@
             </CheckBox>
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,4"
                        Text="Закрыли программу или игру в окне — при следующем запуске окно встанет на то же место и будет того же размера. Полноэкранные окна и «полный экран в окне» не трогаются; программы с несколькими окнами одного вида (например, папки проводника) — тоже." />
-            <Button Content="Размер и положение окон программ…" Click="OnOpenWindowProfiles" Style="{StaticResource Style.SettingsButton}"
+            <Button Content="Размер и положение окон программ" Click="OnOpenWindowProfiles" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,6,0,2"
                     ToolTip="Окно без рамки, точное место и размер, быстрые кнопки по краям монитора; профили, которые применяются к программе сами" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"

@@ -46,7 +46,7 @@
 
         <!-- Сверху: слева — добавить картинки, посередине — «Шагов в цикле» (тумблер + ползунок), справа — скопировать на другой
              монитор. Кнопки одной высоты. -->
-        <Button Content="Добавить картинки…" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
+        <Button Content="Добавить картинки" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
                 Height="34" Margin="0,0,0,8" HorizontalAlignment="Left"
                 ToolTip="Одну или несколько (jpg, jpeg, png) — копии в папку программы: за раз не больше 30, всего в папке до 500" />
         <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,8">
@@ -62,7 +62,7 @@
             <Slider Width="160" Minimum="2" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="5"
                     Value="{Binding CycleLength}" IsEnabled="{Binding CycleEnabled}" VerticalAlignment="Center" />
         </StackPanel>
-        <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Height="34" Margin="0,0,0,8" Content="Скопировать на другой монитор…"
+        <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Height="34" Margin="0,0,0,8" Content="Скопировать на другой монитор"
                 Command="{Binding OpenCopyMenuCommand}" IsEnabled="{Binding HasCopyTargets}" Style="{StaticResource Style.SettingsButton}"
                 ToolTip="Шаги, как они сейчас в этом окне, — на отмеченные мониторы" />
         <Popup Grid.Column="2" PlacementTarget="{Binding ElementName=CopyButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"

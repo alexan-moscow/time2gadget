@@ -83,7 +83,7 @@
                           ToolTip="{Binding SelectedImage.Label, FallbackValue='Картинка для всех мониторов — выберите из списка или добавьте свои файлы'}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
-                            <!-- Миниатюра (как в окне шагов слайдшоу) и имя; у «Выбрать свой файл…» миниатюры нет. -->
+                            <!-- Миниатюра (как в окне шагов слайдшоу) и имя; у «Выбрать свой файл» миниатюры нет. -->
                             <StackPanel Orientation="Horizontal">
                             <Border x:Name="ThumbBox" Width="48" Height="28" CornerRadius="2" ClipToBounds="True" Background="#101418" Margin="0,1,8,1">
                                 <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
@@ -221,7 +221,7 @@
             </Button>
         </Grid>
         <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
-                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл…» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), правый щелчок по «✕» — вернуть фон, который был до этого." />
+                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), правый щелчок по «✕» — вернуть фон, который был до этого." />
         <TextBlock Text="{Binding Status}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.UpdateAccent}" />
         </StackPanel>
 
@@ -335,9 +335,9 @@
         <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
-                <Button Content="Экспорт…" Command="{Binding ExportCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,4,8,4" Height="32"
+                <Button Content="Экспорт" Command="{Binding ExportCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,4,8,4" Height="32"
                         ToolTip="Сохранить все картинки и настройки заставки и фона одним архивом (по умолчанию — на рабочий стол)" />
-                <Button Content="Импорт…" Command="{Binding ImportCommand}" Style="{StaticResource Style.SettingsButton}" Height="32"
+                <Button Content="Импорт" Command="{Binding ImportCommand}" Style="{StaticResource Style.SettingsButton}" Height="32"
                         ToolTip="Загрузить картинки и настройки из архива; затем — применить сейчас или только скопировать" />
             </StackPanel>
             <!-- Быстрое открытие этого окна (докладка 2026-10-01): глобальная клавиша, по умолчанию выкл; то же — в «Настройке клавиш». -->
