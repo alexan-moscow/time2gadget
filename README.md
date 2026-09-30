@@ -109,7 +109,7 @@ vpk pack --packId Time2Gadget --packVersion <версия> --packDir publish --m
 3. Собрать (команды выше, `--packVersion` = новая версия, звонки должны лежать в `Assets/Ringtones/`).
 4. Опубликовать: `vpk upload github --outputDir Releases --repoUrl https://github.com/alexan-moscow/time2gadget --token <токен gh> --publish --releaseName "Тайм2гаджет X.Y.Z" --tag vX.Y.Z --targetCommitish main`,
    затем добавить описание выпуска (`gh release edit vX.Y.Z --notes-file …`). Описание пишется в [CHANGELOG.md](CHANGELOG.md)
-   по единому формату: короткий абзац о главном, разделы «Добавлено», «Исправлено», «Изменено» (пустые не пишутся),
+   по единому формату: только разделы, без вводной строки — «Добавлено», «Исправлено», «Изменено» (пустые не пишутся),
    в конце «Проверка» — SHA-256 установщика, отчёт VirusTotal и что известно о срабатываниях. В выпуск на GitHub
    идёт текст раздела этой версии без заголовка «## X.Y.Z», с перенесёнными строками, склеенными в одну
    (в описании выпуска GitHub показывает каждый перенос строки как разрыв).
