@@ -143,7 +143,7 @@ public partial class SettingsWindow : Window
     /// <summary>«Размер и положение окон программ» — одно окно; повторное нажатие просто выводит его вперёд.</summary>
     private void OnOpenWindowProfiles(object sender, RoutedEventArgs e) => WindowProfilesWindow.ShowSingle(_viewModel, this);
 
-    /// <summary>«Настроить клавиши…» — окно «Настройка клавиш» (докладка 2026-10-01).</summary>
+    /// <summary>«Настройка клавиш…» — окно «Настройка клавиш» (докладка 2026-10-01).</summary>
     private void OnOpenHotkeys(object sender, RoutedEventArgs e) => HotkeysWindow.ShowSingle(_viewModel, this);
 
     /// <summary>«Настроить быстрые таймеры…» — окно «Быстрые таймеры» (докладка 2026-10-01).</summary>

@@ -142,7 +142,7 @@
 
             <!-- ============ Настройка клавиш (докладка 2026-10-01): всё про клавиши — в окне HotkeysWindow по кнопке. ============ -->
             <TextBlock Text="Настройка клавиш" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Настроить клавиши…" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
+            <Button Content="Настройка клавиш…" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,2,0,2"
                     ToolTip="Старт/пауза, сброс, компактный вид, показать/скрыть; клавиши окон и быстрого открытия окон" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,2"
