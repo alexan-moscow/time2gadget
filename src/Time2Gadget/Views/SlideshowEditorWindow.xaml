@@ -53,10 +53,14 @@
             <ToggleButton Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding CycleEnabled}" VerticalAlignment="Center"
                           ToolTip="Выключено — шагов в цикле столько, сколько до последнего заполненного шага; включено — выбранное число" />
             <TextBlock Text="Шагов в цикле" VerticalAlignment="Center" Margin="8,0,8,0" />
-            <Slider Width="140" Minimum="2" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="5"
+            <!-- Сколько шагов сейчас — число в рамке левее ползунка. -->
+            <Border MinWidth="34" Height="26" CornerRadius="4" BorderThickness="1" BorderBrush="{StaticResource Brush.Accent}"
+                    Background="{StaticResource Brush.SurfaceSector}" Padding="6,0" Margin="0,0,10,0" VerticalAlignment="Center"
+                    ToolTip="{Binding CycleInfoToolTip}">
+                <TextBlock Text="{Binding CycleInfo}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <Slider Width="160" Minimum="2" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="5"
                     Value="{Binding CycleLength}" IsEnabled="{Binding CycleEnabled}" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding CycleInfo}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{StaticResource Brush.TextSecondary}"
-                       ToolTip="Сколько шагов в цикле: выключено — до последнего заполненного шага, включено — выбранное число" />
         </StackPanel>
         <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Height="34" Margin="0,0,0,8" Content="Скопировать на другой монитор…"
                 Command="{Binding OpenCopyMenuCommand}" IsEnabled="{Binding HasCopyTargets}" Style="{StaticResource Style.SettingsButton}"

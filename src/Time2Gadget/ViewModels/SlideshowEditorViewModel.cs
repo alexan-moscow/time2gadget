@@ -237,9 +237,11 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
     public int EffectiveCycle => LastFilled == 0 ? 0 : CycleEnabled ? CycleLength : LastFilled;
 
     /// <summary>Число справа от ползунка: включено — выбранное, выключено — по последнему заполненному шагу.</summary>
-    public string CycleInfo => CycleEnabled
-        ? CycleLength.ToString()
-        : LastFilled == 0 ? "по заполненным" : $"{LastFilled} (по заполненным)";
+    public string CycleInfo => CycleEnabled ? CycleLength.ToString() : LastFilled == 0 ? "—" : LastFilled.ToString();
+
+    public string CycleInfoToolTip => CycleEnabled
+        ? $"Шагов в цикле: {CycleLength} — выбрано ползунком"
+        : LastFilled == 0 ? "Шагов в цикле: пока нет — заполните шаги" : $"Шагов в цикле: {LastFilled} — до последнего заполненного шага";
 
     public string CycleWarning => EffectiveCycle == 1
         ? "Для слайдшоу нужно минимум 2 шага: заполните ещё шаг или включите «Шагов в цикле» и выберите 2 и больше."
@@ -250,6 +252,7 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
         foreach (var s in Slots) s.IsActive = !CycleEnabled || s.Number <= CycleLength;
         OnPropertyChanged(nameof(EffectiveCycle));
         OnPropertyChanged(nameof(CycleInfo));
+        OnPropertyChanged(nameof(CycleInfoToolTip));
         OnPropertyChanged(nameof(CycleWarning));
     }
 
