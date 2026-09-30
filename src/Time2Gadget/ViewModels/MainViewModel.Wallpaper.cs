@@ -340,7 +340,7 @@ public sealed partial class MainViewModel
     public int SlideshowEffectIndex
     {
         get => (int)Slideshow.Effect;
-        set => ChangeDisplay(() => Slideshow.Effect = (SlideshowEffect)Math.Clamp(value, 0, 4));
+        set => ChangeDisplay(() => Slideshow.Effect = (SlideshowEffect)Math.Clamp(value, 0, 7));
     }
 
     public bool IsSlideshowUnderlay => Slideshow.UseUnderlay;

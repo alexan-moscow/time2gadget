@@ -134,6 +134,29 @@ public sealed class WallpaperUnderlay : IDisposable
 
         double width = s.Root.ActualWidth > 0 ? s.Root.ActualWidth : s.Bounds.Width;
         double height = s.Root.ActualHeight > 0 ? s.Root.ActualHeight : s.Bounds.Height;
+
+        // Эффекты из частиц: новая картинка сразу под низом, старая рассыпается слоем поверх (ParticleTransition).
+        if (effect is SlideshowEffect.Pixels or SlideshowEffect.Dispersion or SlideshowEffect.Disintegration)
+        {
+            if (s.Back.Source is not BitmapSource old) { s.Back.Source = image; return; }
+            var kind = effect switch
+            {
+                SlideshowEffect.Pixels => ParticleTransition.Kind.Pixels,
+                SlideshowEffect.Dispersion => ParticleTransition.Kind.Dispersion,
+                _ => ParticleTransition.Kind.Disintegration,
+            };
+            s.Back.Source = image;
+            ParticleTransition? layer = null;
+            layer = new ParticleTransition(old, width, height, kind, () =>
+            {
+                s.Root.Children.Remove(layer);
+                s.Finish = null;
+            });
+            s.Root.Children.Add(layer);
+            s.Finish = layer.Stop;
+            layer.Start();
+            return;
+        }
         var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var front = s.Front;
         front.Source = image;

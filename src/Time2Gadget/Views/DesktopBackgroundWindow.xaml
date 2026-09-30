@@ -280,7 +280,7 @@
                     <ComboBoxItem Content="средствами Windows"
                                   ToolTip="Обычный фон рабочего стола Windows: родная плавная смена, не чаще раза в 2 секунды" />
                 </ComboBox>
-                <ComboBox Width="170" SelectedIndex="{Binding SlideshowEffectIndex}" Margin="0,2,8,2" VerticalAlignment="Center"
+                <ComboBox Width="196" SelectedIndex="{Binding SlideshowEffectIndex}" Margin="0,2,8,2" VerticalAlignment="Center"
                           Visibility="{Binding IsSlideshowUnderlay, Converter={StaticResource BoolToVis}}"
                           ToolTip="Как одна картинка сменяет другую">
                     <ComboBoxItem Content="мгновенно" />
@@ -288,6 +288,9 @@
                     <ComboBoxItem Content="сдвиг" />
                     <ComboBoxItem Content="шторка" />
                     <ComboBoxItem Content="наплыв" />
+                    <ComboBoxItem Content="пиксельное растворение" ToolTip="Старая картинка исчезает квадратами в случайном порядке" />
+                    <ComboBoxItem Content="дисперсия" ToolTip="Старую картинку сдувает крупными кусками волной слева направо" />
+                    <ComboBoxItem Content="распад" ToolTip="Старая картинка рассыпается мелкими частицами, как пепел" />
                 </ComboBox>
                 <!-- средствами Windows: выбрать эффект Windows не даёт — у неё одна плавная смена -->
                 <ComboBox Width="190" SelectedIndex="0" IsEnabled="False" Margin="0,2,8,2" VerticalAlignment="Center"
