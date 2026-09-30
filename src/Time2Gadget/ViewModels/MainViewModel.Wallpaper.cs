@@ -390,9 +390,29 @@ public sealed partial class MainViewModel
 
     internal bool CanRestoreSlideshowMonitor(string monitorId) => Slideshow.Cleared.ContainsKey(monitorId);
 
-    /// <summary>Шаг монитора (0-based) после <paramref name="changes"/> смен: каждый монитор идёт по кругу своей длины.</summary>
-    private int SlideshowStepFor(string monitorId, long changes) =>
-        SlideshowCycleLength(monitorId) is var n and > 0 ? (int)(changes % n) : -1;
+    /// <summary>Длина общего цикла: по монитору, где шагов больше (решение пользователя 2026-10-01).</summary>
+    private int SlideshowGlobalLength(IEnumerable<WallpaperMonitor> monitors) =>
+        monitors.Select(m => SlideshowCycleLength(m.Id)).DefaultIfEmpty(0).Max();
+
+    /// <summary>
+    /// Шаг монитора (0-based) после <paramref name="changes"/> смен: общий цикл — по монитору с большим числом шагов; где шаги
+    /// монитора закончились, остаётся его последний шаг. -1 — у монитора шагов нет (прежний фон).
+    /// </summary>
+    private int SlideshowStepFor(string monitorId, long changes, int globalLength)
+    {
+        int n = SlideshowCycleLength(monitorId);
+        if (n <= 0 || globalLength <= 0) return -1;
+        return (int)Math.Min(changes % globalLength, n - 1);
+    }
+
+    /// <summary>Предупреждение, когда у мониторов разное число шагов (пусто — одинаковое).</summary>
+    internal string SlideshowLengthsWarning(IReadOnlyList<WallpaperMonitor> monitors)
+    {
+        var lengths = monitors.Select(m => (m.Number, Length: SlideshowCycleLength(m.Id))).Where(x => x.Length > 0).ToList();
+        if (lengths.Select(x => x.Length).Distinct().Count() <= 1) return string.Empty;
+        return "Число шагов у мониторов разное (" + string.Join(", ", lengths.Select(x => $"монитор {x.Number} — {x.Length}")) +
+               "): цикл идёт по большему, а на мониторе, где шаги закончились, до конца цикла остаётся его последняя картинка.";
+    }
 
     /// <summary>
     /// Поставить текущий шаг: смены — для всех мониторов разом, каждый монитор — по кругу своей длины; пустой шаг — прежний фон
@@ -403,13 +423,14 @@ public sealed partial class MainViewModel
         if (!SlideshowEnabled) return;
         var monitors = WallpaperService.Monitors();
         long changes = SlideshowSchedule.StepsSinceStart(Slideshow, DateTime.Now);
-        var signature = string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{SlideshowStepFor(m.Id, changes)}"));
+        int global = SlideshowGlobalLength(monitors);
+        var signature = string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{SlideshowStepFor(m.Id, changes, global)}"));
         if (force || signature != _appliedSlideshowSignature)
         {
             EnsureBackgroundCaptured();
             var plans = monitors.Select(m =>
             {
-                int step = SlideshowStepFor(m.Id, changes);
+                int step = SlideshowStepFor(m.Id, changes, global);
                 var slot = step >= 0 && Slideshow.Monitors.TryGetValue(m.Id, out var list) && step < list.Count ? list[step] : null;
                 if (slot?.Image is { } image && File.Exists(image)) return new MonitorWallpaperPlan(m, image, slot.Fit, null);
                 if (slot?.Color is { } hex) return new MonitorWallpaperPlan(m, null, WallpaperFit.None, WallpaperService.ParseColor(hex));
@@ -435,7 +456,7 @@ public sealed partial class MainViewModel
         _slideshowTimer.Start();
     }
 
-    /// <summary>«Монитор 1 — шаг 3 из 5, монитор 2 — шаг 1 из 3 · следующая смена в 15:00» — под настройками слайдшоу.</summary>
+    /// <summary>«Сейчас шаг 3 из 5 · следующая смена в 15:00» (+ предупреждения) — под настройками слайдшоу.</summary>
     public string SlideshowStatus
     {
         get
@@ -444,13 +465,13 @@ public sealed partial class MainViewModel
             var monitors = WallpaperService.Monitors();
             var now = DateTime.Now;
             long changes = SlideshowSchedule.StepsSinceStart(Slideshow, now);
-            var parts = monitors.Where(m => SlideshowCycleLength(m.Id) > 0)
-                                .Select(m => $"монитор {m.Number} — шаг {SlideshowStepFor(m.Id, changes) + 1} из {SlideshowCycleLength(m.Id)}").ToList();
-            if (parts.Count == 0) return "Шаги не заполнены — на мониторах прежний фон. Нажмите на монитор, чтобы разложить картинки по шагам.";
+            int global = SlideshowGlobalLength(monitors);
+            if (global == 0) return "Шаги не заполнены — на мониторах прежний фон. Нажмите на монитор, чтобы разложить картинки по шагам.";
             var next = SlideshowSchedule.NextChange(Slideshow, now);
             var when = next.Date == now.Date ? next.ToString("HH:mm:ss") : next.ToString("dd.MM HH:mm:ss");
-            var text = "Сейчас: " + string.Join(", ", parts) + $" · следующая смена в {when}";
-            if (monitors.Any(m => SlideshowCycleLength(m.Id) == 1)) text += "\nДля слайдшоу нужно минимум 2 шага — на мониторе с одним шагом картинка не меняется.";
+            var text = $"Сейчас шаг {changes % global + 1} из {global} · следующая смена в {when}";
+            if (global == 1) text += "\nДля слайдшоу нужно минимум 2 шага — пока картинка не меняется.";
+            if (SlideshowLengthsWarning(monitors) is { Length: > 0 } warning) text += "\n" + warning;
             return text;
         }
     }

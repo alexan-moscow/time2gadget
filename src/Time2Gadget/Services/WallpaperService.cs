@@ -226,7 +226,6 @@ public static class WallpaperService
             var windowsBackground = ColorFromBgr(w.GetBackgroundColor());
             var dir = Path.Combine(ImagesDir, "Generated");
             Directory.CreateDirectory(dir);
-            var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff");
             var made = new List<(string Id, string File)>();
             var cache = new Dictionary<string, Image>(StringComparer.OrdinalIgnoreCase);
             try
@@ -234,12 +233,22 @@ public static class WallpaperService
                 foreach (var plan in plans)
                 {
                     var m = plan.Monitor;
-                    var file = Path.Combine(dir, $"mon{m.Number}-{stamp}.png");
                     var fill = plan.Fill ?? windowsBackground;
-                    using var bitmap = plan.Image is { } path && File.Exists(path) && plan.Fit != WallpaperFit.None
-                        ? Render(cache.TryGetValue(path, out var img) ? img : cache[path] = LoadImage(path), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
-                        : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
-                    bitmap.Save(file, ImageFormat.Png);
+                    bool picture = plan.Image is { } p && File.Exists(p) && plan.Fit != WallpaperFit.None;
+                    // Готовая картинка — по ключу (файл и его дата, размер монитора, режим, цвет): слайдшоу по кругу не рисует её
+                    // заново (докладка 2026-10-01: смена раз в секунду не успевала — каждая смена рисовала и сжимала 4K-картинки).
+                    var key = picture
+                        ? $"{plan.Image}|{File.GetLastWriteTimeUtc(plan.Image!).Ticks}|{m.Bounds.Width}x{m.Bounds.Height}|{plan.Fit}|{fill.ToArgb()}"
+                        : $"solid|{m.Bounds.Width}x{m.Bounds.Height}|{(plan.Fill ?? Color.Black).ToArgb()}";
+                    var file = Path.Combine(dir, $"mon{m.Number}-{StableHash(key)}{(picture ? ".jpg" : ".png")}");
+                    if (File.Exists(file)) File.SetLastWriteTimeUtc(file, DateTime.UtcNow); // свежая — не удалится при уборке
+                    else
+                    {
+                        using var bitmap = picture
+                            ? Render(cache.TryGetValue(plan.Image!, out var img) ? img : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
+                            : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
+                        if (picture) SaveJpeg(bitmap, file, 95); else bitmap.Save(file, ImageFormat.Png);
+                    }
                     made.Add((m.Id, file));
                 }
             }
@@ -250,6 +259,21 @@ public static class WallpaperService
             return true;
         }
         catch { return false; }
+    }
+
+    private static string StableHash(string text)
+    {
+        var bytes = System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(text));
+        return Convert.ToHexString(bytes, 0, 8).ToLowerInvariant();
+    }
+
+    /// <summary>JPEG с заданным качеством: в разы быстрее PNG для 4K-картинок, на глаз без потерь при 95.</summary>
+    private static void SaveJpeg(Bitmap bitmap, string file, long quality)
+    {
+        var codec = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+        using var parameters = new EncoderParameters(1);
+        parameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
+        bitmap.Save(file, codec, parameters);
     }
 
     private static Bitmap Solid(int width, int height, Color color)
@@ -322,18 +346,28 @@ public static class WallpaperService
         return copy;
     }
 
+    /// <summary>
+    /// Уборка готовых картинок: <paramref name="keep"/> (стоят сейчас) и ещё до <see cref="GeneratedCacheSize"/> последних
+    /// использованных остаются — это кэш слайдшоу; остальные удаляются. Пустой <paramref name="keep"/> (фон вернули) — удалить все.
+    /// </summary>
     private static void CleanupGenerated(string[] keep)
     {
         try
         {
             var dir = Path.Combine(ImagesDir, "Generated");
             if (!Directory.Exists(dir)) return;
-            foreach (var f in Directory.GetFiles(dir))
-                if (!keep.Contains(f, StringComparer.OrdinalIgnoreCase))
-                    try { File.Delete(f); } catch { /* занят — удалится в следующий раз */ }
+            var old = Directory.GetFiles(dir)
+                .Where(f => !keep.Contains(f, StringComparer.OrdinalIgnoreCase))
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .Skip(keep.Length == 0 ? 0 : GeneratedCacheSize);
+            foreach (var f in old)
+                try { File.Delete(f); } catch { /* занят — удалится в следующий раз */ }
         }
         catch { }
     }
+
+    /// <summary>Сколько готовых картинок держать про запас: 30 шагов × до 4 мониторов.</summary>
+    private const int GeneratedCacheSize = 120;
 
     private static Color ColorFromBgr(uint bgr) => Color.FromArgb((int)(bgr & 0xFF), (int)((bgr >> 8) & 0xFF), (int)((bgr >> 16) & 0xFF));
 

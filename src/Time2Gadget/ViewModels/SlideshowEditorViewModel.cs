@@ -102,6 +102,11 @@ public sealed class SlotItem : INotifyPropertyChanged
             ? $"Шаг {Number}: сплошной цвет {MonitorFitItem.BasicColors.FirstOrDefault(c => c.Hex == _slot!.Color)?.Name ?? _slot!.Color}. Щелчок — другой цвет"
             : $"Шаг {Number}: пусто — прежний фон монитора. Перетащите сюда картинку или щёлкните — сплошной цвет";
 
+    private static WallpaperFit NextFit(WallpaperFit fit) => fit >= WallpaperFit.Center ? WallpaperFit.Stretch : fit + 1;
+
+    /// <summary>«Сейчас: заполнить. Клик — по центру».</summary>
+    public string FitToolTip => $"Сейчас: {MonitorFitItem.FitName(Fit)}. Клик — {MonitorFitItem.FitName(NextFit(Fit))}";
+
     public RelayCommand ClearCommand { get; }
     public RelayCommand CycleFitCommand { get; }
     public RelayCommand OpenColorMenuCommand { get; }
@@ -123,7 +128,7 @@ public sealed class SlotItem : INotifyPropertyChanged
 
     private void RaiseAll()
     {
-        foreach (var name in new[] { nameof(Slot), nameof(IsEmpty), nameof(HasImage), nameof(HasColor), nameof(Thumb), nameof(ColorBrush), nameof(Fit), nameof(ToolTip) })
+        foreach (var name in new[] { nameof(Slot), nameof(IsEmpty), nameof(HasImage), nameof(HasColor), nameof(Thumb), nameof(ColorBrush), nameof(Fit), nameof(FitToolTip), nameof(ToolTip) })
             Raise(name);
     }
 
@@ -164,6 +169,8 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
             item.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SlotItem.Slot)) RefreshCycle(); };
             Slots.Add(item);
         }
+        _otherLengths = WallpaperService.Monitors().Where(m => m.Id != monitor.Id)
+            .Select(m => (m.Number, Length: main.SlideshowCycleLength(m.Id))).Where(x => x.Length > 0).ToList();
         _cycleEnabled = main.SlideshowCycleSetting(monitor.Id) is not null;
         _cycleLength = main.SlideshowCycleSetting(monitor.Id) ?? Math.Max(2, main.SlideshowLastFilled(monitor.Id));
         RefreshCycle();
@@ -243,9 +250,22 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
         ? $"Шагов в цикле: {CycleLength} — выбрано ползунком"
         : LastFilled == 0 ? "Шагов в цикле: пока нет — заполните шаги" : $"Шагов в цикле: {LastFilled} — до последнего заполненного шага";
 
-    public string CycleWarning => EffectiveCycle == 1
-        ? "Для слайдшоу нужно минимум 2 шага: заполните ещё шаг или включите «Шагов в цикле» и выберите 2 и больше."
-        : string.Empty;
+    private readonly List<(int Number, int Length)> _otherLengths;
+
+    public string CycleWarning
+    {
+        get
+        {
+            var notes = new List<string>();
+            if (EffectiveCycle == 1)
+                notes.Add("Для слайдшоу нужно минимум 2 шага: заполните ещё шаг или включите «Шагов в цикле» и выберите 2 и больше.");
+            var differ = _otherLengths.Where(x => EffectiveCycle > 0 && x.Length != EffectiveCycle).ToList();
+            if (differ.Count > 0)
+                notes.Add("Число шагов отличается от других мониторов (" + string.Join(", ", differ.Select(x => $"монитор {x.Number} — {x.Length}")) +
+                          $", здесь — {EffectiveCycle}): цикл идёт по большему, а где шаги закончились, до конца цикла остаётся последняя картинка.");
+            return string.Join("\n", notes);
+        }
+    }
 
     private void RefreshCycle()
     {

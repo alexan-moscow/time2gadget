@@ -113,7 +113,7 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
 
     public string ToolTip =>
         $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}: {FitName(Fit)}.\n" +
-        $"Щелчок — {FitName(Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1)}";
+        $"Клик — {FitName(Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1)}";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

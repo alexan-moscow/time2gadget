@@ -172,7 +172,7 @@
                                 <!-- режим картинки: растянуть → по размеру → заполнить → по центру -->
                                 <Button x:Name="FitButton" Command="{Binding CycleFitCommand}" Style="{StaticResource Style.TileButton}"
                                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,3,3" Visibility="Collapsed"
-                                        ToolTip="Как картинка ложится на монитор — щелчок: следующий режим">
+                                        ToolTip="{Binding FitToolTip}">
                                     <Grid Width="24" Height="16">
                                         <Path Data="{StaticResource Geo.Screen}" StrokeThickness="1.3" Stroke="White" />
                                         <Path x:Name="FitIcon" Data="{StaticResource Geo.Fill}" StrokeThickness="1.3" Stroke="White" />
