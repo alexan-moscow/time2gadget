@@ -70,6 +70,8 @@ public partial class MainWindow : Window
         _viewModel.AutoCloseRequested += (_, _) => HandleCloseRequest();
         // Скрытое окно + законченный таймер → иконка трея мигает красным (MainViewModel.UpdateTray).
         IsVisibleChanged += (_, _) => UpdateHiddenState();
+        // Показали из трея — на прежнем месте, но только если оно на экране (иначе — на ближайший монитор).
+        IsVisibleChanged += (_, _) => { if (IsVisible) Dispatcher.BeginInvoke(EnsureOnScreen, System.Windows.Threading.DispatcherPriority.Loaded); };
         StateChanged += (_, _) => UpdateHiddenState(); // свёрнуто на панель задач (Win+D) — тоже «не видно»
         // Кнопки на панели задач нет (докладка 2026-09-28: программа живёт только в трее) — свёрнутое окно
         // осталось бы полоской в углу экрана, поэтому сворачивание (Win+D и т.п.) = убрать в трей.
@@ -204,6 +206,7 @@ public partial class MainWindow : Window
             _lastAnchorOnScreen = null; // привязка «туда-обратно» больше не актуальна
         }
         _settingsWindow?.RestoreSavedPosition();
+        Dispatcher.BeginInvoke(EnsureOnScreen, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -218,6 +221,7 @@ public partial class MainWindow : Window
         }
         UpdateCompactProgressBar();
         ApplyDialEffect();
+        Dispatcher.BeginInvoke(EnsureOnScreen, System.Windows.Threading.DispatcherPriority.Loaded);
 
         // Перезапуск ради смены прав был из открытых настроек — открыть их снова с той же прокруткой (место окна
         // настроек восстанавливается как обычно).
@@ -392,11 +396,44 @@ public partial class MainWindow : Window
         SettingsButton.Margin = isCompact ? CompactSettingsMargin : NormalSettingsMargin;
         CloseButton.Margin = isCompact ? CompactCloseMargin : NormalCloseMargin;
         AutoCloseButton.Margin = isCompact ? CompactAutoCloseMargin : NormalAutoCloseMargin;
+        Dispatcher.BeginInvoke(EnsureOnScreen, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     /// <summary>
-    /// Окно хотя бы частично (≥40px) видно на каком-либо экране. Сохранённое место могло оказаться за краем —
-    /// отключили второй монитор, сменили разрешение; тогда позицию не восстанавливаем.
+    /// Окно на экране: хотя бы 40×40 пикселей — в рабочей области монитора; иначе — перенести на ближайший монитор (и запомнить).
+    /// Проверка по настоящим мониторам: у мониторов разного размера и масштаба в общем прямоугольнике экрана есть «дыры»,
+    /// куда окно попадало и оставалось невидимым (докладка 2026-10-01).
+    /// </summary>
+    private void EnsureOnScreen()
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || !IsVisible || !GetWindowRect(hwnd, out var r)) return;
+        var monitor = MonitorFromRect(ref r, 2 /* MONITOR_DEFAULTTONEAREST */);
+        var info = new MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf<MonitorInfo>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return;
+        var work = info.Work;
+        int visibleWidth = Math.Min(r.Right, work.Right) - Math.Max(r.Left, work.Left);
+        int visibleHeight = Math.Min(r.Bottom, work.Bottom) - Math.Max(r.Top, work.Top);
+        if (visibleWidth >= 40 && visibleHeight >= 40) return;
+        int width = r.Right - r.Left, height = r.Bottom - r.Top;
+        int x = Math.Clamp(r.Left, work.Left, Math.Max(work.Left, work.Right - width));
+        int y = Math.Clamp(r.Top, work.Top, Math.Max(work.Top, work.Bottom - height));
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
+        _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top);
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct RectNative { public int Left, Top, Right, Bottom; }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MonitorInfo { public int Size; public RectNative Monitor, Work; public uint Flags; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RectNative rect);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr MonitorFromRect(ref RectNative rect, uint flags);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
+    /// <summary>
+    /// Окно хотя бы частично (≥40px) видно в общем прямоугольнике экранов — грубая проверка сохранённого места до показа;
+    /// точная, по мониторам, — <see cref="EnsureOnScreen"/> после показа.
     /// </summary>
     internal static bool IsVisibleOnScreen(double left, double top, double width, double height)
     {
@@ -722,8 +759,16 @@ public partial class MainWindow : Window
 
         if (_isDraggingWindow)
         {
-            Left = _mouseDownWindowPos!.Value.X + delta.X;
-            Top = _mouseDownWindowPos!.Value.Y + delta.Y;
+            // Дальше тащит Windows (DragMove): её перетаскивание правильно переводит окно между мониторами с разным
+            // масштабом. Раньше окно двигалось вручную — сдвиг мыши в пикселях прибавлялся к Left/Top в единицах WPF, и на
+            // границе мониторов 100%/125% окно прыгало туда-обратно и могло улететь за экран (докладка 2026-10-01).
+            RootGrid.ReleaseMouseCapture();
+            _mouseDownScreenPos = null;
+            _mouseDownOnCenter = false;
+            try { DragMove(); } catch (InvalidOperationException) { /* кнопку уже отпустили */ }
+            _isDraggingWindow = false;
+            EnsureOnScreen();
+            _viewModel.SaveWindowPosition(_viewModel.IsCompactMode, Left, Top); // место вида запоминается сразу после перетаскивания
         }
     }
 
