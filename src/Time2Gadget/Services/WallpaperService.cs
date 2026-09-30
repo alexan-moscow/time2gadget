@@ -10,6 +10,9 @@ namespace Time2Gadget.Services;
 /// <summary>Монитор для фона: путь устройства (IDesktopWallpaper), место и размер в пикселях, номер как в Windows/окне профилей.</summary>
 public sealed record WallpaperMonitor(string Id, Rectangle Bounds, int Number);
 
+/// <summary>Что поставить на монитор: картинку в режиме <see cref="Fit"/> (поля — цветом <see cref="Fill"/>) или, без картинки/«не отображать», сплошной <see cref="Fill"/> (нет — чёрный).</summary>
+public sealed record MonitorWallpaperPlan(WallpaperMonitor Monitor, string? Image, WallpaperFit Fit, Color? Fill);
+
 /// <summary>
 /// Фон рабочего стола (докладка 2026-09-29/30).
 /// (1) «Закрепить фоны»: разные картинки на разных мониторах пользователь получает слайд-шоу Windows, а у него интервал
@@ -182,30 +185,37 @@ public static class WallpaperService
     }
 
     /// <summary>
-    /// Поставить картинку на все мониторы, у каждого — свой режим. Для каждого монитора картинка готовится под его
-    /// разрешение (папка Generated, новые имена — иначе Windows может не перечитать файл), старые готовые удаляются.
+    /// Поставить фон по плану для каждого монитора: картинка в своём режиме, сплошной цвет или прежний фон монитора.
+    /// Картинка для каждого монитора готовится под его разрешение (папка Generated, новые имена — иначе Windows может не
+    /// перечитать файл), старые готовые удаляются.
     /// </summary>
-    public static bool Apply(string imagePath, IReadOnlyList<WallpaperMonitor> monitors, Func<string, WallpaperFit> fitFor)
+    public static bool Apply(IReadOnlyList<MonitorWallpaperPlan> plans)
     {
         try
         {
-            if (!File.Exists(imagePath) || monitors.Count == 0) return false;
+            if (plans.Count == 0) return false;
             var w = Create();
-            var background = ColorFromBgr(w.GetBackgroundColor());
+            var windowsBackground = ColorFromBgr(w.GetBackgroundColor());
             var dir = Path.Combine(ImagesDir, "Generated");
             Directory.CreateDirectory(dir);
             var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff");
             var made = new List<(string Id, string File)>();
-            using (var source = LoadImage(imagePath))
+            var cache = new Dictionary<string, Image>(StringComparer.OrdinalIgnoreCase);
+            try
             {
-                foreach (var m in monitors)
+                foreach (var plan in plans)
                 {
+                    var m = plan.Monitor;
                     var file = Path.Combine(dir, $"mon{m.Number}-{stamp}.png");
-                    using var bitmap = Render(source, m.Bounds.Width, m.Bounds.Height, fitFor(m.Id), background);
+                    var fill = plan.Fill ?? windowsBackground;
+                    using var bitmap = plan.Image is { } path && File.Exists(path) && plan.Fit != WallpaperFit.None
+                        ? Render(cache.TryGetValue(path, out var img) ? img : cache[path] = LoadImage(path), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
+                        : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
                     bitmap.Save(file, ImageFormat.Png);
                     made.Add((m.Id, file));
                 }
             }
+            finally { foreach (var img in cache.Values) img.Dispose(); }
             w.SetPosition(PositionStretch);
             foreach (var (id, file) in made) w.SetWallpaper(id, file);
             CleanupGenerated(keep: made.Select(x => x.File).ToArray());
@@ -214,6 +224,29 @@ public static class WallpaperService
         catch { return false; }
     }
 
+    private static Bitmap Solid(int width, int height, Color color)
+    {
+        var bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+        using var g = Graphics.FromImage(bitmap);
+        g.Clear(color);
+        return bitmap;
+    }
+
+    /// <summary>Режим, которым Windows показывала прежний фон (DESKTOP_WALLPAPER_POSITION) — чтобы нарисовать его так же.</summary>
+    public static WallpaperFit FitFromPosition(int position) => position switch
+    {
+        0 => WallpaperFit.Center,
+        3 => WallpaperFit.Fit,
+        4 or 5 => WallpaperFit.Fill, // «заполнить» и «расширение» (на все мониторы) — ближе всего «заполнить»
+        1 => WallpaperFit.Center,    // «замостить» — не поддерживаем, по центру
+        _ => WallpaperFit.Stretch,
+    };
+
+    public static Color ParseColor(string? hex)
+    {
+        try { return hex is { Length: > 0 } ? ColorTranslator.FromHtml(hex) : Color.Black; }
+        catch { return Color.Black; }
+    }
     /// <summary>Картинка под монитор ширины×высоты в режиме <paramref name="fit"/>; поля — цветом фона Windows.</summary>
     public static Bitmap Render(Image source, int width, int height, WallpaperFit fit, Color background)
     {

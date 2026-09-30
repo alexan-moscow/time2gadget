@@ -59,6 +59,10 @@ public sealed class AppSettings
     /// <summary>Как картинка ложится на каждый монитор: путь устройства монитора → режим; нет записи — «растянуть».</summary>
     public Dictionary<string, WallpaperFit> WallpaperModes { get; set; } = new();
 
+    /// <summary>Сплошной цвет монитора без картинки (путь устройства → «#RRGGBB»); нет записи — прежний фон монитора.</summary>
+    public Dictionary<string, string> WallpaperColors { get; set; } = new();
+
+
     /// <summary>Фон до своей картинки — «✕» возвращает его.</summary>
     public WallpaperBackupState? WallpaperBefore { get; set; }
 

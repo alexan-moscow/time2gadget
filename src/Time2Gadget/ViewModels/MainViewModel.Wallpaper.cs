@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
                 _wallpaperTimer?.Stop();
                 if (_settings.WallpaperSlideshowBackup is { } backup)
                 {
-                    if (_settings.WallpaperImage is not null)
+                    if (HasOwnWallpaper)
                     {
                         if (_settings.WallpaperBefore is { Slideshow: null } before) before.Slideshow = backup;
                     }
@@ -67,19 +67,27 @@ public sealed partial class MainViewModel
         _wallpaperTimer.Start();
     }
 
-    // ---- Своя картинка фона ----
+    // ---- Своя картинка фона и сплошные цвета мониторов ----
 
     internal string? WallpaperImage => _settings.WallpaperImage;
 
     internal WallpaperFit WallpaperFitFor(string monitorId) =>
         _settings.WallpaperModes.TryGetValue(monitorId, out var fit) ? fit : WallpaperFit.Stretch;
 
-    /// <summary>Изменились картинка или режимы — окно «Заставка и фон экрана» перечитывает их (после «✕», сброса и т.п.).</summary>
+    /// <summary>Сплошной цвет монитора («#RRGGBB») или null — у монитора прежний фон.</summary>
+    internal string? WallpaperColorFor(string monitorId) =>
+        _settings.WallpaperColors.TryGetValue(monitorId, out var color) ? color : null;
+
+    /// <summary>Стоит своя настройка фона: картинка или хотя бы один сплошной цвет.</summary>
+    internal bool HasOwnWallpaper => _settings.WallpaperImage is not null || _settings.WallpaperColors.Count > 0;
+
+
+    /// <summary>Изменились картинка, режимы или цвета — окно «Заставка и фон экрана» перечитывает их (после «✕», сброса и т.п.).</summary>
     public event EventHandler? WallpaperChanged;
 
-    private string? _appliedWallpaperSignature; // что поставлено сейчас: картинка + мониторы + режимы
+    private string? _appliedWallpaperSignature; // что поставлено сейчас: картинка + мониторы + режимы + цвета
 
-    /// <summary>Выбрать картинку (null — ничего не ставить) и поставить её на все мониторы.</summary>
+    /// <summary>Выбрать картинку и поставить её на мониторы (у каждого — свой режим).</summary>
     internal bool SetWallpaperImage(string? image)
     {
         _settings.WallpaperImage = image;
@@ -87,7 +95,7 @@ public sealed partial class MainViewModel
         return ApplyWallpaper(force: true);
     }
 
-    /// <summary>Режим монитора (кнопка «Мон N») — сразу на экран, если картинка выбрана.</summary>
+    /// <summary>Режим монитора (кнопка «Мон N») — сразу на экран.</summary>
     internal bool SetWallpaperFit(string monitorId, WallpaperFit fit)
     {
         if (fit == WallpaperFit.Stretch) _settings.WallpaperModes.Remove(monitorId);
@@ -96,32 +104,53 @@ public sealed partial class MainViewModel
         return ApplyWallpaper(force: true);
     }
 
+    /// <summary>Сплошной цвет монитора без картинки (квадратик у кнопки монитора) — сразу на экран.</summary>
+    internal bool SetWallpaperColor(string monitorId, string hex)
+    {
+        _settings.WallpaperColors[monitorId] = hex;
+        _settingsService.Save(_settings);
+        return ApplyWallpaper(force: true);
+    }
+
     /// <summary>
-    /// Поставить свою картинку. Первый раз — запомнить, какой фон был (для «✕»). Без <paramref name="force"/> — только если
-    /// с прошлого раза поменялись мониторы (подключили монитор, сменили разрешение), чтобы не перерисовывать фон зря.
+    /// Поставить свою настройку: на каждый монитор — картинку в его режиме, а без картинки («не отображать» или картинки нет) —
+    /// его сплошной цвет, иначе его прежний фон. Первый раз — запомнить, какой фон был (для «✕»). Без <paramref name="force"/> —
+    /// только если с прошлого раза поменялись мониторы (подключили монитор, сменили разрешение).
     /// </summary>
     internal bool ApplyWallpaper(bool force)
     {
-        if (_settings.WallpaperImage is not { } image) return false;
+        if (!HasOwnWallpaper) return false;
         var monitors = WallpaperService.Monitors();
-        var signature = WallpaperSignature(image, monitors);
+        var signature = WallpaperSignature(monitors);
         if (!force && signature == _appliedWallpaperSignature) return true;
-        if (_settings.WallpaperBefore is null && WallpaperService.Capture() is { } before)
+        if (_settings.WallpaperBefore is null && WallpaperService.Capture() is { } captured)
         {
-            _settings.WallpaperBefore = before;
+            _settings.WallpaperBefore = captured;
             _settingsService.Save(_settings);
         }
-        bool ok = WallpaperService.Apply(image, monitors, WallpaperFitFor);
+        var before = _settings.WallpaperBefore;
+        var plans = monitors.Select(m =>
+        {
+            var color = WallpaperColorFor(m.Id) is { } hex ? WallpaperService.ParseColor(hex) : (System.Drawing.Color?)null;
+            var fit = WallpaperFitFor(m.Id);
+            if (_settings.WallpaperImage is { } image && fit != WallpaperFit.None)
+                return new MonitorWallpaperPlan(m, image, fit, color);
+            if (color is null && before is not null && before.Images.TryGetValue(m.Id, out var original))
+                return new MonitorWallpaperPlan(m, original, WallpaperService.FitFromPosition(before.Position), null); // прежний фон монитора
+            return new MonitorWallpaperPlan(m, null, WallpaperFit.None, color);
+        }).ToList();
+        bool ok = WallpaperService.Apply(plans);
         if (ok) _appliedWallpaperSignature = signature;
         return ok;
     }
 
-    /// <summary>«✕»: своя картинка и режимы сняты, фон — как был до неё.</summary>
+    /// <summary>«✕» (правый щелчок) и сброс настроек: своя картинка, режимы и цвета сняты, фон — как был до них.</summary>
     internal void ClearWallpaper()
     {
         var before = _settings.WallpaperBefore;
         _settings.WallpaperImage = null;
         _settings.WallpaperModes.Clear();
+        _settings.WallpaperColors.Clear();
         _settings.WallpaperBefore = null;
         _settingsService.Save(_settings);
         _appliedWallpaperSignature = null;
@@ -129,15 +158,25 @@ public sealed partial class MainViewModel
         WallpaperChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private string WallpaperSignature(string image, IEnumerable<WallpaperMonitor> monitors) =>
-        image + "|" + string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperFitFor(m.Id)}"));
+    /// <summary>«✕» (левый щелчок): картинка и режимы сняты, на всех мониторах — сплошной чёрный (цвет каждого можно сменить).</summary>
+    internal void BlackoutWallpaper()
+    {
+        _settings.WallpaperImage = null;
+        _settings.WallpaperModes.Clear();
+        _settings.WallpaperColors = WallpaperService.Monitors().ToDictionary(m => m.Id, _ => "#000000");
+        _settingsService.Save(_settings);
+        ApplyWallpaper(force: true);
+        WallpaperChanged?.Invoke(this, EventArgs.Empty);
+    }
+    private string WallpaperSignature(IEnumerable<WallpaperMonitor> monitors) =>
+        _settings.WallpaperImage + "|" + string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperFitFor(m.Id)}:{WallpaperColorFor(m.Id)}"));
 
-    /// <summary>При запуске: своя картинка уже стоит (Windows её помнит) — запомнить мониторы, под которые она готовилась.</summary>
+    /// <summary>При запуске: своя настройка уже стоит (Windows её помнит) — запомнить мониторы, под которые она готовилась.</summary>
     public void RememberAppliedWallpaper()
     {
-        if (_settings.WallpaperImage is { } image) _appliedWallpaperSignature = WallpaperSignature(image, WallpaperService.Monitors());
+        if (HasOwnWallpaper) _appliedWallpaperSignature = WallpaperSignature(WallpaperService.Monitors());
     }
 
-    /// <summary>Мониторы поменялись (MainWindow, DisplaySettingsChanged) — своя картинка под новые размеры.</summary>
+    /// <summary>Мониторы поменялись (MainWindow, DisplaySettingsChanged) — своя настройка под новые размеры.</summary>
     public void ReapplyWallpaperIfNeeded() => ApplyWallpaper(force: false);
 }
