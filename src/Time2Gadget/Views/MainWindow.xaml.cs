@@ -123,6 +123,7 @@ public partial class MainWindow : Window
 
         Closed += (_, _) =>
         {
+            _viewModel.OnAppExit(); // слайдшоу подложкой: на её место — текущий шаг обычным фоном
             HotkeyBox.CaptureChanged -= OnHotkeyCaptureChanged;
             _globalHotkeys.Dispose();
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;

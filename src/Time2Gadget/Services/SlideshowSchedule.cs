@@ -13,16 +13,16 @@ namespace Time2Gadget.Services;
 public static class SlideshowSchedule
 {
     /// <summary>
-    /// Самый короткий интервал: чаще Windows не успевает — у неё своя плавная смена фона, и при смене раз в секунду она пропускает
-    /// картинки (проверено 2026-10-01: 1 с — видны 2 цвета из 3; 2 с — все по кругу, ровно через 2 с).
+    /// Самый короткий интервал: подложкой — 1 с; средствами Windows — 2 с: чаще Windows не успевает — у неё своя плавная смена
+    /// фона, и при смене раз в секунду она пропускает картинки (проверено 2026-10-01: 1 с — видны 2 цвета из 3; 2 с — все по кругу).
     /// </summary>
-    public static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(2);
+    public static TimeSpan MinInterval(SlideshowSettings s) => s.UseUnderlay ? TimeSpan.FromSeconds(1) : TimeSpan.FromSeconds(2);
 
     public static TimeSpan Period(SlideshowSettings s) => s.Kind switch
     {
         SlideshowKind.Hourly => TimeSpan.FromHours(1),
         SlideshowKind.Daily => TimeSpan.FromDays(1),
-        _ => s.Interval < MinInterval ? MinInterval : s.Interval,
+        _ => s.Interval < MinInterval(s) ? MinInterval(s) : s.Interval,
     };
 
     private static DateTime Anchor(SlideshowSettings s) => s.Kind switch

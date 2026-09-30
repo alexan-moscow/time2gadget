@@ -233,6 +233,8 @@ public sealed partial class MainViewModel
 
     private System.Windows.Threading.DispatcherTimer? _slideshowTimer;
     private string? _appliedSlideshowSignature;
+    private WallpaperUnderlay? _underlay;     // основной способ показа слайдшоу — своё окно-подложка
+    private bool _underlayFailed;             // встроиться не удалось — показываем средствами Windows
     private SlideshowSettings Slideshow => _settings.Slideshow ??= new SlideshowSettings();
 
     /// <summary>Тумблер «Динамичная заставка / слайдшоу»: включён — шаги по расписанию, выключен — прежний фон.</summary>
@@ -261,6 +263,8 @@ public sealed partial class MainViewModel
     private void StopSlideshow(bool restore)
     {
         _slideshowTimer?.Stop();
+        _underlay?.Hide();
+        _underlayFailed = false;
         _settings.SlideshowEnabled = false;
         _settingsService.Save(_settings);
         _appliedSlideshowSignature = null;
@@ -309,6 +313,31 @@ public sealed partial class MainViewModel
     public bool ShowSlideshowDailyTime => IsSlideshowDaily && Slideshow.DailyAtTime;
     public bool ShowSlideshowIntervalStart => IsSlideshowInterval && Slideshow.IntervalStartAt;
 
+    /// <summary>Способ показа: 0 — своё окно-подложка (эффекты), 1 — средствами Windows (без эффектов).</summary>
+    public int SlideshowDisplayIndex
+    {
+        get => Slideshow.UseUnderlay ? 0 : 1;
+        set => ChangeDisplay(() => { Slideshow.UseUnderlay = value == 0; _underlayFailed = false; });
+    }
+
+    /// <summary>Эффект смены (порядок — как в <see cref="SlideshowEffect"/>).</summary>
+    public int SlideshowEffectIndex
+    {
+        get => (int)Slideshow.Effect;
+        set => ChangeDisplay(() => Slideshow.Effect = (SlideshowEffect)Math.Clamp(value, 0, 4));
+    }
+
+    public bool IsSlideshowUnderlay => Slideshow.UseUnderlay;
+
+    /// <summary>Способ показа или эффект изменили — шаг не сбрасывается, показ — заново.</summary>
+    private void ChangeDisplay(Action change)
+    {
+        change();
+        _settingsService.Save(_settings);
+        RaiseSlideshowScheduleChanged();
+        if (SlideshowEnabled) ApplySlideshow(force: true);
+    }
+
     /// <summary>Расписание изменили — шаг 1 заново с этого момента.</summary>
     private void ChangeSchedule(Action change)
     {
@@ -327,6 +356,7 @@ public sealed partial class MainViewModel
                      nameof(SlideshowHourlyStart), nameof(SlideshowDailyTime), nameof(SlideshowInterval), nameof(SlideshowIntervalStart),
                      nameof(IsSlideshowHourly), nameof(IsSlideshowDaily), nameof(IsSlideshowInterval),
                      nameof(ShowSlideshowHourlyTime), nameof(ShowSlideshowDailyTime), nameof(ShowSlideshowIntervalStart), nameof(SlideshowStatus),
+                     nameof(SlideshowDisplayIndex), nameof(SlideshowEffectIndex), nameof(IsSlideshowUnderlay),
                  })
             OnPropertyChanged(name);
     }
@@ -421,6 +451,8 @@ public sealed partial class MainViewModel
     internal void ApplySlideshow(bool force)
     {
         if (!SlideshowEnabled) return;
+        // Проводник перезапустился — подложка пропала вместе с ним: встроить заново, даже если шаг тот же.
+        if (Slideshow.UseUnderlay && !_underlayFailed && _underlay is { IsHostAlive: false }) force = true;
         var monitors = WallpaperService.Monitors();
         long changes = SlideshowSchedule.StepsSinceStart(Slideshow, DateTime.Now);
         int global = SlideshowGlobalLength(monitors);
@@ -436,10 +468,48 @@ public sealed partial class MainViewModel
                 if (slot?.Color is { } hex) return new MonitorWallpaperPlan(m, null, WallpaperFit.None, WallpaperService.ParseColor(hex));
                 return PreviousBackgroundPlan(m);
             }).ToList();
-            if (WallpaperService.Apply(plans)) _appliedSlideshowSignature = signature;
+            if (ShowSlideshowFrames(plans)) _appliedSlideshowSignature = signature;
         }
         OnPropertyChanged(nameof(SlideshowStatus));
         ScheduleSlideshowTimer();
+    }
+
+    /// <summary>Показать шаг: подложкой (основной способ, с эффектом) или средствами Windows (запасной / подложка недоступна).</summary>
+    private bool ShowSlideshowFrames(IReadOnlyList<MonitorWallpaperPlan> plans)
+    {
+        if (Slideshow.UseUnderlay)
+        {
+            try
+            {
+                _underlay ??= new WallpaperUnderlay();
+                var frames = WallpaperService.PrepareFiles(plans, WallpaperService.WindowsBackground());
+                if (_underlay.Show(frames, Slideshow.Effect))
+                {
+                    _underlayFailed = false;
+                    WallpaperService.CleanupGeneratedExcept(frames.Select(f => f.File));
+                    return true;
+                }
+            }
+            catch { /* ниже — средствами Windows */ }
+            _underlayFailed = true;
+        }
+        else _underlay?.Hide();
+        return WallpaperService.Apply(plans);
+    }
+
+    /// <summary>
+    /// Выход из программы: подложка исчезнет вместе с программой — на её место текущий шаг обычным фоном Windows, чтобы на
+    /// мониторах не осталось старой картинки.
+    /// </summary>
+    public void OnAppExit()
+    {
+        if (!SlideshowEnabled || _underlay is not { IsHostAlive: true }) return;
+        _underlay.Hide();
+        var saved = Slideshow.UseUnderlay;
+        Slideshow.UseUnderlay = false; // только на этот показ (в настройки не сохраняется)
+        ApplySlideshow(force: true);
+        Slideshow.UseUnderlay = saved;
+        _slideshowTimer?.Stop();
     }
 
     private void ScheduleSlideshowTimer()
@@ -471,6 +541,7 @@ public sealed partial class MainViewModel
             var when = next.Date == now.Date ? next.ToString("HH:mm:ss") : next.ToString("dd.MM HH:mm:ss");
             var text = $"Сейчас шаг {changes % global + 1} из {global} · следующая смена в {when}";
             if (global == 1) text += "\nДля слайдшоу нужно минимум 2 шага — пока картинка не меняется.";
+            if (Slideshow.UseUnderlay && _underlayFailed) text += "\nОкно-подложку встроить не удалось — показываем средствами Windows (без эффектов).";
             if (SlideshowLengthsWarning(monitors) is { Length: > 0 } warning) text += "\n" + warning;
             return text;
         }
@@ -496,6 +567,7 @@ public sealed partial class MainViewModel
     internal void ResetWallpaperFeatures()
     {
         _slideshowTimer?.Stop();
+        _underlay?.Hide();
         if (StaticWallpaperEnabled || SlideshowEnabled) RestoreBackgroundBefore();
     }
 
@@ -537,7 +609,7 @@ public sealed partial class MainViewModel
             StaticModes = _settings.WallpaperModes.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value, kv => kv.Value),
             StaticColors = _settings.WallpaperColors.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value, kv => kv.Value),
             SlideshowEnabled = SlideshowEnabled,
-            Kind = s.Kind, HourlyFromTime = s.HourlyFromTime, HourlyStart = s.HourlyStart, DailyAtTime = s.DailyAtTime, DailyTime = s.DailyTime,
+            Kind = s.Kind, UseUnderlay = s.UseUnderlay, Effect = s.Effect, HourlyFromTime = s.HourlyFromTime, HourlyStart = s.HourlyStart, DailyAtTime = s.DailyAtTime, DailyTime = s.DailyTime,
             Interval = s.Interval, IntervalStartAt = s.IntervalStartAt, IntervalStart = s.IntervalStart,
             SlideshowMonitors = s.Monitors.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value,
                 kv => kv.Value.Select(slot => slot is null ? null : new SlideshowSlot { Image = Name(slot.Image), Color = slot.Color, Fit = slot.Fit }).ToList()),
@@ -574,6 +646,7 @@ public sealed partial class MainViewModel
         s.Monitors = data.SlideshowMonitors.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!,
             kv => kv.Value.Select(slot => slot is null ? null : new SlideshowSlot { Image = CopyOf(slot.Image), Color = slot.Color, Fit = slot.Fit })
                           .Select(slot => slot is { IsEmpty: false } ? slot : null).ToList());
+        (s.UseUnderlay, s.Effect) = (data.UseUnderlay, data.Effect);
         s.CycleLengths = data.CycleLengths.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         s.Cleared.Clear();
         _settingsService.Save(_settings);

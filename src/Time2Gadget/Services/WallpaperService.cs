@@ -214,8 +214,7 @@ public static class WallpaperService
 
     /// <summary>
     /// Поставить фон по плану для каждого монитора: картинка в своём режиме, сплошной цвет или прежний фон монитора.
-    /// Картинка для каждого монитора готовится под его разрешение (папка Generated, новые имена — иначе Windows может не
-    /// перечитать файл), старые готовые удаляются.
+    /// Картинки готовятся под разрешение каждого монитора (<see cref="PrepareFiles"/>), старые готовые убираются.
     /// </summary>
     public static bool Apply(IReadOnlyList<MonitorWallpaperPlan> plans)
     {
@@ -223,44 +222,62 @@ public static class WallpaperService
         {
             if (plans.Count == 0) return false;
             var w = Create();
-            var windowsBackground = ColorFromBgr(w.GetBackgroundColor());
-            var dir = Path.Combine(ImagesDir, "Generated");
-            Directory.CreateDirectory(dir);
-            var made = new List<(string Id, string File)>();
-            var cache = new Dictionary<string, Image>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var plan in plans)
-                {
-                    var m = plan.Monitor;
-                    var fill = plan.Fill ?? windowsBackground;
-                    bool picture = plan.Image is { } p && File.Exists(p) && plan.Fit != WallpaperFit.None;
-                    // Готовая картинка — по ключу (файл и его дата, размер монитора, режим, цвет): слайдшоу по кругу не рисует её
-                    // заново (докладка 2026-10-01: смена раз в секунду не успевала — каждая смена рисовала и сжимала 4K-картинки).
-                    var key = picture
-                        ? $"{plan.Image}|{File.GetLastWriteTimeUtc(plan.Image!).Ticks}|{m.Bounds.Width}x{m.Bounds.Height}|{plan.Fit}|{fill.ToArgb()}"
-                        : $"solid|{m.Bounds.Width}x{m.Bounds.Height}|{(plan.Fill ?? Color.Black).ToArgb()}";
-                    var file = Path.Combine(dir, $"mon{m.Number}-{StableHash(key)}{(picture ? ".jpg" : ".png")}");
-                    if (File.Exists(file)) File.SetLastWriteTimeUtc(file, DateTime.UtcNow); // свежая — не удалится при уборке
-                    else
-                    {
-                        using var bitmap = picture
-                            ? Render(cache.TryGetValue(plan.Image!, out var img) ? img : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
-                            : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
-                        if (picture) SaveJpeg(bitmap, file, 95); else bitmap.Save(file, ImageFormat.Png);
-                    }
-                    made.Add((m.Id, file));
-                }
-            }
-            finally { foreach (var img in cache.Values) img.Dispose(); }
+            var made = PrepareFiles(plans, ColorFromBgr(w.GetBackgroundColor()));
+            if (made.Count == 0) return false;
             w.SetPosition(PositionStretch);
-            foreach (var (id, file) in made) w.SetWallpaper(id, file);
+            foreach (var (m, file) in made) w.SetWallpaper(m.Id, file);
             CleanupGenerated(keep: made.Select(x => x.File).ToArray());
             return true;
         }
         catch { return false; }
     }
 
+    /// <summary>Цвет фона Windows (поля у «по размеру»/«по центру»).</summary>
+    public static Color WindowsBackground()
+    {
+        try { return ColorFromBgr(Create().GetBackgroundColor()); }
+        catch { return Color.Black; }
+    }
+
+    /// <summary>
+    /// Готовые картинки для мониторов (без установки фона) — для подложки слайдшоу (Services/WallpaperUnderlay) и для Apply.
+    /// Готовая картинка — по ключу (файл и его дата, размер монитора, режим, цвет): слайдшоу по кругу не рисует её заново
+    /// (докладка 2026-10-01: смена раз в секунду не успевала — каждая смена рисовала и сжимала 4K-картинки).
+    /// </summary>
+    public static List<(WallpaperMonitor Monitor, string File)> PrepareFiles(IReadOnlyList<MonitorWallpaperPlan> plans, Color windowsBackground)
+    {
+        var dir = Path.Combine(ImagesDir, "Generated");
+        Directory.CreateDirectory(dir);
+        var made = new List<(WallpaperMonitor, string)>();
+        var cache = new Dictionary<string, Image>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var plan in plans)
+            {
+                var m = plan.Monitor;
+                var fill = plan.Fill ?? windowsBackground;
+                bool picture = plan.Image is { } p && File.Exists(p) && plan.Fit != WallpaperFit.None;
+                var key = picture
+                    ? $"{plan.Image}|{File.GetLastWriteTimeUtc(plan.Image!).Ticks}|{m.Bounds.Width}x{m.Bounds.Height}|{plan.Fit}|{fill.ToArgb()}"
+                    : $"solid|{m.Bounds.Width}x{m.Bounds.Height}|{(plan.Fill ?? Color.Black).ToArgb()}";
+                var file = Path.Combine(dir, $"mon{m.Number}-{StableHash(key)}{(picture ? ".jpg" : ".png")}");
+                if (File.Exists(file)) File.SetLastWriteTimeUtc(file, DateTime.UtcNow); // свежая — не удалится при уборке
+                else
+                {
+                    using var bitmap = picture
+                        ? Render(cache.TryGetValue(plan.Image!, out var img) ? img : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
+                        : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
+                    if (picture) SaveJpeg(bitmap, file, 95); else bitmap.Save(file, ImageFormat.Png);
+                }
+                made.Add((m, file));
+            }
+        }
+        finally { foreach (var img in cache.Values) img.Dispose(); }
+        return made;
+    }
+
+    /// <summary>Уборка готовых картинок после показа подложкой (стоящие сейчас — не трогать).</summary>
+    public static void CleanupGeneratedExcept(IEnumerable<string> keep) => CleanupGenerated(keep.ToArray());
     private static string StableHash(string text)
     {
         var bytes = System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(text));

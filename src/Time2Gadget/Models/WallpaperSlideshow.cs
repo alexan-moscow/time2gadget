@@ -11,6 +11,21 @@ public enum SlideshowKind
     Interval,
 }
 
+/// <summary>Эффект смены картинок слайдшоу (только при показе своим окном-подложкой, докладка 2026-10-01).</summary>
+public enum SlideshowEffect
+{
+    /// <summary>Мгновенно.</summary>
+    Instant,
+    /// <summary>Плавное растворение (по умолчанию — ближе всего к смене средствами Windows).</summary>
+    Fade,
+    /// <summary>Сдвиг: новая картинка выезжает справа, старая уходит влево.</summary>
+    Slide,
+    /// <summary>Шторка: новая картинка открывается сверху вниз.</summary>
+    Curtain,
+    /// <summary>Наплыв: новая проявляется с лёгким приближением.</summary>
+    Zoom,
+}
+
 /// <summary>Шаг слайдшоу на одном мониторе: картинка (в своём режиме) или сплошной цвет; пусто — прежний фон монитора.</summary>
 public sealed class SlideshowSlot
 {
@@ -29,6 +44,14 @@ public sealed class SlideshowSettings
     public const int SlotCount = 30;
 
     public SlideshowKind Kind { get; set; } = SlideshowKind.Daily;
+
+    /// <summary>
+    /// Показ: true — своим окном-подложкой за значками рабочего стола (эффекты, смена хоть раз в секунду; основной способ),
+    /// false — средствами Windows (фон рабочего стола, без эффектов; запасной — на случай ограничений Windows).
+    /// </summary>
+    public bool UseUnderlay { get; set; } = true;
+
+    public SlideshowEffect Effect { get; set; } = SlideshowEffect.Fade;
 
     /// <summary>Раз в час: true — от указанного времени старта, false — каждый реальный час.</summary>
     public bool HourlyFromTime { get; set; }
