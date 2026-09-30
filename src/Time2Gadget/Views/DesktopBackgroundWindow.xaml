@@ -83,7 +83,12 @@
                           ToolTip="{Binding SelectedImage.Label, FallbackValue='Картинка для всех мониторов — выберите из списка или добавьте свои файлы'}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis">
+                            <!-- Миниатюра (как в окне шагов слайдшоу) и имя; у «Выбрать свой файл…» миниатюры нет. -->
+                            <StackPanel Orientation="Horizontal">
+                            <Border x:Name="ThumbBox" Width="48" Height="28" CornerRadius="2" ClipToBounds="True" Background="#101418" Margin="0,1,8,1">
+                                <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
+                            </Border>
+                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Style.Triggers>
@@ -94,6 +99,12 @@
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsBrowse}" Value="True">
+                                    <Setter TargetName="ThumbBox" Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>

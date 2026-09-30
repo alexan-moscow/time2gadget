@@ -50,6 +50,11 @@ public sealed class SlideshowSettings
     /// <summary>Путь устройства монитора → шаги (до <see cref="SlotCount"/>, null — пусто).</summary>
     public Dictionary<string, List<SlideshowSlot?>> Monitors { get; set; } = new();
 
+    /// <summary>
+    /// Своя длина цикла монитора (тумблер «Шагов в цикле» в окне шагов, 2–30); нет записи — длина по последнему заполненному шагу.
+    /// </summary>
+    public Dictionary<string, int> CycleLengths { get; set; } = new();
+
     /// <summary>Шаги монитора до «✕» (левый щелчок) — правый щелчок возвращает их.</summary>
     public Dictionary<string, List<SlideshowSlot?>> Cleared { get; set; } = new();
 }

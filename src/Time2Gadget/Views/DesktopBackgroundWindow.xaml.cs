@@ -16,6 +16,12 @@ public partial class DesktopBackgroundWindow : Window
         DataContext = viewModel;
         // «Монитор N» в слайдшоу — окно шагов этого монитора (модальное: пока оно открыто, настройки не меняются из-под него).
         viewModel.OpenSlideshowEditor = monitor => new SlideshowEditorWindow(main, monitor) { Owner = this }.ShowDialog();
+        // Импорт: какие мониторы из архива на какие текущие (окно сопоставления).
+        viewModel.ChooseImport = data =>
+        {
+            var dialog = new ImportMonitorsWindow(new ImportMonitorsViewModel(data)) { Owner = this };
+            return dialog.ShowDialog() == true ? (dialog.Apply, dialog.Map) : null;
+        };
         // «✕», сброс настроек — перечитать список и кнопки мониторов.
         EventHandler reload = (_, _) => viewModel.Reload();
         main.WallpaperChanged += reload;

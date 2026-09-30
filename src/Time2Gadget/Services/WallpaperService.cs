@@ -131,8 +131,11 @@ public static class WallpaperService
         catch { return new(); }
     }
 
-    /// <summary>Сколько картинок может быть в папке программы (решение пользователя, 2026-09-30).</summary>
-    public const int LibraryLimit = 30;
+    /// <summary>Сколько картинок может быть в папке программы (решение пользователя, 2026-09-30: 500).</summary>
+    public const int LibraryLimit = 500;
+
+    /// <summary>Сколько картинок можно добавить за раз (выбором файлов) и сколько шагов у слайдшоу.</summary>
+    public const int BatchLimit = 30;
 
     /// <summary>
     /// Скопировать выбранные картинки в папку программы, не больше <see cref="LibraryLimit"/> всего. Возвращает пути копий

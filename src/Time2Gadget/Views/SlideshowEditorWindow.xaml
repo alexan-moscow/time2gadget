@@ -44,12 +44,21 @@
             <ColumnDefinition Width="280" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Сверху: слева — добавить картинки, справа — скопировать шаги на другой монитор. -->
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-            <Button Content="Добавить картинки…" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
-                    ToolTip="Одну или несколько (jpg, jpeg, png) — копии в папку программы, не больше 30" />
+        <!-- Сверху: слева — добавить картинки, посередине — «Шагов в цикле» (тумблер + ползунок), справа — скопировать на другой
+             монитор. Кнопки одной высоты. -->
+        <Button Content="Добавить картинки…" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
+                Height="34" Margin="0,0,0,8" HorizontalAlignment="Left"
+                ToolTip="Одну или несколько (jpg, jpeg, png) — копии в папку программы: за раз не больше 30, всего в папке до 500" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,8">
+            <ToggleButton Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding CycleEnabled}" VerticalAlignment="Center"
+                          ToolTip="Выключено — шагов в цикле столько, сколько до последнего заполненного шага; включено — выбранное число" />
+            <TextBlock Text="Шагов в цикле" VerticalAlignment="Center" Margin="8,0,8,0" />
+            <Slider Width="140" Minimum="2" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="5"
+                    Value="{Binding CycleLength}" IsEnabled="{Binding CycleEnabled}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CycleInfo}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{StaticResource Brush.TextSecondary}"
+                       ToolTip="Сколько шагов в цикле: выключено — до последнего заполненного шага, включено — выбранное число" />
         </StackPanel>
-        <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Margin="0,0,0,8" Content="Скопировать на другой монитор…"
+        <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Height="34" Margin="0,0,0,8" Content="Скопировать на другой монитор…"
                 Command="{Binding OpenCopyMenuCommand}" IsEnabled="{Binding HasCopyTargets}" Style="{StaticResource Style.SettingsButton}"
                 ToolTip="Шаги, как они сейчас в этом окне, — на отмеченные мониторы" />
         <Popup Grid.Column="2" PlacementTarget="{Binding ElementName=CopyButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
@@ -130,7 +139,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="4" Height="78" AllowDrop="True" Drop="OnSlotDrop" DragOver="OnSlotDragOver" ToolTip="{Binding ToolTip}">
+                            <Grid x:Name="SlotRoot" Margin="4" Height="78" AllowDrop="True" Drop="OnSlotDrop" DragOver="OnSlotDragOver" ToolTip="{Binding ToolTip}">
                                 <Border x:Name="Tile" CornerRadius="4" BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}"
                                         Background="{StaticResource Brush.SurfaceSector}" ClipToBounds="True">
                                     <Grid>
@@ -197,6 +206,10 @@
                                 </Popup>
                             </Grid>
                             <DataTemplate.Triggers>
+                                <!-- шаг за пределами цикла — приглушён -->
+                                <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                    <Setter TargetName="SlotRoot" Property="Opacity" Value="0.3" />
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsEmpty}" Value="False">
                                     <Setter TargetName="ClearButton" Property="Visibility" Value="Visible" />
                                     <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
@@ -224,14 +237,16 @@
             </ScrollViewer>
         </DockPanel>
 
-        <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding Status}" TextWrapping="Wrap" FontSize="11"
-                   Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0" />
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="3">
+            <TextBlock Text="{Binding CycleWarning}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0" />
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,2,0,0" />
+        </StackPanel>
 
         <!-- Внизу справа: «✕» — отмена, «Сохранить». -->
         <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="✕" Click="OnCancel" Style="{StaticResource Style.SettingsButton}" Padding="12,6" Margin="0,0,8,0" IsCancel="True"
+            <Button Content="✕" Click="OnCancel" Style="{StaticResource Style.SettingsButton}" Height="34" Padding="12,0" Margin="0,0,6,0" IsCancel="True"
                     ToolTip="Отмена — закрыть без сохранения" />
-            <Button Content="Сохранить" Click="OnSave" Style="{StaticResource Style.SettingsButton}" Padding="20,6" IsDefault="True"
+            <Button Content="Сохранить" Click="OnSave" Style="{StaticResource Style.SettingsButton}" Height="34" Padding="20,0" Margin="0" IsDefault="True"
                     ToolTip="Сохранить шаги этого монитора" />
         </StackPanel>
     </Grid>

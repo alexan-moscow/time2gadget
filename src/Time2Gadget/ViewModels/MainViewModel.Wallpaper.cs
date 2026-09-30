@@ -339,15 +339,29 @@ public sealed partial class MainViewModel
         return slots.Take(SlideshowSettings.SlotCount).ToList();
     }
 
-    internal int SlideshowFilledCount(string monitorId) =>
-        Slideshow.Monitors.TryGetValue(monitorId, out var list) ? list.Count(s => s is { IsEmpty: false }) : 0;
+    /// <summary>Своя длина цикла монитора (тумблер «Шагов в цикле») или null — по заполненным шагам.</summary>
+    internal int? SlideshowCycleSetting(string monitorId) =>
+        Slideshow.CycleLengths.TryGetValue(monitorId, out var n) ? n : null;
 
-    /// <summary>Сохранить шаги монитора (окно шагов → «Сохранить», «Скопировать на другой монитор»).</summary>
-    internal void SetSlideshowSlots(string monitorId, IEnumerable<SlideshowSlot?> slots)
+    /// <summary>Номер последнего заполненного шага (0 — шагов нет).</summary>
+    internal int SlideshowLastFilled(string monitorId) =>
+        Slideshow.Monitors.TryGetValue(monitorId, out var list) ? list.FindLastIndex(s => s is { IsEmpty: false }) + 1 : 0;
+
+    /// <summary>
+    /// Длина цикла монитора (решение пользователя 2026-09-30): тумблер включён — выбранное число; выключен — номер последнего
+    /// заполненного шага (1 и 5 → 5, только 13 → 13). Шагов нет вовсе — 0 (на мониторе прежний фон).
+    /// </summary>
+    internal int SlideshowCycleLength(string monitorId) =>
+        SlideshowLastFilled(monitorId) == 0 ? 0 : SlideshowCycleSetting(monitorId) ?? SlideshowLastFilled(monitorId);
+
+    /// <summary>Сохранить шаги монитора и его длину цикла (null — по заполненным шагам).</summary>
+    internal void SetSlideshowSlots(string monitorId, IEnumerable<SlideshowSlot?> slots, int? cycleLength)
     {
         var list = slots.Select(s => s is { IsEmpty: false } ? s.Clone() : null).ToList();
         if (list.All(s => s is null)) Slideshow.Monitors.Remove(monitorId);
         else Slideshow.Monitors[monitorId] = list;
+        if (cycleLength is { } n) Slideshow.CycleLengths[monitorId] = Math.Clamp(n, 2, SlideshowSettings.SlotCount);
+        else Slideshow.CycleLengths.Remove(monitorId);
         _settingsService.Save(_settings);
         if (SlideshowEnabled) ApplySlideshow(force: true);
         RaiseWallpaperChanged();
@@ -376,28 +390,27 @@ public sealed partial class MainViewModel
 
     internal bool CanRestoreSlideshowMonitor(string monitorId) => Slideshow.Cleared.ContainsKey(monitorId);
 
-    /// <summary>Сколько шагов в круге: до последнего заполненного шага среди подключённых мониторов.</summary>
-    private int SlideshowLength(IEnumerable<WallpaperMonitor> monitors) =>
-        monitors.Select(m => Slideshow.Monitors.TryGetValue(m.Id, out var list) ? list.FindLastIndex(s => s is { IsEmpty: false }) + 1 : 0)
-                .DefaultIfEmpty(0).Max();
+    /// <summary>Шаг монитора (0-based) после <paramref name="changes"/> смен: каждый монитор идёт по кругу своей длины.</summary>
+    private int SlideshowStepFor(string monitorId, long changes) =>
+        SlideshowCycleLength(monitorId) is var n and > 0 ? (int)(changes % n) : -1;
 
     /// <summary>
-    /// Поставить текущий шаг: все мониторы — на один и тот же шаг; пустой шаг монитора — его прежний фон. Без
-    /// <paramref name="force"/> — только если шаг или мониторы поменялись. Дальше — таймер до следующей смены.
+    /// Поставить текущий шаг: смены — для всех мониторов разом, каждый монитор — по кругу своей длины; пустой шаг — прежний фон
+    /// монитора. Без <paramref name="force"/> — только если шаги или мониторы поменялись. Дальше — таймер до следующей смены.
     /// </summary>
     internal void ApplySlideshow(bool force)
     {
         if (!SlideshowEnabled) return;
         var monitors = WallpaperService.Monitors();
-        int count = SlideshowLength(monitors);
-        int step = SlideshowSchedule.CurrentStep(Slideshow, DateTime.Now, count);
-        var signature = $"{step}/{count}|" + string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}"));
+        long changes = SlideshowSchedule.StepsSinceStart(Slideshow, DateTime.Now);
+        var signature = string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{SlideshowStepFor(m.Id, changes)}"));
         if (force || signature != _appliedSlideshowSignature)
         {
             EnsureBackgroundCaptured();
             var plans = monitors.Select(m =>
             {
-                var slot = count > 0 && Slideshow.Monitors.TryGetValue(m.Id, out var list) && step < list.Count ? list[step] : null;
+                int step = SlideshowStepFor(m.Id, changes);
+                var slot = step >= 0 && Slideshow.Monitors.TryGetValue(m.Id, out var list) && step < list.Count ? list[step] : null;
                 if (slot?.Image is { } image && File.Exists(image)) return new MonitorWallpaperPlan(m, image, slot.Fit, null);
                 if (slot?.Color is { } hex) return new MonitorWallpaperPlan(m, null, WallpaperFit.None, WallpaperService.ParseColor(hex));
                 return PreviousBackgroundPlan(m);
@@ -422,18 +435,23 @@ public sealed partial class MainViewModel
         _slideshowTimer.Start();
     }
 
-    /// <summary>«Шаг 3 из 7 · следующая смена в 15:00» — под настройками слайдшоу.</summary>
+    /// <summary>«Монитор 1 — шаг 3 из 5, монитор 2 — шаг 1 из 3 · следующая смена в 15:00» — под настройками слайдшоу.</summary>
     public string SlideshowStatus
     {
         get
         {
             if (!SlideshowEnabled) return string.Empty;
-            int count = SlideshowLength(WallpaperService.Monitors());
-            if (count == 0) return "Шаги не заполнены — на мониторах прежний фон. Нажмите на монитор, чтобы разложить картинки по шагам.";
+            var monitors = WallpaperService.Monitors();
             var now = DateTime.Now;
+            long changes = SlideshowSchedule.StepsSinceStart(Slideshow, now);
+            var parts = monitors.Where(m => SlideshowCycleLength(m.Id) > 0)
+                                .Select(m => $"монитор {m.Number} — шаг {SlideshowStepFor(m.Id, changes) + 1} из {SlideshowCycleLength(m.Id)}").ToList();
+            if (parts.Count == 0) return "Шаги не заполнены — на мониторах прежний фон. Нажмите на монитор, чтобы разложить картинки по шагам.";
             var next = SlideshowSchedule.NextChange(Slideshow, now);
             var when = next.Date == now.Date ? next.ToString("HH:mm:ss") : next.ToString("dd.MM HH:mm:ss");
-            return $"Сейчас шаг {SlideshowSchedule.CurrentStep(Slideshow, now, count) + 1} из {count} · следующая смена в {when}";
+            var text = "Сейчас: " + string.Join(", ", parts) + $" · следующая смена в {when}";
+            if (monitors.Any(m => SlideshowCycleLength(m.Id) == 1)) text += "\nДля слайдшоу нужно минимум 2 шага — на мониторе с одним шагом картинка не меняется.";
+            return text;
         }
     }
 
@@ -486,7 +504,8 @@ public sealed partial class MainViewModel
     /// <summary>Экспорт: все картинки папки программы и настройки статичной заставки и слайдшоу — одним архивом.</summary>
     internal void ExportWallpaper(string zipPath)
     {
-        var numbers = WallpaperService.Monitors().ToDictionary(m => m.Id, m => m.Number);
+        var current = WallpaperService.Monitors();
+        var numbers = current.ToDictionary(m => m.Id, m => m.Number);
         int? Num(string id) => numbers.TryGetValue(id, out var n) ? n : null;
         string? Name(string? path) => path is null ? null : Path.GetFileName(path);
         var s = Slideshow;
@@ -501,15 +520,19 @@ public sealed partial class MainViewModel
             Interval = s.Interval, IntervalStartAt = s.IntervalStartAt, IntervalStart = s.IntervalStart,
             SlideshowMonitors = s.Monitors.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value,
                 kv => kv.Value.Select(slot => slot is null ? null : new SlideshowSlot { Image = Name(slot.Image), Color = slot.Color, Fit = slot.Fit }).ToList()),
+            CycleLengths = s.CycleLengths.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value, kv => kv.Value),
+            MonitorSizes = current.ToDictionary(m => m.Number, m => $"{m.Bounds.Width}×{m.Bounds.Height}"),
         };
         WallpaperPackage.Export(zipPath, data, WallpaperService.ListImages());
     }
 
     /// <summary>
-    /// Импорт: картинки — в папку программы; настройки заменяют свои (мониторы — по номерам). <paramref name="apply"/> — включить
-    /// режим, который был включён при экспорте; иначе только скопировать (оба режима выключены). Возвращает текст для пользователя.
+    /// Импорт: картинки — в папку программы; настройки заменяют свои. <paramref name="monitorMap"/> — сопоставление мониторов:
+    /// номер монитора в архиве → текущий монитор (нет в словаре — настройки этого монитора не переносятся).
+    /// <paramref name="apply"/> — включить режим, который был включён при экспорте; иначе только скопировать (оба режима
+    /// выключены). Возвращает текст для пользователя.
     /// </summary>
-    internal string ImportWallpaper(string zipPath, bool apply)
+    internal string ImportWallpaper(string zipPath, bool apply, IReadOnlyDictionary<int, string> monitorMap)
     {
         var (data, images, skipped) = WallpaperPackage.Import(zipPath);
         var skippedText = skipped > 0 ? $" Не поместились {skipped} (в папке программы не больше {WallpaperService.LibraryLimit} картинок)." : "";
@@ -519,8 +542,7 @@ public sealed partial class MainViewModel
         if (SlideshowEnabled) StopSlideshow(restore: true);
         else if (StaticWallpaperEnabled) { _settings.StaticWallpaperEnabled = false; RestoreBackgroundBefore(); }
 
-        var ids = WallpaperService.Monitors().ToDictionary(m => m.Number, m => m.Id);
-        string? Id(int number) => ids.TryGetValue(number, out var id) ? id : null;
+        string? Id(int number) => monitorMap.TryGetValue(number, out var id) ? id : null;
         string? CopyOf(string? name) => name is not null && images.TryGetValue(name, out var p) ? p : null;
         _settings.WallpaperImage = CopyOf(data.StaticImage);
         _settings.WallpaperModes = data.StaticModes.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
@@ -531,6 +553,7 @@ public sealed partial class MainViewModel
         s.Monitors = data.SlideshowMonitors.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!,
             kv => kv.Value.Select(slot => slot is null ? null : new SlideshowSlot { Image = CopyOf(slot.Image), Color = slot.Color, Fit = slot.Fit })
                           .Select(slot => slot is { IsEmpty: false } ? slot : null).ToList());
+        s.CycleLengths = data.CycleLengths.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         s.Cleared.Clear();
         _settingsService.Save(_settings);
 

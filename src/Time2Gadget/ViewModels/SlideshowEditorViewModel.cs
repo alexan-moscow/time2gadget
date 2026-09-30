@@ -81,6 +81,14 @@ public sealed class SlotItem : INotifyPropertyChanged
     public int Number { get; }
     public SlideshowSlot? Slot => _slot;
 
+    private bool _isActive = true;
+    /// <summary>Шаг входит в цикл (иначе приглушён — «Шагов в цикле» меньше его номера).</summary>
+    public bool IsActive
+    {
+        get => _isActive;
+        set { if (_isActive != value) { _isActive = value; Raise(nameof(IsActive)); } }
+    }
+
     public bool IsEmpty => _slot is null || _slot.IsEmpty;
     public bool HasImage => _slot?.Image is not null;
     public bool HasColor => _slot?.Image is null && _slot?.Color is not null;
@@ -150,7 +158,15 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
         _main = main;
         Monitor = monitor;
         var slots = main.SlideshowSlotsFor(monitor.Id);
-        for (int i = 0; i < slots.Count; i++) Slots.Add(new SlotItem(i + 1, slots[i]));
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var item = new SlotItem(i + 1, slots[i]);
+            item.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SlotItem.Slot)) RefreshCycle(); };
+            Slots.Add(item);
+        }
+        _cycleEnabled = main.SlideshowCycleSetting(monitor.Id) is not null;
+        _cycleLength = main.SlideshowCycleSetting(monitor.Id) ?? Math.Max(2, main.SlideshowLastFilled(monitor.Id));
+        RefreshCycle();
         foreach (var m in WallpaperService.Monitors().Where(m => m.Id != monitor.Id)) CopyTargets.Add(new CopyTargetItem(m));
         ReloadLibrary();
     }
@@ -196,6 +212,49 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
         ReloadLibrary();
     }
 
+    // ---- Шагов в цикле (решение пользователя 2026-09-30) ----
+    // Тумблер выключен: цикл — до последнего заполненного шага (1 и 5 → 5, только 13 → 13). Включён: ползунок 2–30, шаги
+    // после выбранного числа приглушены. Меньше двух шагов — предупреждение: слайдшоу не из чего менять.
+
+    private bool _cycleEnabled;
+    private int _cycleLength;
+
+    public bool CycleEnabled
+    {
+        get => _cycleEnabled;
+        set { _cycleEnabled = value; OnPropertyChanged(); RefreshCycle(); }
+    }
+
+    public int CycleLength
+    {
+        get => _cycleLength;
+        set { _cycleLength = Math.Clamp(value, 2, SlideshowSettings.SlotCount); OnPropertyChanged(); RefreshCycle(); }
+    }
+
+    private int LastFilled => Slots.LastOrDefault(s => !s.IsEmpty)?.Number ?? 0;
+
+    /// <summary>Длина цикла сейчас (как её посчитает слайдшоу).</summary>
+    public int EffectiveCycle => LastFilled == 0 ? 0 : CycleEnabled ? CycleLength : LastFilled;
+
+    /// <summary>Число справа от ползунка: включено — выбранное, выключено — по последнему заполненному шагу.</summary>
+    public string CycleInfo => CycleEnabled
+        ? CycleLength.ToString()
+        : LastFilled == 0 ? "по заполненным" : $"{LastFilled} (по заполненным)";
+
+    public string CycleWarning => EffectiveCycle == 1
+        ? "Для слайдшоу нужно минимум 2 шага: заполните ещё шаг или включите «Шагов в цикле» и выберите 2 и больше."
+        : string.Empty;
+
+    private void RefreshCycle()
+    {
+        foreach (var s in Slots) s.IsActive = !CycleEnabled || s.Number <= CycleLength;
+        OnPropertyChanged(nameof(EffectiveCycle));
+        OnPropertyChanged(nameof(CycleInfo));
+        OnPropertyChanged(nameof(CycleWarning));
+    }
+
+    private int? CycleSetting => CycleEnabled ? CycleLength : null;
+
     /// <summary>Картинку перетащили на шаг.</summary>
     public void DropImage(SlotItem slot, string path) => slot.SetImage(path);
 
@@ -214,14 +273,14 @@ public sealed class SlideshowEditorViewModel : INotifyPropertyChanged
         var targets = CopyTargets.Where(t => t.IsChecked).ToList();
         IsCopyMenuOpen = false;
         if (targets.Count == 0) return;
-        foreach (var t in targets) _main.SetSlideshowSlots(t.Monitor.Id, Slots.Select(s => s.Slot));
+        foreach (var t in targets) _main.SetSlideshowSlots(t.Monitor.Id, Slots.Select(s => s.Slot), CycleSetting);
         Status = "Шаги скопированы: " + string.Join(", ", targets.Select(t => $"монитор {t.Monitor.Number}")) + ".";
         foreach (var t in targets) t.IsChecked = false;
     });
     private RelayCommand? _applyCopyCommand;
 
     /// <summary>«Сохранить»: шаги — в настройки (слайдшоу включено — сразу на экран).</summary>
-    public void Save() => _main.SetSlideshowSlots(Monitor.Id, Slots.Select(s => s.Slot));
+    public void Save() => _main.SetSlideshowSlots(Monitor.Id, Slots.Select(s => s.Slot), CycleSetting);
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

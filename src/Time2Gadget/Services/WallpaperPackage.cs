@@ -23,6 +23,15 @@ public sealed class WallpaperPackageData
     public bool IntervalStartAt { get; set; }
     public TimeSpan IntervalStart { get; set; }
     public Dictionary<int, List<SlideshowSlot?>> SlideshowMonitors { get; set; } = new();
+    public Dictionary<int, int> CycleLengths { get; set; } = new();
+
+    /// <summary>Мониторы при экспорте: номер → «3440×1440» (для сопоставления с мониторами при импорте).</summary>
+    public Dictionary<int, string> MonitorSizes { get; set; } = new();
+
+    /// <summary>Все номера мониторов, у которых в архиве есть настройки.</summary>
+    public IEnumerable<int> MonitorNumbers() =>
+        MonitorSizes.Keys.Concat(StaticModes.Keys).Concat(StaticColors.Keys).Concat(SlideshowMonitors.Keys).Concat(CycleLengths.Keys)
+                    .Distinct().OrderBy(n => n);
 }
 
 /// <summary>
@@ -44,6 +53,16 @@ public static class WallpaperPackage
         var entry = zip.CreateEntry(SettingsEntry);
         using var stream = entry.Open();
         JsonSerializer.Serialize(stream, data, Json);
+    }
+
+    /// <summary>Только настройки из архива (картинки не копируются) — чтобы сначала сопоставить мониторы.</summary>
+    public static WallpaperPackageData? ReadData(string zipPath)
+    {
+        using var zip = ZipFile.OpenRead(zipPath);
+        var entry = zip.GetEntry(SettingsEntry);
+        if (entry is null) return null;
+        using var stream = entry.Open();
+        return JsonSerializer.Deserialize<WallpaperPackageData>(stream, Json);
     }
 
     /// <summary>
