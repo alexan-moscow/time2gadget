@@ -303,7 +303,17 @@ public sealed partial class MainViewModel
 
     public TimeSpan SlideshowHourlyStart { get => Slideshow.HourlyStart; set => ChangeSchedule(() => Slideshow.HourlyStart = value); }
     public TimeSpan SlideshowDailyTime { get => Slideshow.DailyTime; set => ChangeSchedule(() => Slideshow.DailyTime = value); }
-    public TimeSpan SlideshowInterval { get => Slideshow.Interval; set => ChangeSchedule(() => Slideshow.Interval = value); }
+    /// <summary>Свой интервал: не меньше минимума способа показа (Windows — 2 с, подложка — 1 с); меньше — поле поправляется само.</summary>
+    public TimeSpan SlideshowInterval
+    {
+        get => Slideshow.Interval < SlideshowSchedule.MinInterval(Slideshow) ? SlideshowSchedule.MinInterval(Slideshow) : Slideshow.Interval;
+        set
+        {
+            var min = SlideshowSchedule.MinInterval(Slideshow);
+            ChangeSchedule(() => Slideshow.Interval = value < min ? min : value);
+            if (value < min) System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => OnPropertyChanged(nameof(SlideshowInterval)));
+        }
+    }
     public TimeSpan SlideshowIntervalStart { get => Slideshow.IntervalStart; set => ChangeSchedule(() => Slideshow.IntervalStart = value); }
 
     public bool IsSlideshowHourly => Slideshow.Kind == SlideshowKind.Hourly;
@@ -313,11 +323,17 @@ public sealed partial class MainViewModel
     public bool ShowSlideshowDailyTime => IsSlideshowDaily && Slideshow.DailyAtTime;
     public bool ShowSlideshowIntervalStart => IsSlideshowInterval && Slideshow.IntervalStartAt;
 
-    /// <summary>Способ показа: 0 — своё окно-подложка (эффекты), 1 — средствами Windows (без эффектов).</summary>
+    /// <summary>Способ показа: 0 — своё окно-подложка (эффекты), 1 — средствами Windows (без эффектов, по умолчанию).</summary>
     public int SlideshowDisplayIndex
     {
         get => Slideshow.UseUnderlay ? 0 : 1;
-        set => ChangeDisplay(() => { Slideshow.UseUnderlay = value == 0; _underlayFailed = false; });
+        set => ChangeDisplay(() =>
+        {
+            Slideshow.UseUnderlay = value == 0;
+            _underlayFailed = false;
+            // средствами Windows чаще раза в 2 с не успевает — короткий интервал поднять до минимума
+            if (Slideshow.Interval < SlideshowSchedule.MinInterval(Slideshow)) Slideshow.Interval = SlideshowSchedule.MinInterval(Slideshow);
+        });
     }
 
     /// <summary>Эффект смены (порядок — как в <see cref="SlideshowEffect"/>).</summary>
@@ -328,6 +344,7 @@ public sealed partial class MainViewModel
     }
 
     public bool IsSlideshowUnderlay => Slideshow.UseUnderlay;
+    public bool IsSlideshowWindows => !Slideshow.UseUnderlay;
 
     /// <summary>Способ показа или эффект изменили — шаг не сбрасывается, показ — заново.</summary>
     private void ChangeDisplay(Action change)
@@ -356,7 +373,7 @@ public sealed partial class MainViewModel
                      nameof(SlideshowHourlyStart), nameof(SlideshowDailyTime), nameof(SlideshowInterval), nameof(SlideshowIntervalStart),
                      nameof(IsSlideshowHourly), nameof(IsSlideshowDaily), nameof(IsSlideshowInterval),
                      nameof(ShowSlideshowHourlyTime), nameof(ShowSlideshowDailyTime), nameof(ShowSlideshowIntervalStart), nameof(SlideshowStatus),
-                     nameof(SlideshowDisplayIndex), nameof(SlideshowEffectIndex), nameof(IsSlideshowUnderlay),
+                     nameof(SlideshowDisplayIndex), nameof(SlideshowEffectIndex), nameof(IsSlideshowUnderlay), nameof(IsSlideshowWindows),
                  })
             OnPropertyChanged(name);
     }

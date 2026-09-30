@@ -46,10 +46,10 @@ public sealed class SlideshowSettings
     public SlideshowKind Kind { get; set; } = SlideshowKind.Daily;
 
     /// <summary>
-    /// Показ: true — своим окном-подложкой за значками рабочего стола (эффекты, смена хоть раз в секунду; основной способ),
-    /// false — средствами Windows (фон рабочего стола, без эффектов; запасной — на случай ограничений Windows).
+    /// Показ: false — средствами Windows (фон рабочего стола, без эффектов, не чаще раза в 2 с; по умолчанию — решение пользователя
+    /// 2026-10-01), true — своим окном-подложкой за значками рабочего стола (эффекты, смена хоть раз в секунду).
     /// </summary>
-    public bool UseUnderlay { get; set; } = true;
+    public bool UseUnderlay { get; set; }
 
     public SlideshowEffect Effect { get; set; } = SlideshowEffect.Fade;
 

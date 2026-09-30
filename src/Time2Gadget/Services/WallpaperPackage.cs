@@ -15,7 +15,7 @@ public sealed class WallpaperPackageData
     public Dictionary<int, string> StaticColors { get; set; } = new();
     public bool SlideshowEnabled { get; set; }
     public SlideshowKind Kind { get; set; }
-    public bool UseUnderlay { get; set; } = true;
+    public bool UseUnderlay { get; set; }
     public SlideshowEffect Effect { get; set; } = SlideshowEffect.Fade;
     public bool HourlyFromTime { get; set; }
     public TimeSpan HourlyStart { get; set; }

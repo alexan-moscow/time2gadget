@@ -235,14 +235,14 @@
             </Grid>
             <WrapPanel DataContext="{Binding Main}">
                 <TextBlock Text="Смена изображений" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="118" />
-                <ComboBox Width="190" SelectedIndex="{Binding SlideshowKindIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                <ComboBox Width="136" SelectedIndex="{Binding SlideshowKindIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
                     <ComboBoxItem Content="раз в час" />
                     <ComboBoxItem Content="раз в сутки" />
                     <ComboBoxItem Content="свой интервал" />
                 </ComboBox>
                 <!-- раз в час -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowHourly, Converter={StaticResource BoolToVis}}">
-                    <ComboBox Width="230" SelectedIndex="{Binding SlideshowHourlyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                    <ComboBox Width="214" SelectedIndex="{Binding SlideshowHourlyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
                         <ComboBoxItem Content="с указанного времени старта" ToolTip="Смена каждый час в минуты и секунды этого времени" />
                         <ComboBoxItem Content="каждый реальный час" ToolTip="Смена в начале каждого часа по местному времени (в :00)" />
                     </ComboBox>
@@ -251,7 +251,7 @@
                 </StackPanel>
                 <!-- раз в сутки -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowDaily, Converter={StaticResource BoolToVis}}">
-                    <ComboBox Width="230" SelectedIndex="{Binding SlideshowDailyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                    <ComboBox Width="186" SelectedIndex="{Binding SlideshowDailyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
                         <ComboBoxItem Content="в указанное время" />
                         <ComboBoxItem Content="в начале суток (00:00)" />
                     </ComboBox>
@@ -262,7 +262,7 @@
                 <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowInterval, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="каждые" VerticalAlignment="Center" Margin="0,0,6,0" />
                     <c:TimeOfDayBox Value="{Binding SlideshowInterval}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Интервал: часы, минуты, секунды — не меньше 1 секунды подложкой и 2 секунд средствами Windows" />
-                    <ComboBox Width="130" SelectedIndex="{Binding SlideshowIntervalModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                    <ComboBox Width="124" SelectedIndex="{Binding SlideshowIntervalModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
                         <ComboBoxItem Content="старт сейчас" />
                         <ComboBoxItem Content="старт в" />
                     </ComboBox>
@@ -270,22 +270,30 @@
                                     Visibility="{Binding ShowSlideshowIntervalStart, Converter={StaticResource BoolToVis}}" />
                 </StackPanel>
             </WrapPanel>
-            <!-- Эффект смены (докладка 2026-10-01): эффекты — только своим окном-подложкой; средствами Windows — без эффектов. -->
+            <!-- Эффект смены (докладка 2026-10-01): сначала способ показа, за ним эффект. Средствами Windows (по умолчанию) —
+                 эффект один, родной плавный, выбрать нельзя; своим окном-подложкой — пять эффектов. -->
             <WrapPanel DataContext="{Binding Main}" Margin="0,4,0,0">
                 <TextBlock Text="Эффект смены" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="118" />
-                <ComboBox Width="190" SelectedIndex="{Binding SlideshowEffectIndex}" IsEnabled="{Binding IsSlideshowUnderlay}" Margin="0,2,8,2" VerticalAlignment="Center"
-                          ToolTip="Как одна картинка сменяет другую (только при показе своим окном-подложкой)">
+                <ComboBox Width="186" SelectedIndex="{Binding SlideshowDisplayIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                    <ComboBoxItem Content="своим окном-подложкой"
+                                  ToolTip="Своё окно за значками рабочего стола: эффекты смены, смена хоть раз в секунду. Работает, пока запущен Тайм2гаджет — при выходе на мониторах остаётся текущая картинка обычным фоном" />
+                    <ComboBoxItem Content="средствами Windows"
+                                  ToolTip="Обычный фон рабочего стола Windows: родная плавная смена, не чаще раза в 2 секунды" />
+                </ComboBox>
+                <ComboBox Width="170" SelectedIndex="{Binding SlideshowEffectIndex}" Margin="0,2,8,2" VerticalAlignment="Center"
+                          Visibility="{Binding IsSlideshowUnderlay, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Как одна картинка сменяет другую">
                     <ComboBoxItem Content="мгновенно" />
                     <ComboBoxItem Content="плавное растворение" />
                     <ComboBoxItem Content="сдвиг" />
                     <ComboBoxItem Content="шторка" />
                     <ComboBoxItem Content="наплыв" />
                 </ComboBox>
-                <ComboBox Width="270" SelectedIndex="{Binding SlideshowDisplayIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
-                    <ComboBoxItem Content="своим окном-подложкой"
-                                  ToolTip="Своё окно за значками рабочего стола: эффекты смены, смена хоть раз в секунду. Работает, пока запущен Тайм2гаджет — при выходе на мониторах остаётся текущая картинка обычным фоном" />
-                    <ComboBoxItem Content="средствами Windows (без эффектов)"
-                                  ToolTip="Обычный фон рабочего стола Windows: без эффектов, не чаще раза в 2 секунды. Запасной способ — на случай ограничений Windows" />
+                <!-- средствами Windows: выбрать эффект Windows не даёт — у неё одна плавная смена -->
+                <ComboBox Width="190" SelectedIndex="0" IsEnabled="False" Margin="0,2,8,2" VerticalAlignment="Center"
+                          Visibility="{Binding IsSlideshowWindows, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Windows меняет фон своей плавной сменой — другого эффекта она не даёт; эффекты — при показе своим окном-подложкой">
+                    <ComboBoxItem Content="плавно (как в Windows)" />
                 </ComboBox>
             </WrapPanel>
 
