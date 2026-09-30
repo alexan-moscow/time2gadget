@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:Time2Gadget.Controls"
         Title="Настройка клавиш — Тайм2гаджет"
-        Width="480" SizeToContent="Height" MinWidth="440"
+        Width="560" SizeToContent="Height" MinWidth="500"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize">
     <!-- Докладка 2026-10-01: раздел «Клавиши» из настроек — отдельным окном «Настройка клавиш» (привязка — MainViewModel),
@@ -14,7 +14,7 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="128" />
+                    <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
@@ -74,7 +74,7 @@
             <!-- ============ Клавиши окон: указатель мыши и быстрое открытие окон (глобальные, по умолчанию — выкл) ============ -->
             <TextBlock Text="Клавиши окон" Style="{StaticResource Style.SectionHeader}" />
             <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
                 <TextBlock Text="Указатель мыши: свободен / снова в окне" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                            ToolTip="Для окон с «Не выпускать указатель мыши из окна» (окно «Размер и положение окон программ»); работает, пока такие окна есть" />
