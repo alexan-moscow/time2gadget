@@ -14,6 +14,8 @@ public partial class DesktopBackgroundWindow : Window
         MaxHeight = SystemParameters.WorkArea.Height; // выше экрана — прокрутка, а не обрезанное окно
         var viewModel = new DesktopBackgroundViewModel(main);
         DataContext = viewModel;
+        // «Монитор N» в слайдшоу — окно шагов этого монитора (модальное: пока оно открыто, настройки не меняются из-под него).
+        viewModel.OpenSlideshowEditor = monitor => new SlideshowEditorWindow(main, monitor) { Owner = this }.ShowDialog();
         // «✕», сброс настроек — перечитать список и кнопки мониторов.
         EventHandler reload = (_, _) => viewModel.Reload();
         main.WallpaperChanged += reload;

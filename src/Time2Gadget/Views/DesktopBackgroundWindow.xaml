@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:m="clr-namespace:Time2Gadget.Models"
         xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
         Title="Заставка и фон экрана — Тайм2гаджет"
-        Width="640" SizeToContent="Height" MinWidth="560"
+        Width="780" SizeToContent="Height" MinWidth="640"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanMinimize">
@@ -17,6 +18,27 @@
         <Geometry x:Key="Geo.Fill">M0,2 H3 M21,2 H24 M0,14 H3 M21,14 H24</Geometry>
         <Geometry x:Key="Geo.Center">M9,5.5 H15 V10.5 H9 Z</Geometry>
         <Geometry x:Key="Geo.None">M3,14 L21,2</Geometry>
+
+        <!-- Раздел режима: пока включён другой режим — приглушён и недоступен. -->
+        <Style x:Key="Style.ModeSection" TargetType="StackPanel">
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Строка состояния: пустая — не занимает места. -->
+        <Style x:Key="Style.StatusLine" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <!-- Прокрутка как в остальных окнах: полоса у правого края окна (поле справа — у содержимого). -->
@@ -43,8 +65,15 @@
             </TextBlock>
         </StackPanel>
 
-        <!-- ============ Фон рабочего стола: картинка + режим на каждый монитор + «✕» ============ -->
-        <TextBlock Text="Фон рабочего стола" Style="{StaticResource Style.SectionHeader}" />
+        <!-- ============ Режим 1: статичная заставка / сплошной фон — картинка + режим на каждый монитор + «✕».
+             Включён может быть только один из двух режимов: пока включён другой, раздел приглушён и недоступен. ============ -->
+        <StackPanel IsEnabled="{Binding Main.IsStaticSectionEnabled}" Style="{StaticResource Style.ModeSection}">
+        <Grid Margin="0,16,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <TextBlock Text="Статичная заставка / сплошной фон" Style="{StaticResource Style.SectionHeader}" Margin="0" VerticalAlignment="Center" />
+            <ToggleButton Grid.Column="1" Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.StaticWallpaperEnabled}"
+                          ToolTip="Включено — картинка/цвета на мониторах; выключено — прежний фон (настройки сохраняются)" />
+        </Grid>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
@@ -182,7 +211,94 @@
         </Grid>
         <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
                    Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл…» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), правый щелчок по «✕» — вернуть фон, который был до этого." />
-        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,4,0,0" />
+        <TextBlock Text="{Binding Status}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.UpdateAccent}" />
+        </StackPanel>
+
+        <!-- ============ Режим 2: динамичная заставка / слайдшоу — расписание, шаги на каждый монитор (окно SlideshowEditorWindow). ============ -->
+        <StackPanel IsEnabled="{Binding Main.IsSlideshowSectionEnabled}" Style="{StaticResource Style.ModeSection}">
+            <Grid Margin="0,16,0,8">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock Text="Динамичная заставка / слайдшоу" Style="{StaticResource Style.SectionHeader}" Margin="0" VerticalAlignment="Center" />
+                <ToggleButton Grid.Column="1" Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.SlideshowEnabled}"
+                              ToolTip="Включено — картинки меняются по расписанию на всех мониторах разом; выключено — прежний фон" />
+            </Grid>
+            <WrapPanel DataContext="{Binding Main}">
+                <TextBlock Text="Менять изображения" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox Width="150" SelectedIndex="{Binding SlideshowKindIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                    <ComboBoxItem Content="раз в час" />
+                    <ComboBoxItem Content="раз в сутки" />
+                    <ComboBoxItem Content="свой интервал" />
+                </ComboBox>
+                <!-- раз в час -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowHourly, Converter={StaticResource BoolToVis}}">
+                    <ComboBox Width="230" SelectedIndex="{Binding SlideshowHourlyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                        <ComboBoxItem Content="с указанного времени старта" ToolTip="Смена каждый час в минуты и секунды этого времени" />
+                        <ComboBoxItem Content="каждый реальный час" ToolTip="Смена в начале каждого часа по местному времени (в :00)" />
+                    </ComboBox>
+                    <c:TimeOfDayBox Value="{Binding SlideshowHourlyStart}" VerticalAlignment="Center" ToolTip="Время старта"
+                                    Visibility="{Binding ShowSlideshowHourlyTime, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+                <!-- раз в сутки -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowDaily, Converter={StaticResource BoolToVis}}">
+                    <ComboBox Width="230" SelectedIndex="{Binding SlideshowDailyModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                        <ComboBoxItem Content="в указанное время" />
+                        <ComboBoxItem Content="в начале суток (00:00)" />
+                    </ComboBox>
+                    <c:TimeOfDayBox Value="{Binding SlideshowDailyTime}" VerticalAlignment="Center" ToolTip="Время смены"
+                                    Visibility="{Binding ShowSlideshowDailyTime, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+                <!-- свой интервал -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsSlideshowInterval, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="каждые" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <c:TimeOfDayBox Value="{Binding SlideshowInterval}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Интервал: часы, минуты, секунды" />
+                    <ComboBox Width="130" SelectedIndex="{Binding SlideshowIntervalModeIndex}" Margin="0,2,8,2" VerticalAlignment="Center">
+                        <ComboBoxItem Content="старт сейчас" />
+                        <ComboBoxItem Content="старт в" />
+                    </ComboBox>
+                    <c:TimeOfDayBox Value="{Binding SlideshowIntervalStart}" VerticalAlignment="Center" ToolTip="Время старта"
+                                    Visibility="{Binding ShowSlideshowIntervalStart, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </WrapPanel>
+
+            <!-- Мониторы: щелчок — окно шагов; «✕» правее — левый щелчок убрать шаги, правый — вернуть. -->
+            <ItemsControl ItemsSource="{Binding SlideshowMonitors}" Margin="0,8,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                            <Button Command="{Binding OpenCommand}" ToolTip="{Binding ToolTip}" Style="{StaticResource Style.SettingsButton}" Padding="12,5">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Caption}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"
+                                               Foreground="{StaticResource Brush.TextSecondary}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Content="✕" Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}"
+                                    Style="{StaticResource Style.SettingsButton}" Padding="10,5" Margin="-1,4,0,4">
+                                <Button.InputBindings>
+                                    <MouseBinding Gesture="RightClick" Command="{Binding RestoreCommand}" />
+                                </Button.InputBindings>
+                            </Button>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding Main.SlideshowStatus}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.Accent}" />
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
+                       Text="На каждом мониторе — до 30 шагов (щелчок по монитору). Все мониторы идут по шагам вместе: шаг 1, шаг 2… и по кругу до последнего заполненного шага. Пустой шаг монитора — его прежний фон." />
+        </StackPanel>
+
+        <!-- ============ Экспорт / импорт: один архив со всеми картинками и настройками обоих режимов. ============ -->
+        <TextBlock Text="Перенос на другой компьютер" Style="{StaticResource Style.SectionHeader}" />
+        <StackPanel Orientation="Horizontal">
+            <Button Content="Экспорт…" Command="{Binding ExportCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,4,8,4"
+                    ToolTip="Сохранить все картинки и настройки заставки и фона одним архивом (по умолчанию — на рабочий стол)" />
+            <Button Content="Импорт…" Command="{Binding ImportCommand}" Style="{StaticResource Style.SettingsButton}"
+                    ToolTip="Загрузить картинки и настройки из архива; затем — применить сейчас или только скопировать" />
+        </StackPanel>
+        <TextBlock Text="{Binding ExchangeStatus}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.TextSecondary}" />
     </StackPanel>
     </ScrollViewer>
 </Window>

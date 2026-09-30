@@ -131,29 +131,54 @@ public static class WallpaperService
         catch { return new(); }
     }
 
-    /// <summary>Скопировать выбранные картинки в папку программы; возвращает пути копий (одноимённый другой файл — «имя (2)»).</summary>
-    public static List<string> ImportImages(IEnumerable<string> sources)
+    /// <summary>Сколько картинок может быть в папке программы (решение пользователя, 2026-09-30).</summary>
+    public const int LibraryLimit = 30;
+
+    /// <summary>
+    /// Скопировать выбранные картинки в папку программы, не больше <see cref="LibraryLimit"/> всего. Возвращает пути копий
+    /// (тот же файл, что уже есть, — берётся он; одноимённый другой — «имя (2)») и сколько не влезло.
+    /// </summary>
+    public static (List<string> Imported, int Skipped) ImportImages(IEnumerable<string> sources)
     {
         var result = new List<string>();
+        int skipped = 0;
         var dir = ImagesDir;
-        try { Directory.CreateDirectory(dir); } catch { return result; }
+        try { Directory.CreateDirectory(dir); } catch { return (result, sources.Count()); }
+        int count = ListImages().Count;
         foreach (var source in sources)
         {
             try
             {
                 var dest = Path.Combine(dir, Path.GetFileName(source));
-                if (!string.Equals(Path.GetFullPath(source), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(Path.GetFullPath(source), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
                 {
-                    dest = SoundService.FreeName(dest, source);
-                    File.Copy(source, dest, overwrite: true);
+                    result.Add(dest);
+                    continue;
                 }
+                dest = SoundService.FreeName(dest, source);
+                if (File.Exists(dest)) { result.Add(dest); continue; } // та же картинка уже есть
+                if (count >= LibraryLimit) { skipped++; continue; }
+                File.Copy(source, dest);
+                count++;
                 result.Add(dest);
             }
-            catch { /* файл занят/нет прав — пропускаем */ }
+            catch { skipped++; }
         }
-        return result;
+        return (result, skipped);
     }
 
+    /// <summary>Удалить картинку из папки программы безвозвратно.</summary>
+    public static bool DeleteImage(string path)
+    {
+        try
+        {
+            if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(path)), Path.GetFullPath(ImagesDir), StringComparison.OrdinalIgnoreCase))
+                return false; // только свои копии
+            File.Delete(path);
+            return true;
+        }
+        catch { return false; }
+    }
     /// <summary>Как фон выглядит сейчас — чтобы потом вернуть (слайд-шоу — вместе с его папкой).</summary>
     public static WallpaperBackupState? Capture()
     {

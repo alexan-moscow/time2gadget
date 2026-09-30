@@ -63,6 +63,17 @@ public sealed class AppSettings
     public Dictionary<string, string> WallpaperColors { get; set; } = new();
 
 
+    /// <summary>
+    /// Тумблер «Статичная заставка / сплошной фон» (докладка 2026-09-30); null — настройка из версии до тумблера:
+    /// включён, если своя картинка или цвет уже стоят.
+    /// </summary>
+    public bool? StaticWallpaperEnabled { get; set; }
+
+    /// <summary>Тумблер «Динамичная заставка / слайдшоу». Включён может быть только один из двух режимов.</summary>
+    public bool SlideshowEnabled { get; set; }
+
+    public SlideshowSettings Slideshow { get; set; } = new();
+
     /// <summary>Фон до своей картинки — «✕» возвращает его.</summary>
     public WallpaperBackupState? WallpaperBefore { get; set; }
 

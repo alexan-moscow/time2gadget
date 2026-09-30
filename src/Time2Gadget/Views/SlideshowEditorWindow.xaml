@@ -1,0 +1,238 @@
+<Window x:Class="Time2Gadget.Views.SlideshowEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
+        xmlns:m="clr-namespace:Time2Gadget.Models"
+        Title="{Binding Title}"
+        Width="980" Height="660" MinWidth="820" MinHeight="480"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner">
+    <!-- Докладка 2026-09-30: ViewModels/SlideshowEditorViewModel. -->
+    <Window.Resources>
+        <Geometry x:Key="Geo.Screen">M3,2 H21 V14 H3 Z</Geometry>
+        <Geometry x:Key="Geo.Stretch">M7,8 H17 M7,8 L9.5,5.8 M7,8 L9.5,10.2 M17,8 L14.5,5.8 M17,8 L14.5,10.2</Geometry>
+        <Geometry x:Key="Geo.Fit">M8,2 V14 M16,2 V14</Geometry>
+        <Geometry x:Key="Geo.Fill">M0,2 H3 M21,2 H24 M0,14 H3 M21,14 H24</Geometry>
+        <Geometry x:Key="Geo.Center">M9,5.5 H15 V10.5 H9 Z</Geometry>
+
+        <!-- Маленькая плоская кнопка на плитке шага (✕, режим). -->
+        <Style x:Key="Style.TileButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="#B0101418" CornerRadius="3" Padding="3,1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.Accent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Сверху: слева — добавить картинки, справа — скопировать шаги на другой монитор. -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="Добавить картинки…" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
+                    ToolTip="Одну или несколько (jpg, jpeg, png) — копии в папку программы, не больше 30" />
+        </StackPanel>
+        <Button x:Name="CopyButton" Grid.Column="2" HorizontalAlignment="Right" Margin="0,0,0,8" Content="Скопировать на другой монитор…"
+                Command="{Binding OpenCopyMenuCommand}" IsEnabled="{Binding HasCopyTargets}" Style="{StaticResource Style.SettingsButton}"
+                ToolTip="Шаги, как они сейчас в этом окне, — на отмеченные мониторы" />
+        <Popup Grid.Column="2" PlacementTarget="{Binding ElementName=CopyButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+               IsOpen="{Binding IsCopyMenuOpen, Mode=TwoWay}">
+            <Border Padding="10" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0" MinWidth="260"
+                    Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding CopyTargets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsChecked}" Margin="12,0,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Применить" Command="{Binding ApplyCopyCommand}" Style="{StaticResource Style.SettingsButton}"
+                            HorizontalAlignment="Right" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+        </Popup>
+
+        <!-- Слева: картинки одной колонкой, «✕» — удалить безвозвратно. Тащить — на шаг справа. -->
+        <DockPanel Grid.Row="1">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding LibraryCaption}" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+            <ListBox x:Name="LibraryList" ItemsSource="{Binding Library}" Background="{StaticResource Brush.SurfaceSector}"
+                     BorderBrush="{StaticResource Brush.BorderSubtle}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     PreviewMouseLeftButtonDown="OnLibraryMouseDown" PreviewMouseMove="OnLibraryMouseMove">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="4,3" Cursor="SizeAll">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ToolTip="{Binding Name}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="64" Height="40" CornerRadius="2" ClipToBounds="True" Background="#101418">
+                                <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.TextPrimary}" Margin="8,0" />
+                            <Button Grid.Column="2" Content="✕" Command="{Binding DeleteCommand}" Style="{StaticResource Style.SettingsButton}"
+                                    Padding="8,3" Margin="0" Cursor="Hand"
+                                    ToolTip="Удалить картинку безвозвратно (шаги и фон, где она выбрана, очистятся)" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Справа: 30 шагов. -->
+        <DockPanel Grid.Row="1" Grid.Column="2">
+            <TextBlock DockPanel.Dock="Top" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" TextWrapping="Wrap"
+                       Text="Шаги слайдшоу: перетащите картинку из списка на шаг. Пустой шаг по щелчку — сплошной цвет; незаполненный шаг — прежний фон монитора." />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Slots}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Columns="5" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="4" Height="78" AllowDrop="True" Drop="OnSlotDrop" DragOver="OnSlotDragOver" ToolTip="{Binding ToolTip}">
+                                <Border x:Name="Tile" CornerRadius="4" BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}"
+                                        Background="{StaticResource Brush.SurfaceSector}" ClipToBounds="True">
+                                    <Grid>
+                                        <Border Background="{Binding ColorBrush}" />
+                                        <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
+                                        <!-- пустой шаг: щелчок — палитра -->
+                                        <Button x:Name="EmptyButton" Command="{Binding OpenColorMenuCommand}" Cursor="Hand" Background="Transparent">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="Transparent">
+                                                        <TextBlock x:Name="EmptyText" Text="пусто" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource Brush.TextSecondary}" FontSize="11" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding Number}" Margin="5,3,0,0" FontSize="11" FontWeight="SemiBold"
+                                           HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White">
+                                    <TextBlock.Effect><DropShadowEffect BlurRadius="3" ShadowDepth="0" Opacity="1" /></TextBlock.Effect>
+                                </TextBlock>
+                                <Button x:Name="ClearButton" Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.TileButton}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0" FontSize="10"
+                                        ToolTip="Очистить шаг" Visibility="Collapsed" />
+                                <!-- режим картинки: растянуть → по размеру → заполнить → по центру -->
+                                <Button x:Name="FitButton" Command="{Binding CycleFitCommand}" Style="{StaticResource Style.TileButton}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,3,3" Visibility="Collapsed"
+                                        ToolTip="Как картинка ложится на монитор — щелчок: следующий режим">
+                                    <Grid Width="24" Height="16">
+                                        <Path Data="{StaticResource Geo.Screen}" StrokeThickness="1.3" Stroke="White" />
+                                        <Path x:Name="FitIcon" Data="{StaticResource Geo.Fill}" StrokeThickness="1.3" Stroke="White" />
+                                    </Grid>
+                                </Button>
+                                <Popup PlacementTarget="{Binding ElementName=Tile}" Placement="Bottom" StaysOpen="False"
+                                       AllowsTransparency="True" IsOpen="{Binding IsColorMenuOpen, Mode=TwoWay}">
+                                    <Border x:Name="Palette" Padding="6" CornerRadius="6" BorderThickness="1" Margin="0,2,0,0"
+                                            Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}">
+                                        <ItemsControl ItemsSource="{Binding Source={x:Static vm:MonitorFitItem.BasicColors}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><UniformGrid Columns="8" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding DataContext.ChooseColorCommand, ElementName=Palette}"
+                                                            CommandParameter="{Binding Hex}" ToolTip="{Binding Name}" Margin="2" Cursor="Hand">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="Swatch" Width="22" Height="22" CornerRadius="3" Background="{Binding Hex}"
+                                                                        BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}" />
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Swatch" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                                                                        <Setter TargetName="Swatch" Property="BorderThickness" Value="2" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsEmpty}" Value="False">
+                                    <Setter TargetName="ClearButton" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasImage}" Value="True">
+                                    <Setter TargetName="FitButton" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="EmptyButton" Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasColor}" Value="True">
+                                    <Setter TargetName="EmptyButton" Property="Opacity" Value="0" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Stretch}">
+                                    <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Stretch}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fit}">
+                                    <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fit}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Center}">
+                                    <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Center}" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding Status}" TextWrapping="Wrap" FontSize="11"
+                   Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0" />
+
+        <!-- Внизу справа: «✕» — отмена, «Сохранить». -->
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="✕" Click="OnCancel" Style="{StaticResource Style.SettingsButton}" Padding="12,6" Margin="0,0,8,0" IsCancel="True"
+                    ToolTip="Отмена — закрыть без сохранения" />
+            <Button Content="Сохранить" Click="OnSave" Style="{StaticResource Style.SettingsButton}" Padding="20,6" IsDefault="True"
+                    ToolTip="Сохранить шаги этого монитора" />
+        </StackPanel>
+    </Grid>
+</Window>

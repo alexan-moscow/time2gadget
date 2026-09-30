@@ -195,6 +195,7 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
         Monitors.Clear();
         foreach (var m in WallpaperService.Monitors())
             Monitors.Add(new MonitorFitItem(m, _main.WallpaperFitFor(m.Id), _main.WallpaperColorFor(m.Id), () => HasImage, OnFitChanged, OnColorChanged));
+        ReloadSlideshowMonitors();
     }
 
     private void OnFitChanged(MonitorFitItem item)
@@ -221,19 +222,123 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
     /// <summary>Выбрать один или несколько файлов — копии в папку программы; первая выбранная сразу ставится.</summary>
     private void Browse()
     {
+        var (imported, message) = PickImages(_main);
+        Status = message;
+        if (imported.Count == 0) return;
+        Reload();
+        SelectedImage = Images.FirstOrDefault(i => string.Equals(i.Path, imported[0], StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Диалог выбора картинок (jpg, jpeg, png; одну или несколько) и копирование в папку программы — не больше 30 всего.
+    /// Возвращает копии и строку для пользователя (пусто — всё получилось).
+    /// </summary>
+    internal static (List<string> Imported, string Message) PickImages(MainViewModel main)
+    {
         var dialog = new OpenFileDialog
         {
             Title = "Выберите картинки для фона",
             Filter = "Картинки (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png",
             Multiselect = true,
         };
-        if (dialog.ShowDialog() != true) return;
-        var imported = WallpaperService.ImportImages(dialog.FileNames);
-        if (imported.Count == 0) { Status = "Не удалось скопировать файлы в папку программы."; return; }
-        Reload();
-        SelectedImage = Images.FirstOrDefault(i => string.Equals(i.Path, imported[0], StringComparison.OrdinalIgnoreCase));
+        if (dialog.ShowDialog() != true) return (new(), string.Empty);
+        var (imported, skipped) = main.ImportLibraryImages(dialog.FileNames);
+        var message = skipped > 0
+            ? $"В папке программы не больше {WallpaperService.LibraryLimit} картинок — добавлено {imported.Count} из {dialog.FileNames.Length}. Лишние можно удалить в окне шагов слайдшоу (✕ у картинки)."
+            : imported.Count == 0 ? "Не удалось скопировать файлы в папку программы." : string.Empty;
+        return (imported, message);
     }
 
+    // ---------------- Динамичная заставка / слайдшоу ----------------
+
+    public ObservableCollection<SlideshowMonitorItem> SlideshowMonitors { get; } = new();
+
+    /// <summary>Окно шагов монитора открывает View (нужен владелец окна) — сюда оно подписывается.</summary>
+    public Action<WallpaperMonitor>? OpenSlideshowEditor { get; set; }
+
+    private void ReloadSlideshowMonitors()
+    {
+        SlideshowMonitors.Clear();
+        foreach (var m in WallpaperService.Monitors())
+            SlideshowMonitors.Add(new SlideshowMonitorItem(m, _main.SlideshowFilledCount(m.Id), _main.CanRestoreSlideshowMonitor(m.Id),
+                open: () => OpenSlideshowEditor?.Invoke(m),
+                clear: () => _main.ClearSlideshowMonitor(m.Id),
+                restore: () => _main.RestoreSlideshowMonitor(m.Id)));
+    }
+
+    /// <summary>Экспорт: один архив со всеми картинками и настройками (по умолчанию — на рабочий стол).</summary>
+    public RelayCommand ExportCommand => _exportCommand ??= new RelayCommand(() =>
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Экспорт заставки и фона",
+            Filter = "Архив (*.zip)|*.zip",
+            FileName = $"Тайм2гаджет — фоны {DateTime.Now:yyyy-MM-dd}.zip",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+        };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            _main.ExportWallpaper(dialog.FileName);
+            ExchangeStatus = $"Сохранено: {Path.GetFileName(dialog.FileName)} — картинок: {WallpaperService.ListImages().Count}.";
+        }
+        catch (Exception ex) { ExchangeStatus = "Не удалось сохранить архив: " + ex.Message; }
+    });
+    private RelayCommand? _exportCommand;
+
+    /// <summary>Импорт: картинки и настройки из архива; вопрос — применить сейчас или только скопировать.</summary>
+    public RelayCommand ImportCommand => _importCommand ??= new RelayCommand(() =>
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Импорт заставки и фона",
+            Filter = "Архив (*.zip)|*.zip",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+        };
+        if (dialog.ShowDialog() != true) return;
+        var answer = System.Windows.MessageBox.Show(
+            "Картинки и настройки из архива будут скопированы и заменят текущие настройки заставки и фона.\n\nПрименить настройки сейчас?\n\n«Да» — применить, «Нет» — только скопировать.",
+            "Тайм2гаджет — импорт", System.Windows.MessageBoxButton.YesNoCancel, System.Windows.MessageBoxImage.Question);
+        if (answer == System.Windows.MessageBoxResult.Cancel) return;
+        try { ExchangeStatus = _main.ImportWallpaper(dialog.FileName, apply: answer == System.Windows.MessageBoxResult.Yes); }
+        catch (Exception ex) { ExchangeStatus = "Не удалось прочитать архив: " + ex.Message; }
+        Reload();
+    });
+    private RelayCommand? _importCommand;
+
+    private string _exchangeStatus = string.Empty;
+    /// <summary>Строка под кнопками экспорта/импорта.</summary>
+    public string ExchangeStatus
+    {
+        get => _exchangeStatus;
+        private set { _exchangeStatus = value; OnPropertyChanged(); }
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>Кнопка «Монитор N» слайдшоу: щелчок — окно шагов; «✕» правее — левый щелчок убрать шаги, правый — вернуть.</summary>
+public sealed class SlideshowMonitorItem
+{
+    public SlideshowMonitorItem(WallpaperMonitor monitor, int filled, bool canRestore, Action open, Action clear, Action restore)
+    {
+        Monitor = monitor;
+        Filled = filled;
+        CanRestore = canRestore;
+        OpenCommand = new RelayCommand(open);
+        ClearCommand = new RelayCommand(clear);
+        RestoreCommand = new RelayCommand(restore);
+    }
+
+    public WallpaperMonitor Monitor { get; }
+    public int Filled { get; }
+    public bool CanRestore { get; }
+    public string Label => $"Монитор {Monitor.Number}";
+    public string Caption => Filled == 0 ? "пусто" : $"шагов: {Filled}";
+    public string ToolTip => $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}. Щелчок — разложить картинки по шагам слайдшоу";
+    public string ClearToolTip => "Щелчок — убрать шаги этого монитора (на нём — прежний фон).\nПравый щелчок — вернуть убранные шаги"
+                                  + (CanRestore ? "" : " (сейчас возвращать нечего)");
+    public RelayCommand OpenCommand { get; }
+    public RelayCommand ClearCommand { get; }
+    public RelayCommand RestoreCommand { get; }
 }

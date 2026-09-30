@@ -563,6 +563,38 @@
         </Setter>
     </Style>
 
+    <!-- Тумблер (докладка 2026-09-30, окно «Заставка и фон экрана»): дорожка со скруглением, кружок слева — выкл,
+         справа на акцентной дорожке — вкл. Для ToggleButton/CheckBox. -->
+    <Style x:Key="Style.ToggleSwitch" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Track" Width="40" Height="22" CornerRadius="11" BorderThickness="1"
+                            Background="{StaticResource Brush.SurfaceSector}" BorderBrush="{StaticResource Brush.BorderSubtle}">
+                        <Ellipse x:Name="Knob" Width="14" Height="14" Margin="3,0" HorizontalAlignment="Left"
+                                 Fill="{StaticResource Brush.TextSecondary}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource Brush.Accent}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Knob" Property="Fill" Value="White" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="Style.LinkButton" TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
         <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
         <Setter Property="Background" Value="Transparent" />

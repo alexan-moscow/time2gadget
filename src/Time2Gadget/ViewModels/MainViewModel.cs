@@ -1015,7 +1015,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             != System.Windows.MessageBoxResult.Yes)
             return;
 
-        if (HasOwnWallpaper) ClearWallpaper(); // своя картинка снимается — фон как был до неё
+        ResetWallpaperFeatures(); // оба режима фона выключаются — фон как был до них
         PinWallpapers = false; // по умолчанию выкл — вернуть слайд-шоу, пока известно, откуда оно шло
         var lastUpdateCheck = _settings.LastUpdateCheckUtc;
         var (windowProfiles, windowAssignments) = (_settings.WindowProfiles, _settings.WindowProfileAssignments);

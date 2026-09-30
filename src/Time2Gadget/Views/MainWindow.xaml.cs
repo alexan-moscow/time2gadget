@@ -95,7 +95,7 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => _appWindowMemory.Enabled = _viewModel.RememberAppWindows;
         // Закреплённые фоны рабочего стола: слайд-шоу могли включить, пока программа не работала (докладка 2026-09-29).
         SourceInitialized += (_, _) => _viewModel.PinWallpapersNow();
-        SourceInitialized += (_, _) => _viewModel.RememberAppliedWallpaper();
+        SourceInitialized += (_, _) => _viewModel.StartWallpaperFeatures();
         // Профили размера окон: автоприменение к программам с назначенным профилем (докладка 2026-09-29); у таких
         // программ память окон не срабатывает — профиль главнее.
         // Указатель мыши в окне (докладка 2026-09-29): одна служба на программу, её используют профили и окно профилей.
@@ -146,7 +146,9 @@ public partial class MainWindow : Window
 
     private void OnPowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
     {
-        if (e.Mode == Microsoft.Win32.PowerModes.Resume) Dispatcher.BeginInvoke(ScheduleRestorePositions);
+        if (e.Mode != Microsoft.Win32.PowerModes.Resume) return;
+        Dispatcher.BeginInvoke(ScheduleRestorePositions);
+        Dispatcher.BeginInvoke(ScheduleWallpaperCheck); // слайдшоу: шаг, который наступил, пока компьютер спал
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
