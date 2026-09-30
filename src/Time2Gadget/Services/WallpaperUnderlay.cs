@@ -17,6 +17,8 @@ namespace Time2Gadget.Services;
 /// WallpaperService), рисование — только во время смены, в остальное время окно ничего не делает. Проводник перезапустился
 /// (WorkerW пропал) — <see cref="IsHostAlive"/> = false, следующий показ встраивается заново. Не получилось встроиться —
 /// <see cref="Show"/> возвращает false, и слайдшоу показывается средствами Windows.
+/// Если ядер больше одного, окно каждого монитора — в своём потоке (загрузка картинки и эффект там же): смены на мониторах
+/// идут одновременно на разных ядрах.
 /// </summary>
 public sealed class WallpaperUnderlay : IDisposable
 {
@@ -29,9 +31,17 @@ public sealed class WallpaperUnderlay : IDisposable
         public required Image Back;   // что показано сейчас
         public required Image Front;  // что проявляется
         public required System.Drawing.Rectangle Bounds;
+        public required System.Windows.Threading.Dispatcher Dispatcher; // поток окна монитора
+        public bool OwnThread;        // окно в своём потоке (есть свободные ядра)
         public string? File;
-        public Action? Finish;        // завершить идущую смену
+        public Action? Finish;        // завершить идущую смену (только в потоке окна)
     }
+
+    /// <summary>
+    /// Каждому монитору — свой поток, если ядер больше одного (решение пользователя 2026-10-01): смены на мониторах идут
+    /// одновременно, Windows ставит потоки на разные ядра. Одно ядро — все окна в основном потоке, как раньше.
+    /// </summary>
+    private static readonly bool UseThreads = Environment.ProcessorCount > 1;
 
     private readonly Dictionary<string, Surface> _surfaces = new();
     private IntPtr _host;
@@ -56,9 +66,15 @@ public sealed class WallpaperUnderlay : IDisposable
                     _surfaces[monitor.Id] = surface;
                 }
                 if (surface.File == file) continue;
-                if (Load(file) is not { } image) continue;
-                Transition(surface, image, surface.File is null ? SlideshowEffect.Instant : effect);
+                var target = surface;
+                var fx = surface.File is null ? SlideshowEffect.Instant : effect;
                 surface.File = file;
+                // загрузка картинки и смена — в потоке окна этого монитора (у каждого монитора свой)
+                target.Dispatcher.BeginInvoke(() =>
+                {
+                    try { if (Load(file) is { } image) Transition(target, image, fx); }
+                    catch { /* смена не должна ронять программу */ }
+                });
             }
             return true;
         }
@@ -90,9 +106,34 @@ public sealed class WallpaperUnderlay : IDisposable
     {
         GetWindowRect(_host, out var host);
         int x = monitor.Bounds.Left - host.Left, y = monitor.Bounds.Top - host.Top;
+        var parent = _host;
+        if (!UseThreads) return BuildSurface(parent, monitor, x, y);
+
+        Surface? made = null;
+        Exception? error = null;
+        var ready = new ManualResetEventSlim(); // не using: поток может отметиться уже после ожидания
+        var thread = new Thread(() =>
+        {
+            try { made = BuildSurface(parent, monitor, x, y); }
+            catch (Exception e) { error = e; }
+            ready.Set();
+            if (made is null) return;
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.UnhandledException += (_, e) => e.Handled = true; // эффект не роняет программу
+            System.Windows.Threading.Dispatcher.Run();
+        }) { IsBackground = true, Name = $"Подложка — монитор {monitor.Number}" };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        ready.Wait(TimeSpan.FromSeconds(5));
+        if (made is null) throw error ?? new TimeoutException("Окно подложки не создалось");
+        made.OwnThread = true;
+        return made;
+    }
+
+    private static Surface BuildSurface(IntPtr parent, WallpaperMonitor monitor, int x, int y)
+    {
         var parameters = new HwndSourceParameters("Time2GadgetUnderlay")
         {
-            ParentWindow = _host,
+            ParentWindow = parent,
             WindowStyle = WsChild | WsVisible | WsClipSiblings | WsClipChildren,
             PositionX = x, PositionY = y, Width = monitor.Bounds.Width, Height = monitor.Bounds.Height,
         };
@@ -105,7 +146,11 @@ public sealed class WallpaperUnderlay : IDisposable
         source.RootVisual = root;
         // размер и место — в физических пикселях (окно-родитель чужого процесса, масштаб WPF здесь не помогает)
         SetWindowPos(source.Handle, IntPtr.Zero, x, y, monitor.Bounds.Width, monitor.Bounds.Height, SwpNoZOrder | SwpNoActivate);
-        return new Surface { Source = source, Root = root, Back = back, Front = front, Bounds = monitor.Bounds };
+        return new Surface
+        {
+            Source = source, Root = root, Back = back, Front = front, Bounds = monitor.Bounds,
+            Dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher,
+        };
     }
 
     private static BitmapSource? Load(string file)
@@ -218,7 +263,14 @@ public sealed class WallpaperUnderlay : IDisposable
     {
         foreach (var s in _surfaces.Values)
         {
-            try { s.Finish?.Invoke(); s.Source.Dispose(); } catch { /* окно уже уничтожено вместе с Проводником */ }
+            try
+            {
+                // окно закрывается в своём потоке; поток монитора потом завершается
+                s.Dispatcher.Invoke(() => { s.Finish?.Invoke(); s.Source.Dispose(); },
+                    System.Windows.Threading.DispatcherPriority.Send, CancellationToken.None, TimeSpan.FromSeconds(2));
+            }
+            catch { /* окно уже уничтожено вместе с Проводником */ }
+            if (s.OwnThread) s.Dispatcher.BeginInvokeShutdown(System.Windows.Threading.DispatcherPriority.Normal);
         }
         _surfaces.Clear();
     }
