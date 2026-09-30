@@ -1,0 +1,102 @@
+using System.Windows;
+using Time2Gadget.ViewModels;
+
+namespace Time2Gadget.Views;
+
+/// <summary>
+/// Окно «Быстрые таймеры» (докладка 2026-10-01: раздел вынесен из настроек). Привязка — к MainViewModel, как в настройках;
+/// обработчики меню звука/эффекта строки таймера — перенесены из SettingsWindow.
+/// </summary>
+public partial class QuickTimersWindow : Window
+{
+    private static QuickTimersWindow? _current;
+    private readonly MainViewModel _viewModel;
+
+    public QuickTimersWindow(MainViewModel viewModel)
+    {
+        InitializeComponent();
+        _viewModel = viewModel;
+        DataContext = viewModel;
+        MaxHeight = SystemParameters.WorkArea.Height;
+        // Окно закрыли — прослушивание и показ эффекта не должны продолжаться без него.
+        Closed += (_, _) =>
+        {
+            _viewModel.StopPreview();
+            _viewModel.StopEffectPreview();
+        };
+    }
+
+    /// <summary>Одно окно на программу; уже открыто — вывести вперёд. Без владельца (клавиша) — по центру экрана.</summary>
+    public static void ShowSingle(MainViewModel main, Window? owner)
+    {
+        if (_current is null)
+        {
+            _current = new QuickTimersWindow(main) { Owner = owner };
+            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            _current.Closed += (_, _) => _current = null;
+            _current.Show();
+        }
+        else if (_current.WindowState == WindowState.Minimized) _current.WindowState = WindowState.Normal;
+        _current.Activate();
+    }
+
+    /// <summary>▶ во всплывашке быстрого таймера: звонок на устройстве этого таймера; строку списка не выбирает.</summary>
+    private void OnQuickSoundPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is FrameworkElement { Tag: string ringtoneId } button && FindQuickTimer(button) is { } item) item.Preview(ringtoneId);
+    }
+
+    /// <summary>Строка быстрого таймера, к которой относится элемент меню (меню — всплывашка, ищем и по логическому дереву).</summary>
+    private static QuickTimerItem? FindQuickTimer(DependencyObject start)
+    {
+        for (DependencyObject? d = start; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d))
+            if (d is FrameworkElement { DataContext: QuickTimerItem item }) return item;
+        return null;
+    }
+
+    /// <summary>Щелчок пришёлся на кнопку ▶ внутри пункта — это просмотр, а не выбор.</summary>
+    private static bool IsOnButton(object? source, DependencyObject container)
+    {
+        for (var d = source as DependencyObject; d is not null && !ReferenceEquals(d, container); d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+            if (d is System.Windows.Controls.Primitives.ButtonBase) return true;
+        return false;
+    }
+
+    /// <summary>Щелчок по звонку в меню быстрого таймера: выбрать, включить звук, закрыть меню.</summary>
+    private void OnQuickSoundItemClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: RingtoneOption option } container
+            || IsOnButton(e.OriginalSource, container)) return;
+        FindQuickTimer(container)?.ChooseRingtone(option.Id);
+    }
+
+    /// <summary>Щелчок по эффекту в меню быстрого таймера: выбрать, прекратить показ, закрыть меню.</summary>
+    private void OnQuickEffectItemClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: EffectOption option } container
+            || IsOnButton(e.OriginalSource, container)) return;
+        FindQuickTimer(container)?.ChooseEffect(option.Value);
+    }
+
+    /// <summary>▶/■ у эффекта в меню быстрого таймера — показ на циферблате.</summary>
+    private void OnEffectPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { DataContext: EffectOption option } button) return;
+        for (DependencyObject? d = button; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+        {
+            if (d is not System.Windows.Controls.ListBoxItem) continue;
+            if (System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(d)?.ItemsSource is IReadOnlyList<EffectOption> list)
+                _viewModel.TogglePreviewEffect(list, option);
+            return;
+        }
+    }
+
+    private void OnQuickEffectPopupClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
+
+    /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
+    private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();
+
+    private void OnRingtonePreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
+}

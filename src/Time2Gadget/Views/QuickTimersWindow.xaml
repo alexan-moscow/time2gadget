@@ -1,0 +1,184 @@
+<Window x:Class="Time2Gadget.Views.QuickTimersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
+        Title="Быстрые таймеры — Тайм2гаджет"
+        Width="440" SizeToContent="Height" MinWidth="400"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize">
+    <!-- Докладка 2026-10-01: раздел «Быстрые таймеры» из настроек — отдельным окном (привязка — MainViewModel, как в настройках). -->
+    <Window.Resources>
+        <!-- Щелчок по пункту меню — выбрать и закрыть меню (кнопка ▶ внутри пункта сюда не относится). -->
+        <Style x:Key="Style.QuickSoundItem" TargetType="ListBoxItem" BasedOn="{StaticResource Style.SoundListItem}">
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnQuickSoundItemClick" />
+        </Style>
+        <Style x:Key="Style.QuickEffectItem" TargetType="ListBoxItem" BasedOn="{StaticResource Style.SoundListItem}">
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnQuickEffectItemClick" />
+        </Style>
+    </Window.Resources>
+
+    <!-- Прокрутка как в остальных окнах: полоса у правого края окна. -->
+    <ScrollViewer Margin="20,16,0,16" VerticalScrollBarVisibility="Auto" Padding="0,0,20,0">
+        <StackPanel>
+            <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding QuickTimers}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Number}" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="{StaticResource Brush.TextSecondary}" />
+                            <c:TimeSpinner Grid.Column="1" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" />
+                            <c:TimeSpinner Grid.Column="2" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" Margin="2,0,0,0" />
+                            <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" Margin="2,0,0,0" />
+                            <c:HotkeyBox Grid.Column="4" BindingValue="{Binding Binding}" Margin="4,0,0,0" />
+
+                            <!-- Эффект завершения таймера: иконка текущего эффекта («—» нет), меню с просмотром. -->
+                            <Button x:Name="EffectButton" Grid.Column="5" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                                    Command="{Binding EffectCommand}" ToolTip="{Binding EffectToolTip}">
+                                <ContentControl Content="{Binding FinishEffect, Converter={StaticResource EffectIcon}}" Focusable="False" />
+                            </Button>
+                            <Popup Grid.Column="5" PlacementTarget="{Binding ElementName=EffectButton}" Placement="Bottom" HorizontalOffset="-150"
+                                   StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsEffectMenuOpen, Mode=TwoWay}"
+                                   Closed="OnQuickEffectPopupClosed">
+                                <Border Width="190" Style="{StaticResource Style.MenuBorder}">
+                                    <ListBox ItemsSource="{Binding EffectOptions}" SelectedValuePath="Value" SelectedValue="{Binding FinishEffect, Mode=OneWay}"
+                                             Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource Style.QuickEffectItem}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="18" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ContentControl Content="{Binding Value, Converter={StaticResource EffectIcon}}" Focusable="False"
+                                                                    VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Label}" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Style="{StaticResource Style.EffectPreviewButton}" Padding="6,0" FontSize="10"
+                                                            Visibility="{Binding CanPreview, Converter={StaticResource BoolToVis}}"
+                                                            PreviewMouseLeftButtonDown="OnEffectPreviewMouseDown"
+                                                            PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Popup>
+
+                            <!-- Звук: включён — колокольчик синий, щелчок выключает; выключен — перечёркнут, щелчок открывает меню. -->
+                            <Button x:Name="SoundButton" Grid.Column="6" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                                    Command="{Binding BellCommand}" ToolTip="{Binding SoundToolTip}">
+                                <Grid Width="12" Height="12">
+                                    <Path x:Name="Bell" Stretch="Uniform" StrokeThickness="1.2"
+                                          Data="M6,0.8 C3.9,0.8 2.6,2.4 2.6,4.6 L2.6,7.4 L1.2,9.2 L10.8,9.2 L9.4,7.4 L9.4,4.6 C9.4,2.4 8.1,0.8 6,0.8 Z M4.4,10 A1.6,1.6 0 0 0 7.6,10 Z"
+                                          Stroke="{StaticResource Brush.TextSecondary}" Fill="Transparent" />
+                                    <Path x:Name="BellSlash" Data="M0.5,11.5 L11.5,0.5" Stroke="{StaticResource Brush.TextSecondary}" StrokeThickness="1.4" />
+                                </Grid>
+                            </Button>
+                            <Popup Grid.Column="6" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-230"
+                                   StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsSoundMenuOpen, Mode=TwoWay}"
+                                   Closed="OnQuickSoundPopupClosed">
+                                <Border Width="260" Style="{StaticResource Style.MenuBorder}">
+                                    <StackPanel>
+                                        <!-- Громкость: «общая» — из раздела «Звук»; тронули ползунок — галочка снимается сама. -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Громкость" VerticalAlignment="Center" />
+                                            <CheckBox Grid.Column="1" Content="общая" IsChecked="{Binding UseGeneralVolume}" Margin="8,0,0,0"
+                                                      VerticalAlignment="Center" ToolTip="Громкость как в разделе «Звук»" />
+                                            <Slider ToolTip="Своя громкость этого таймера (снимает «общая»)" Grid.Column="2" Minimum="0" Maximum="1" Value="{Binding VolumeValue}" Margin="8,0,0,0"
+                                                    VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1" />
+                                        </Grid>
+                                        <!-- Щелчок по звонку — выбрать, включить звук и закрыть меню. -->
+                                        <ListBox ItemsSource="{Binding SoundOptions}" SelectedValuePath="Id" SelectedValue="{Binding RingtoneKey}"
+                                                 Height="200" Background="Transparent" BorderThickness="0"
+                                                 ItemContainerStyle="{StaticResource Style.QuickSoundItem}"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                                    Visibility="{Binding CanPreview, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="{Binding DurationText}" Style="{StaticResource Style.SoundDuration}" />
+                                                            <Button Style="{StaticResource Style.PreviewButton}" Tag="{Binding Id}" Padding="6,0" FontSize="10"
+                                                                    PreviewMouseLeftButtonDown="OnQuickSoundPreviewMouseDown"
+                                                                    PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <!-- Свой файл таймера: копия в папке звуков программы. -->
+                                        <Grid Margin="0,6,0,0" Visibility="{Binding IsCustomFileSelected, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button ToolTip="Выбрать другой файл для этого таймера" Content="Обзор…" Command="{Binding BrowseSoundCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Padding="8,2" Margin="0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding CustomFileName}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                       TextTrimming="CharacterEllipsis" FontSize="11" ToolTip="{Binding CustomFileName}" />
+                                        </Grid>
+                                        <TextBlock Text="Устройство" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,8,0,4" />
+                                        <ComboBox ToolTip="Куда выводить звонок этого таймера" ItemsSource="{Binding DeviceOptions}" DisplayMemberPath="FriendlyName"
+                                                  SelectedValuePath="Id" SelectedValue="{Binding DeviceKey}" />
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+
+                            <Button Grid.Column="7" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                                    Width="22" Height="24" Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding SoundEnabled}" Value="True">
+                                <Setter TargetName="Bell" Property="Stroke" Value="{StaticResource Brush.Accent}" />
+                                <Setter TargetName="Bell" Property="Fill" Value="{StaticResource Brush.Accent}" />
+                                <Setter TargetName="BellSlash" Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSoundMenuOpen}" Value="True">
+                                <Setter TargetName="SoundButton" Property="IsHitTestVisible" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsEffectMenuOpen}" Value="True">
+                                <Setter TargetName="EffectButton" Property="IsHitTestVisible" Value="False" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button ToolTip="Добавить быстрый таймер (до 5)" Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" Margin="0,6,0,0"
+                    Visibility="{Binding CanAddQuickTimer, Converter={StaticResource BoolToVis}}" />
+            <TextBlock Text="Клавиша запускает таймер на это время заново — где бы вы ни были, даже когда окно в трее. Колокольчик — свой звонок и устройство (подсвечен, если заданы)."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding QuickTimersWarning}" Style="{StaticResource Style.HotkeyWarning}" />
+
+            <!-- Быстрое открытие этого окна глобальной клавишей (по умолчанию выкл; то же — в «Настройке клавиш»). -->
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
+                <CheckBox Content="Быстрое открытие этого окна" IsChecked="{Binding QuickTimersWindowHotkeyEnabled}" VerticalAlignment="Center"
+                          ToolTip="Сочетание справа открывает это окно из любой программы" />
+                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding QuickTimersWindowKey}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}"
+                             ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое" />
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

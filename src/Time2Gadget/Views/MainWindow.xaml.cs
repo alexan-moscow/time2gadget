@@ -112,6 +112,9 @@ public partial class MainWindow : Window
         _viewModel.WindowProfilesChanged += (_, _) => UpdateWindowProfileService();
         // Быстрое открытие окна «Размер и положение окон программ» клавишей — с выбранным окном, активным в момент нажатия.
         _viewModel.WindowProfilesRequested += (_, foreground) => WindowProfilesWindow.ShowSingle(_viewModel, null, foreground);
+        // Быстрое открытие окон «Заставка и фон экрана» и «Быстрые таймеры» клавишей (докладка 2026-10-01).
+        _viewModel.BackgroundWindowRequested += (_, _) => DesktopBackgroundWindow.ShowSingle(_viewModel, null);
+        _viewModel.QuickTimersWindowRequested += (_, _) => QuickTimersWindow.ShowSingle(_viewModel, null);
 
         // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
         PreviewKeyDown += OnWindowKeyDown;

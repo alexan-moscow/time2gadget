@@ -332,12 +332,22 @@
 
         <!-- ============ Экспорт / импорт: один архив со всеми картинками и настройками обоих режимов. ============ -->
         <TextBlock Text="Перенос на другой компьютер" Style="{StaticResource Style.SectionHeader}" />
-        <StackPanel Orientation="Horizontal">
-            <Button Content="Экспорт…" Command="{Binding ExportCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,4,8,4"
-                    ToolTip="Сохранить все картинки и настройки заставки и фона одним архивом (по умолчанию — на рабочий стол)" />
-            <Button Content="Импорт…" Command="{Binding ImportCommand}" Style="{StaticResource Style.SettingsButton}"
-                    ToolTip="Загрузить картинки и настройки из архива; затем — применить сейчас или только скопировать" />
-        </StackPanel>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Экспорт…" Command="{Binding ExportCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,4,8,4" Height="32"
+                        ToolTip="Сохранить все картинки и настройки заставки и фона одним архивом (по умолчанию — на рабочий стол)" />
+                <Button Content="Импорт…" Command="{Binding ImportCommand}" Style="{StaticResource Style.SettingsButton}" Height="32"
+                        ToolTip="Загрузить картинки и настройки из архива; затем — применить сейчас или только скопировать" />
+            </StackPanel>
+            <!-- Быстрое открытие этого окна (докладка 2026-10-01): глобальная клавиша, по умолчанию выкл; то же — в «Настройке клавиш». -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" DataContext="{Binding Main}" VerticalAlignment="Center">
+                <CheckBox Content="Быстрое открытие этого окна" IsChecked="{Binding BackgroundWindowHotkeyEnabled}" VerticalAlignment="Center"
+                          Margin="0,0,10,0" ToolTip="Сочетание справа открывает это окно из любой программы" />
+                <c:HotkeyBox BindingValue="{Binding BackgroundWindowKey}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Width="140" Height="32"
+                             ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое" />
+            </StackPanel>
+        </Grid>
         <TextBlock Text="{Binding ExchangeStatus}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.TextSecondary}" />
     </StackPanel>
     </ScrollViewer>

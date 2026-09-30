@@ -28,15 +28,17 @@ public partial class DesktopBackgroundWindow : Window
         Closed += (_, _) => main.WallpaperChanged -= reload;
     }
 
-    /// <summary>Одно окно на программу; уже открыто — вывести вперёд.</summary>
-    public static void ShowSingle(MainViewModel main, Window owner)
+    /// <summary>Одно окно на программу; уже открыто — вывести вперёд. Без владельца (клавиша быстрого открытия) — по центру экрана.</summary>
+    public static void ShowSingle(MainViewModel main, Window? owner)
     {
         if (_current is null)
         {
             _current = new DesktopBackgroundWindow(main) { Owner = owner };
+            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             _current.Closed += (_, _) => _current = null;
             _current.Show();
         }
+        else if (_current.WindowState == WindowState.Minimized) _current.WindowState = WindowState.Normal;
         _current.Activate();
     }
 }

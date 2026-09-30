@@ -94,6 +94,20 @@ public sealed class AppSettings
     public HotkeyBinding WindowProfilesKey { get; set; } =
         HotkeyBinding.FromKey(System.Windows.Input.Key.Home, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
+    /// <summary>Быстрое открытие окна «Заставка и фон экрана» глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
+    public bool BackgroundWindowHotkeyEnabled { get; set; } = false;
+
+    /// <summary>Сочетание для окна «Заставка и фон экрана», по умолчанию Ctrl+Shift+PageUp.</summary>
+    public HotkeyBinding BackgroundWindowKey { get; set; } =
+        HotkeyBinding.FromKey(System.Windows.Input.Key.PageUp, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
+    /// <summary>Быстрое открытие окна «Быстрые таймеры» глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
+    public bool QuickTimersWindowHotkeyEnabled { get; set; } = false;
+
+    /// <summary>Сочетание для окна «Быстрые таймеры», по умолчанию Ctrl+Shift+PageDown.</summary>
+    public HotkeyBinding QuickTimersWindowKey { get; set; } =
+        HotkeyBinding.FromKey(System.Windows.Input.Key.PageDown, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

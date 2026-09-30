@@ -603,4 +603,120 @@
         <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
 
+
+    <!-- ============ Общие для окон настроек, клавиш и быстрых таймеров (перенесено из SettingsWindow 2026-10-01) ============ -->
+        <!-- Предупреждение под разделами клавиш: пустой текст — строки нет. -->
+        <Style x:Key="Style.HotkeyWarning" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.Finish}" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Кнопка прослушивания в списках звонков: ▶, пока звук этой строки играет — ■ (повторное нажатие гасит). -->
+        <Style x:Key="Style.PreviewButton" TargetType="Button" BasedOn="{StaticResource Style.SettingsButton}">
+            <Setter Property="Content" Value="▶" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="ToolTip" Value="Прослушать" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                    <Setter Property="Content" Value="■" />
+                    <Setter Property="ToolTip" Value="Остановить" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- То же для эффектов: показ на циферблате главного окна. -->
+        <Style x:Key="Style.EffectPreviewButton" TargetType="Button" BasedOn="{StaticResource Style.PreviewButton}">
+            <Setter Property="ToolTip" Value="Показать на циферблате" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                    <Setter Property="ToolTip" Value="Остановить показ" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Длительность звука слева от ▶ — мелким узким шрифтом («45 сек», «1 мин 24 сек»). -->
+        <Style x:Key="Style.SoundDuration" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Bahnschrift Condensed, Arial Narrow, Segoe UI" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+        </Style>
+
+        <!-- Значок «где работает клавиша» (окно / глобус) — контур без заливки, одинаковый фон кнопки в обоих режимах. -->
+        <Style x:Key="Style.KeyScopeIcon" TargetType="Path">
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Stroke" Value="{StaticResource Brush.TextPrimary}" />
+            <Setter Property="StrokeThickness" Value="1.1" />
+            <Setter Property="Fill" Value="Transparent" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Квадратные кнопки-иконки строки быстрого таймера (эффект, звук). Пока меню кнопки открыто, она не ловит мышь
+             (DataTemplate.Triggers): иначе щелчок по ней закрыл бы меню (StaysOpen=False) и тут же открыл снова. -->
+        <Style x:Key="Style.RowIconButton" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="4" BorderThickness="1" Background="{StaticResource Brush.SurfaceSector}"
+                                BorderBrush="{StaticResource Brush.BorderSubtle}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Меню быстрого таймера (звук, эффект) — рамка всплывашки. -->
+        <Style x:Key="Style.MenuBorder" TargetType="Border">
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="Background" Value="{StaticResource Brush.Background}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+        </Style>
+
+        <!-- Строка списка звонков во всплывашке — тёмная, выбранная подсвечена акцентом. -->
+        <Style x:Key="Style.SoundListItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="6,2">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
 </ResourceDictionary>
