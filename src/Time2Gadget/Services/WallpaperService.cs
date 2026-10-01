@@ -11,7 +11,8 @@ namespace Time2Gadget.Services;
 public sealed record WallpaperMonitor(string Id, Rectangle Bounds, int Number);
 
 /// <summary>Что поставить на монитор: картинку в режиме <see cref="Fit"/> (поля — цветом <see cref="Fill"/>) или, без картинки/«не отображать», сплошной <see cref="Fill"/> (нет — чёрный).</summary>
-public sealed record MonitorWallpaperPlan(WallpaperMonitor Monitor, string? Image, WallpaperFit Fit, Color? Fill);
+/// <remarks><see cref="Area"/> — общий прямоугольник всех мониторов (одна картинка на все): картинка ложится в него, монитор берёт свой кусок.</remarks>
+public sealed record MonitorWallpaperPlan(WallpaperMonitor Monitor, string? Image, WallpaperFit Fit, Color? Fill, Rectangle? Area = null);
 
 /// <summary>
 /// Фон рабочего стола (докладка 2026-09-29/30).
@@ -258,14 +259,17 @@ public static class WallpaperService
                 var fill = plan.Fill ?? windowsBackground;
                 bool picture = plan.Image is { } p && File.Exists(p) && plan.Fit != WallpaperFit.None;
                 var key = picture
-                    ? $"{plan.Image}|{File.GetLastWriteTimeUtc(plan.Image!).Ticks}|{m.Bounds.Width}x{m.Bounds.Height}|{plan.Fit}|{fill.ToArgb()}"
+                    ? $"{plan.Image}|{File.GetLastWriteTimeUtc(plan.Image!).Ticks}|{m.Bounds.Width}x{m.Bounds.Height}|{plan.Fit}|{fill.ToArgb()}" +
+                      (plan.Area is { } a ? $"|span{a.X},{a.Y},{a.Width},{a.Height}|at{m.Bounds.X},{m.Bounds.Y}" : "")
                     : $"solid|{m.Bounds.Width}x{m.Bounds.Height}|{(plan.Fill ?? Color.Black).ToArgb()}";
                 var file = Path.Combine(dir, $"mon{m.Number}-{StableHash(key)}{(picture ? ".jpg" : ".png")}");
                 if (File.Exists(file)) File.SetLastWriteTimeUtc(file, DateTime.UtcNow); // свежая — не удалится при уборке
                 else
                 {
                     using var bitmap = picture
-                        ? Render(cache.TryGetValue(plan.Image!, out var img) ? img : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
+                        ? plan.Area is { } area
+                            ? RenderSpan(cache.TryGetValue(plan.Image!, out var spanImg) ? spanImg : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds, area, plan.Fit, fill)
+                            : Render(cache.TryGetValue(plan.Image!, out var img) ? img : cache[plan.Image!] = LoadImage(plan.Image!), m.Bounds.Width, m.Bounds.Height, plan.Fit, fill)
                         : Solid(m.Bounds.Width, m.Bounds.Height, plan.Fill ?? Color.Black);
                     if (picture) SaveJpeg(bitmap, file, 95); else bitmap.Save(file, ImageFormat.Png);
                 }
@@ -337,6 +341,30 @@ public static class WallpaperService
             : new RectangleF((float)((width - sw * scale) / 2), (float)((height - sh * scale) / 2), (float)(sw * scale), (float)(sh * scale));
         using var attributes = new ImageAttributes();
         attributes.SetWrapMode(WrapMode.TileFlipXY); // без светлой каймы по краям при масштабировании
+        g.DrawImage(source, Rectangle.Round(dest), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attributes);
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Кусок одной картинки на все мониторы: картинка ложится в общий прямоугольник <paramref name="area"/> (координаты экрана в
+    /// пикселях) в режиме <paramref name="fit"/>, монитор получает то, что попало на него.
+    /// </summary>
+    public static Bitmap RenderSpan(Image source, Rectangle monitor, Rectangle area, WallpaperFit fit, Color background)
+    {
+        var bitmap = new Bitmap(monitor.Width, monitor.Height, PixelFormat.Format24bppRgb);
+        using var g = Graphics.FromImage(bitmap);
+        g.Clear(background);
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.CompositingQuality = CompositingQuality.HighQuality;
+        double sw = source.Width, sh = source.Height;
+        double scale = fit == WallpaperFit.Fit ? Math.Min(area.Width / sw, area.Height / sh) : Math.Max(area.Width / sw, area.Height / sh);
+        RectangleF dest = fit == WallpaperFit.Stretch
+            ? new RectangleF(area.X, area.Y, area.Width, area.Height)
+            : new RectangleF((float)(area.X + (area.Width - sw * scale) / 2), (float)(area.Y + (area.Height - sh * scale) / 2), (float)(sw * scale), (float)(sh * scale));
+        dest.Offset(-monitor.X, -monitor.Y);
+        using var attributes = new ImageAttributes();
+        attributes.SetWrapMode(WrapMode.TileFlipXY);
         g.DrawImage(source, Rectangle.Round(dest), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attributes);
         return bitmap;
     }

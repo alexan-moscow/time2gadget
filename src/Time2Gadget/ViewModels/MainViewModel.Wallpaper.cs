@@ -200,6 +200,63 @@ public sealed partial class MainViewModel
     /// Поставить статичную настройку: на каждый монитор — его картинку в его режиме, без картинки — его сплошной цвет, иначе его
     /// прежний фон. Без <paramref name="force"/> — только если с прошлого раза поменялись мониторы (подключили, сменили разрешение).
     /// </summary>
+    // ---- Одна картинка «Монитора 1» на все мониторы (докладка 2026-10-01) ----
+
+    public WallpaperSpan WallpaperSpan => _settings.WallpaperSpan;
+
+    /// <summary>Главный монитор растяжки — «Монитор 1».</summary>
+    internal static WallpaperMonitor? SpanMainMonitor(IReadOnlyList<WallpaperMonitor> monitors) =>
+        monitors.FirstOrDefault(m => m.Number == 1) ?? monitors.FirstOrDefault();
+
+    /// <summary>Общий прямоугольник всех мониторов (в пикселях экрана).</summary>
+    internal static System.Drawing.Rectangle SpanArea(IReadOnlyList<WallpaperMonitor> monitors) =>
+        monitors.Select(m => m.Bounds).Aggregate(System.Drawing.Rectangle.Union);
+
+    internal static WallpaperFit SpanFit(WallpaperSpan span) => span switch
+    {
+        WallpaperSpan.Stretch => WallpaperFit.Stretch,
+        WallpaperSpan.Fit => WallpaperFit.Fit,
+        _ => WallpaperFit.Fill,
+    };
+
+    public static string SpanName(WallpaperSpan span) => span switch
+    {
+        WallpaperSpan.Span => "охватить все мониторы (заполнить, лишнее обрезается)",
+        WallpaperSpan.Stretch => "растянуть на все мониторы",
+        WallpaperSpan.Fit => "вписать в все мониторы целиком (поля — цветом)",
+        WallpaperSpan.Duplicate => "та же картинка на каждом мониторе",
+        _ => "у каждого монитора своя картинка",
+    };
+
+    public static WallpaperSpan NextSpan(WallpaperSpan span) => span switch
+    {
+        WallpaperSpan.Span => WallpaperSpan.Stretch,
+        WallpaperSpan.Stretch => WallpaperSpan.Fit,
+        WallpaperSpan.Fit => WallpaperSpan.Duplicate,
+        _ => WallpaperSpan.Span, // выключено и «на каждом» — снова «охватить»
+    };
+
+    /// <summary>Кнопка у «Монитора 1»: первый клик — «охватить», дальше по кругу. Без картинки у него — сообщение.</summary>
+    internal string CycleWallpaperSpan()
+    {
+        var monitors = WallpaperService.Monitors();
+        if (SpanMainMonitor(monitors) is not { } main || WallpaperImageFor(main.Id) is null)
+            return "Сначала выберите картинку для монитора 1 — её и растянуть на все мониторы.";
+        SplitSharedWallpaperImage();
+        _settings.WallpaperSpan = NextSpan(_settings.WallpaperSpan);
+        _settingsService.Save(_settings);
+        bool ok = ApplyWallpaper(force: true);
+        RaiseWallpaperChanged();
+        return ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
+    }
+
+    /// <summary>«✕» у «Монитора 1» — одна картинка на все больше не нужна.</summary>
+    private void StopSpanIfMain(string monitorId)
+    {
+        if (_settings.WallpaperSpan != WallpaperSpan.None && SpanMainMonitor(WallpaperService.Monitors())?.Id == monitorId)
+            _settings.WallpaperSpan = WallpaperSpan.None;
+    }
+
     internal bool ApplyWallpaper(bool force)
     {
         if (!StaticWallpaperEnabled || !HasOwnWallpaper) return false;
@@ -207,7 +264,17 @@ public sealed partial class MainViewModel
         var signature = WallpaperSignature(monitors);
         if (!force && signature == _appliedWallpaperSignature) return true;
         EnsureBackgroundCaptured();
-        var plans = monitors.Select(m =>
+        List<MonitorWallpaperPlan> plans;
+        if (_settings.WallpaperSpan != WallpaperSpan.None && SpanMainMonitor(monitors) is { } spanMain && WallpaperImageFor(spanMain.Id) is { } spanImage)
+        {
+            // одна картинка «Монитора 1» на все мониторы
+            var spanColor = WallpaperColorFor(spanMain.Id) is { } sc ? WallpaperService.ParseColor(sc) : System.Drawing.Color.Black;
+            var area = SpanArea(monitors);
+            plans = monitors.Select(m => _settings.WallpaperSpan == WallpaperSpan.Duplicate
+                ? new MonitorWallpaperPlan(m, spanImage, WallpaperFitFor(spanMain.Id), spanColor)
+                : new MonitorWallpaperPlan(m, spanImage, SpanFit(_settings.WallpaperSpan), spanColor, area)).ToList();
+        }
+        else plans = monitors.Select(m =>
         {
             var color = WallpaperColorFor(m.Id) is { } hex ? WallpaperService.ParseColor(hex) : (System.Drawing.Color?)null;
             if (WallpaperImageFor(m.Id) is { } image) return new MonitorWallpaperPlan(m, image, WallpaperFitFor(m.Id), color);
@@ -222,6 +289,7 @@ public sealed partial class MainViewModel
     internal void ClearWallpaper()
     {
         _settings.WallpaperImage = null;
+        _settings.WallpaperSpan = WallpaperSpan.None;
         _settings.WallpaperImages.Clear();
         _settings.WallpaperModes.Clear();
         _settings.WallpaperColors.Clear();
@@ -234,6 +302,7 @@ public sealed partial class MainViewModel
     internal void BlackoutMonitorWallpaper(string monitorId)
     {
         SplitSharedWallpaperImage();
+        StopSpanIfMain(monitorId);
         _settings.WallpaperImages.Remove(monitorId);
         _settings.WallpaperModes.Remove(monitorId);
         _settings.WallpaperColors[monitorId] = "#000000";
@@ -249,6 +318,7 @@ public sealed partial class MainViewModel
     internal void RestoreMonitorWallpaper(string monitorId)
     {
         SplitSharedWallpaperImage();
+        StopSpanIfMain(monitorId);
         _settings.WallpaperImages.Remove(monitorId);
         _settings.WallpaperModes.Remove(monitorId);
         _settings.WallpaperColors.Remove(monitorId);
@@ -259,7 +329,7 @@ public sealed partial class MainViewModel
     }
 
     private string WallpaperSignature(IEnumerable<WallpaperMonitor> monitors) =>
-        string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperImageFor(m.Id)}:{WallpaperFitFor(m.Id)}:{WallpaperColorFor(m.Id)}"));
+        $"span={_settings.WallpaperSpan};" + string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperImageFor(m.Id)}:{WallpaperFitFor(m.Id)}:{WallpaperColorFor(m.Id)}"));
 
     // ---- Динамичная заставка / слайдшоу ----
 
@@ -658,6 +728,7 @@ public sealed partial class MainViewModel
         var data = new WallpaperPackageData
         {
             StaticEnabled = StaticWallpaperEnabled,
+            StaticSpan = _settings.WallpaperSpan,
             // общая картинка старых настроек — уже по мониторам
             StaticImages = current.Select(m => (m.Number, Image: Name(WallpaperImageFor(m.Id)))).Where(x => x.Image is not null)
                                   .ToDictionary(x => x.Number, x => x.Image!),
@@ -696,6 +767,7 @@ public sealed partial class MainViewModel
         _settings.WallpaperImage = data.StaticImages.Count == 0 ? CopyOf(data.StaticImage) : null;
         _settings.WallpaperImages = data.StaticImages.Select(kv => (Id: Id(kv.Key), Path: CopyOf(kv.Value))).Where(x => x.Id is not null && x.Path is not null)
                                                      .ToDictionary(x => x.Id!, x => x.Path!);
+        _settings.WallpaperSpan = data.StaticSpan;
         _settings.WallpaperModes = data.StaticModes.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         _settings.WallpaperColors = data.StaticColors.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         var s = Slideshow;

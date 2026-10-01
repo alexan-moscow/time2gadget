@@ -57,6 +57,9 @@ public sealed class AppSettings
     public string? WallpaperImage { get; set; }
 
     /// <summary>Своя картинка каждого монитора (путь устройства → файл; докладка 2026-10-01). Нет записи — общая WallpaperImage.</summary>
+    /// <summary>Одна картинка «Монитора 1» на все мониторы (кнопка под «✕» у его плитки); None — у каждого своя.</summary>
+    public WallpaperSpan WallpaperSpan { get; set; }
+
     public Dictionary<string, string> WallpaperImages { get; set; } = new();
 
     /// <summary>Как картинка ложится на каждый монитор: путь устройства монитора → режим; нет записи — «растянуть».</summary>

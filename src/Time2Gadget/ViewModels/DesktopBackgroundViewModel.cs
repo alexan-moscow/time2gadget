@@ -82,7 +82,7 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
     public WallpaperFit Fit
     {
         get => _fit;
-        private set { _fit = value; Raise(nameof(Fit)); Raise(nameof(ToolTip)); }
+        private set { _fit = value; Raise(nameof(Fit)); Raise(nameof(ToolTip)); Raise(nameof(PreviewFit)); }
     }
 
     public string? Color => _color;
@@ -120,6 +120,38 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
     };
 
     public string ToolTip => $"Сейчас: {FitName(Fit)}. Клик ЛКМ — {FitName(NextFit(Fit))}";
+
+    // ---- Одна картинка «Монитора 1» на все мониторы (докладка 2026-10-01) ----
+
+    /// <summary>Способ растяжки (у всех плиток один).</summary>
+    public WallpaperSpan Span { get; init; }
+    /// <summary>Плитка «Монитора 1» — у неё кнопка растяжки (если мониторов больше одного).</summary>
+    public bool IsSpanMain { get; init; }
+    /// <summary>Остальные мониторы при растяжке показывают свой кусок картинки «Монитора 1»; их кнопки скрыты.</summary>
+    public bool IsSpanFollower { get; init; }
+    public bool IsSpanActive => Span != WallpaperSpan.None;
+    public RelayCommand? SpanCommand { get; init; }
+
+    /// <summary>Превью: при растяжке — картинка «Монитора 1» в общем прямоугольнике (кусок этого монитора).</summary>
+    public string? PreviewImage { get => _previewImage ?? Image; init => _previewImage = value; }
+    private readonly string? _previewImage;
+    public WallpaperFit PreviewFit => _previewFit ?? Fit;
+    public WallpaperFit? PreviewFitOverride { init => _previewFit = value; }
+    private readonly WallpaperFit? _previewFit;
+    public string? PreviewColor { get => _previewColor ?? Color; init => _previewColor = value; }
+    private readonly string? _previewColor;
+    /// <summary>Общий прямоугольник мониторов относительно этого монитора; Empty — картинка только своя.</summary>
+    public System.Windows.Rect SpanArea { get; init; } = System.Windows.Rect.Empty;
+
+    /// <summary>Кнопка режима картинки: при растяжке «охватить / растянуть / вписать» режим один на все — кнопки нет.</summary>
+    public bool ShowFitButton => HasImage && !IsSpanFollower && Span is not (WallpaperSpan.Span or WallpaperSpan.Stretch or WallpaperSpan.Fit);
+    public bool ShowColorButton => ShowColor && !IsSpanFollower;
+
+    public string SpanToolTip => Span == WallpaperSpan.None
+        ? "Одна картинка этого монитора на все мониторы: выключено.\nКлик ЛКМ — " + MainViewModel.SpanName(WallpaperSpan.Span)
+        : $"Одна картинка на все мониторы: {MainViewModel.SpanName(Span)}.\nКлик ЛКМ — {MainViewModel.SpanName(MainViewModel.NextSpan(Span))}.\n«✕» — выключить (сплошной цвет)";
+
+    public string FollowerToolTip => $"Монитор {Monitor.Number} показывает свой кусок картинки монитора 1 ({MainViewModel.SpanName(Span)}).\nВыключить — «✕» у монитора 1";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -159,12 +191,32 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
     public void Reload()
     {
         Monitors.Clear();
-        foreach (var m in WallpaperService.Monitors())
+        var monitors = WallpaperService.Monitors();
+        var spanMain = monitors.Count > 1 ? MainViewModel.SpanMainMonitor(monitors) : null;
+        string? spanImage = spanMain is null ? null : _main.WallpaperImageFor(spanMain.Id);
+        var span = spanImage is null ? WallpaperSpan.None : _main.WallpaperSpan;
+        var area = monitors.Count > 0 ? MainViewModel.SpanArea(monitors) : System.Drawing.Rectangle.Empty;
+        foreach (var m in monitors)
+        {
+            bool isMain = spanMain is not null && m.Id == spanMain.Id;
+            bool follower = span != WallpaperSpan.None && !isMain;
+            bool spanArea = span is WallpaperSpan.Span or WallpaperSpan.Stretch or WallpaperSpan.Fit;
             Monitors.Add(new MonitorFitItem(m, _main.WallpaperImageFor(m.Id), _main.WallpaperFitFor(m.Id), _main.WallpaperColorFor(m.Id),
                 OnFitChanged, OnColorChanged,
                 open: item => OpenImagePicker?.Invoke(item.Monitor),
                 clear: item => { _main.BlackoutMonitorWallpaper(item.Monitor.Id); Status = string.Empty; },
-                restore: item => { _main.RestoreMonitorWallpaper(item.Monitor.Id); Status = string.Empty; }));
+                restore: item => { _main.RestoreMonitorWallpaper(item.Monitor.Id); Status = string.Empty; })
+            {
+                Span = span,
+                IsSpanMain = isMain,
+                IsSpanFollower = follower,
+                SpanCommand = isMain ? new RelayCommand(() => { Status = _main.CycleWallpaperSpan(); Reload(); }) : null,
+                PreviewImage = span != WallpaperSpan.None ? spanImage : null,
+                PreviewFitOverride = span == WallpaperSpan.None ? null : spanArea ? MainViewModel.SpanFit(span) : _main.WallpaperFitFor(spanMain!.Id),
+                PreviewColor = span != WallpaperSpan.None ? _main.WallpaperColorFor(spanMain!.Id) ?? "#000000" : null,
+                SpanArea = spanArea ? new System.Windows.Rect(area.X - m.Bounds.X, area.Y - m.Bounds.Y, area.Width, area.Height) : System.Windows.Rect.Empty,
+            });
+        }
         ReloadSlideshowMonitors();
     }
 

@@ -19,6 +19,8 @@ public sealed class MonitorPreview : Border
     public static readonly DependencyProperty MonitorWidthProperty = Register(nameof(MonitorWidth), typeof(double), 1920.0);
     public static readonly DependencyProperty MonitorHeightProperty = Register(nameof(MonitorHeight), typeof(double), 1080.0);
     public static readonly DependencyProperty EmptyTextProperty = Register(nameof(EmptyText), typeof(string), "не выбрано");
+    /// <summary>Одна картинка на все мониторы: общий прямоугольник относительно этого монитора (в его пикселях); Empty — нет.</summary>
+    public static readonly DependencyProperty SpanAreaProperty = Register(nameof(SpanArea), typeof(Rect), Rect.Empty);
 
     public string? ImagePath { get => (string?)GetValue(ImagePathProperty); set => SetValue(ImagePathProperty, value); }
     public WallpaperFit Fit { get => (WallpaperFit)GetValue(FitProperty); set => SetValue(FitProperty, value); }
@@ -26,6 +28,7 @@ public sealed class MonitorPreview : Border
     public double MonitorWidth { get => (double)GetValue(MonitorWidthProperty); set => SetValue(MonitorWidthProperty, value); }
     public double MonitorHeight { get => (double)GetValue(MonitorHeightProperty); set => SetValue(MonitorHeightProperty, value); }
     public string EmptyText { get => (string)GetValue(EmptyTextProperty); set => SetValue(EmptyTextProperty, value); }
+    public Rect SpanArea { get => (Rect)GetValue(SpanAreaProperty); set => SetValue(SpanAreaProperty, value); }
 
     private static DependencyProperty Register(string name, Type type, object? defaultValue) =>
         DependencyProperty.Register(name, type, typeof(MonitorPreview), new PropertyMetadata(defaultValue, (d, _) => ((MonitorPreview)d).Rebuild()));
@@ -58,7 +61,25 @@ public sealed class MonitorPreview : Border
                     break;
                 default: image.Stretch = Stretch.Fill; break;
             }
-            screen.Children.Add(image);
+            if (!SpanArea.IsEmpty && info.Native.Width > 0 && info.Native.Height > 0)
+            {
+                // кусок одной картинки на все мониторы — как WallpaperService.RenderSpan
+                var area = SpanArea;
+                double sw = info.Native.Width, sh = info.Native.Height;
+                double scale = Fit == WallpaperFit.Fit ? Math.Min(area.Width / sw, area.Height / sh) : Math.Max(area.Width / sw, area.Height / sh);
+                var dest = Fit == WallpaperFit.Stretch
+                    ? area
+                    : new Rect(area.X + (area.Width - sw * scale) / 2, area.Y + (area.Height - sh * scale) / 2, sw * scale, sh * scale);
+                image.Stretch = Stretch.Fill;
+                image.Width = dest.Width;
+                image.Height = dest.Height;
+                var canvas = new Canvas { Width = w, Height = h };
+                Canvas.SetLeft(image, dest.X);
+                Canvas.SetTop(image, dest.Y);
+                canvas.Children.Add(image);
+                screen.Children.Add(canvas);
+            }
+            else screen.Children.Add(image);
             Child = new Viewbox { Stretch = Stretch.Uniform, Child = screen };
         }
         else if (color is not null)

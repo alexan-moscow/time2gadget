@@ -10,6 +10,8 @@ public sealed class WallpaperPackageData
 {
     public int Version { get; set; } = 1;
     public bool StaticEnabled { get; set; }
+    /// <summary>Одна картинка «Монитора 1» на все мониторы (докладка 2026-10-01).</summary>
+    public WallpaperSpan StaticSpan { get; set; }
     /// <summary>Старые архивы: одна картинка на все мониторы. Новые пишут <see cref="StaticImages"/>.</summary>
     public string? StaticImage { get; set; }
     /// <summary>Картинка статичной заставки каждого монитора: номер → имя файла (докладка 2026-10-01).</summary>

@@ -31,3 +31,17 @@ public sealed class WallpaperBackupState
     /// <summary>Шло слайд-шоу — откуда (вернуть его вместо картинок).</summary>
     public WallpaperSlideshowBackup? Slideshow { get; set; }
 }
+
+/// <summary>
+/// Одна картинка главного монитора («Монитор 1») на все мониторы (докладка 2026-10-01) — способы как в Windows (Span) и
+/// DisplayFusion: Span — заполнить общий прямоугольник всех мониторов с сохранением пропорций (лишнее обрезается, самый
+/// популярный), Stretch — растянуть на него, Fit — вписать целиком (поля цветом), Duplicate — та же картинка на каждом мониторе.
+/// </summary>
+public enum WallpaperSpan
+{
+    None,
+    Span,
+    Stretch,
+    Fit,
+    Duplicate,
+}
