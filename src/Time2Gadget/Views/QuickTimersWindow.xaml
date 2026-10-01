@@ -16,6 +16,10 @@
         <Style x:Key="Style.QuickEffectItem" TargetType="ListBoxItem" BasedOn="{StaticResource Style.SoundListItem}">
             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnQuickEffectItemClick" />
         </Style>
+        <!-- Название эффекта в списке: не помещается — сокращается «…» (полное — в подсказке и в раскрытом списке). -->
+        <DataTemplate x:Key="EffectName">
+            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+        </DataTemplate>
         <!-- Образец цвета в палитре: команда выбора — в Tag списка (палитры хода и окончания). -->
         <DataTemplate x:Key="PanelSwatch">
             <Button Command="{Binding Tag, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -238,7 +242,7 @@
                         <!-- Настройки панели — под строкой, пока таймер в панели -->
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,4" Visibility="{Binding ShowInPanel, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="В виджете:" VerticalAlignment="Center" Width="124" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
-                            <ComboBox Width="150" Margin="4,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.ProgressOptions}" DisplayMemberPath="Label"
+                            <ComboBox Width="150" Margin="4,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.ProgressOptions}" ItemTemplate="{StaticResource EffectName}"
                                       SelectedValuePath="Value" SelectedValue="{Binding PanelProgress}" ToolTip="Ход таймера в виджете (заливки и полоски видны всегда, остальные эффекты — пока таймер идёт)" />
                             <Button x:Name="PanelColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding OpenColorMenuCommand}" ToolTip="{Binding ColorToolTip}" IsEnabled="{Binding ProgressColorEnabled}" ToolTipService.ShowOnDisabled="True">
@@ -254,7 +258,8 @@
                                         </ItemsControl.ItemsPanel>
                                     </ItemsControl>
                                 </Border>
-                            </Popup>                            <ComboBox Width="136" Margin="12,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.FinishOptions}" DisplayMemberPath="Label"
+                            </Popup>
+                            <ComboBox Width="136" Margin="12,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.FinishOptions}" ItemTemplate="{StaticResource EffectName}"
                                       SelectedValuePath="Value" SelectedValue="{Binding PanelFinish}" ToolTip="Эффект окончания в виджете" />
                             <Button x:Name="FinishColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding OpenFinishColorMenuCommand}" ToolTip="{Binding FinishColorToolTip}" IsEnabled="{Binding FinishColorEnabled}" ToolTipService.ShowOnDisabled="True">
@@ -342,6 +347,9 @@
             </Grid>
             <CheckBox Content="Сокращать размер виджета под количество активных таймеров" IsChecked="{Binding QuickPanelShrink}" Margin="0,8,0,0"
                       ToolTip="Включено — высота по идущим таймерам (нет таймеров — только заголовок), место виджета не меняется.&#x0a;Выключено — высота под все синие и оранжевые таймеры, пустое место — надпись «нет активных быстрых таймеров».&#x0a;Ширина — всегда по самому длинному имени и времени синих и оранжевых таймеров" />
+            <CheckBox Content="Быстрое управление кликами по таймеру" IsChecked="{Binding QuickPanelClickControl}" Margin="0,6,0,0"
+                      IsEnabled="{Binding QuickPanelClickControlAvailable}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Клик ЛКМ по таймеру в виджете — пауза / продолжить (запустить).&#x0a;Клик ПКМ по идущему таймеру (синему или оранжевому) — сброс; по остановленному оранжевому — сделать синим (убрать из виджета до запуска).&#x0a;Доступно, когда выключено «меню по ПКМ на виджете»" />
             <CheckBox Content="Виджет поверх всех окон" IsChecked="{Binding QuickPanelTopmost}" Margin="0,6,0,0"
                       ToolTip="То же, что клик ЛКМ по кнопке в заголовке виджета (верхняя половина значка — зелёная). Не зависит от «поверх всех окон» главного окна" />
             <TextBlock Text="Таймеры виджета идут сами по себе (главный таймер не трогают): в строке плей/пауза, под ней сброс, имя и время. Закончился — свой эффект окончания (цвет и секунды — во второй строке таймера) и звук, если колокольчик включён. В заголовке виджета: кнопка «поверх всех окон» (клик ЛКМ) / «закрепить» (клик ПКМ) и крестик — закрыть (клик ЛКМ); клик ПКМ по крестику — открывать виджет снова на том же месте, когда таймер закончится. Клик ПКМ по виджету — порядок таймеров."

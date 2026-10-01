@@ -26,8 +26,35 @@ public sealed partial class MainViewModel
     public bool QuickPanelSortMenu
     {
         get => _settings.QuickPanelSortMenu;
-        set { if (_settings.QuickPanelSortMenu == value) return; _settings.QuickPanelSortMenu = value; _settingsService.Save(_settings); OnPropertyChanged(); }
+        set
+        {
+            if (_settings.QuickPanelSortMenu == value) return;
+            _settings.QuickPanelSortMenu = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(QuickPanelClickControlAvailable));
+            OnPropertyChanged(nameof(QuickPanelClickControlActive));
+        }
     }
+
+    /// <summary>Быстрое управление кликами по таймеру (галочка; действует, только когда меню по ПКМ выключено).</summary>
+    public bool QuickPanelClickControl
+    {
+        get => _settings.QuickPanelClickControl;
+        set
+        {
+            if (_settings.QuickPanelClickControl == value) return;
+            _settings.QuickPanelClickControl = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(QuickPanelClickControlActive));
+        }
+    }
+
+    public bool QuickPanelClickControlAvailable => !QuickPanelSortMenu;
+
+    /// <summary>Клики по строкам виджета управляют таймерами.</summary>
+    public bool QuickPanelClickControlActive => QuickPanelClickControl && !QuickPanelSortMenu;
 
     public bool QuickPanelShrink
     {
@@ -385,6 +412,13 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         RaiseTime();
         RaiseEffect();
         _owner.UpdatePanelTicker();
+    }
+
+    /// <summary>Быстрое управление, клик ПКМ по строке: идёт (на паузе, доигрывает окончание) — сброс; остановленный оранжевый — синий.</summary>
+    internal void QuickRightClick()
+    {
+        if (IsActive) ResetFromRow();
+        else if (Model.PanelPermanent) _item.PanelPermanent = false;
     }
 
     /// <summary>Кнопка плей/пауза (виджет и строка окна «Быстрые таймеры»).</summary>

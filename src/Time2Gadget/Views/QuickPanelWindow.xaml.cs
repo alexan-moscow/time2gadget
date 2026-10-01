@@ -88,6 +88,39 @@ public partial class QuickPanelWindow : Window
     /// <summary>Крестик, клик ЛКМ — закрыть панель (клик ПКМ — «открывать снова, когда таймер закончится», команда VM).</summary>
     private void OnCloseClick(object sender, RoutedEventArgs e) => HidePanel(_viewModel);
 
+    // ---- Быстрое управление кликами по таймеру (галочка в окне «Быстрые таймеры», когда меню по ПКМ выключено) ----
+    // Кнопки строки работают как обычно; клик по остальной строке — управление, перетаскивание виджета — за заголовок и края.
+
+    private bool _rowPressed;
+
+    private static bool OnButton(object? source, DependencyObject row)
+    {
+        for (var d = source as DependencyObject; d is not null && !ReferenceEquals(d, row); d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+            if (d is System.Windows.Controls.Primitives.ButtonBase) return true;
+        return false;
+    }
+
+    private void OnRowMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_viewModel.QuickPanelClickControlActive || OnButton(e.OriginalSource, (DependencyObject)sender)) return;
+        _rowPressed = true;
+        e.Handled = true; // не перетаскивать виджет
+    }
+
+    private void OnRowMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_rowPressed) return;
+        _rowPressed = false;
+        if (_viewModel.QuickPanelClickControlActive && sender is FrameworkElement { DataContext: QuickPanelTimer timer }) timer.PlayPauseFromRow();
+    }
+
+    private void OnRowMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_viewModel.QuickPanelClickControlActive || OnButton(e.OriginalSource, (DependencyObject)sender)) return;
+        if (sender is FrameworkElement { DataContext: QuickPanelTimer timer }) timer.QuickRightClick();
+        e.Handled = true;
+    }
+
     /// <summary>Клик ПКМ по кнопкам заголовка — их собственное действие, меню сортировки виджета не открывается.</summary>
     private void OnHeaderButtonContextMenuOpening(object sender, System.Windows.Controls.ContextMenuEventArgs e) => e.Handled = true;
 

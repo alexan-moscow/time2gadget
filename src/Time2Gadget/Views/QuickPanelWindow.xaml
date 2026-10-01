@@ -223,7 +223,18 @@
                     <ItemsControl ItemsSource="{Binding PanelTimers}" Focusable="False" VerticalAlignment="Top">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2">
+                                <Grid Margin="0,2" Background="Transparent" MouseLeftButtonDown="OnRowMouseLeftButtonDown" MouseLeftButtonUp="OnRowMouseLeftButtonUp"
+                                      MouseRightButtonUp="OnRowMouseRightButtonUp">
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.QuickPanelClickControlActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                                    <Setter Property="ToolTip" Value="Клик ЛКМ — пауза / продолжить. Клик ПКМ — сброс; у остановленного оранжевого — убрать из виджета (сделать синим)" />
+                                                    <Setter Property="Cursor" Value="Hand" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="30" />
                                         <RowDefinition Height="Auto" />
