@@ -206,7 +206,13 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
         var span = spanImage is null ? WallpaperSpan.None : _main.WallpaperSpan;
         var area = monitors.Count > 0 ? MainViewModel.SpanArea(monitors) : System.Drawing.Rectangle.Empty;
         SpanStatus = span == WallpaperSpan.None ? string.Empty
-            : $"Картинка монитора {spanMain!.Number} на все мониторы: {MainViewModel.SpanName(span)}. Кнопка внизу у монитора {spanMain.Number} — другой способ, «✕» у него — выключить.";
+            : span switch // коротко — только что сейчас используется
+            {
+                WallpaperSpan.Span => "Охват всех мониторов",
+                WallpaperSpan.Stretch => "Растянуто на все мониторы",
+                WallpaperSpan.Fit => "Вписано во все мониторы",
+                _ => "Одна картинка на каждом мониторе",
+            };
         foreach (var m in monitors)
         {
             bool isMain = spanMain is not null && m.Id == spanMain.Id;
