@@ -53,82 +53,50 @@
             <ToggleButton Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.StaticWallpaperEnabled}" VerticalAlignment="Center"
                           ToolTip="Включено — картинка/цвета на мониторах; выключено — прежний фон (настройки сохраняются)" />
         </Grid>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Grid>
-                <ComboBox ItemsSource="{Binding Images}" SelectedItem="{Binding SelectedImage}"
-                          ToolTip="{Binding SelectedImage.Label, FallbackValue='Картинка для всех мониторов — выберите из списка или добавьте свои файлы'}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <!-- Миниатюра (как в окне шагов слайдшоу) и имя; у «Выбрать свой файл» миниатюры нет. -->
-                            <StackPanel Orientation="Horizontal">
-                            <Border x:Name="ThumbBox" Width="48" Height="28" CornerRadius="2" ClipToBounds="True" Background="#101418" Margin="0,1,8,1">
-                                <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
-                            </Border>
-                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsBrowse}" Value="True">
-                                                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            </StackPanel>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsBrowse}" Value="True">
-                                    <Setter TargetName="ThumbBox" Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBlock Text="Выберите файл" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center"
-                           Foreground="{StaticResource Brush.TextSecondary}" Opacity="0.8" FontStyle="Italic">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasImage}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
-
-            <!-- Кнопки мониторов: «Мон N» и значок режима. -->
-            <ItemsControl Grid.Column="1" ItemsSource="{Binding Monitors}" Margin="6,0,0,0">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <!-- Кнопка монитора; без картинки на мониторе к ней вплотную прилипает квадратик сплошного цвета. -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
-                            <Button x:Name="MonitorButton" Command="{Binding CycleCommand}" ToolTip="{Binding ToolTip}"
-                                    Style="{StaticResource Style.SettingsButton}" Padding="8,5">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                                    <Grid Width="24" Height="16" Margin="6,0,0,0" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Geo.Screen}" StrokeThickness="1.3"
-                                              Stroke="{Binding Foreground, ElementName=MonitorButton}" />
-                                        <Path x:Name="FitIcon" Data="{StaticResource Geo.Stretch}" StrokeThickness="1.3"
-                                              Stroke="{Binding Foreground, ElementName=MonitorButton}" />
-                                    </Grid>
-                                </StackPanel>
+        <!-- Плитки мониторов (докладка 2026-10-01): рамка со скруглением, сверху «Монитор N» под чертой, ниже — его картинка так,
+             как ляжет на экран (или цвет, или «не выбрано»); клик ЛКМ — окно выбора картинки. Справа — режим, цвет, «✕». -->
+        <ItemsControl ItemsSource="{Binding Monitors}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,18,8">
+                        <Button Command="{Binding OpenCommand}" ToolTip="{Binding TileToolTip}" Cursor="Hand" Width="236" Focusable="False">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Frame" CornerRadius="7" BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}"
+                                            Background="{StaticResource Brush.SurfaceSector}">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="120" /></Grid.RowDefinitions>
+                                            <TextBlock Text="{Binding Label}" Margin="10,5,10,5" Foreground="{StaticResource Brush.TextPrimary}" FontWeight="SemiBold" />
+                                            <Border Grid.Row="1" Height="1" Background="{StaticResource Brush.BorderSubtle}" />
+                                            <c:MonitorPreview Grid.Row="2" Margin="6" ImagePath="{Binding Image}" Fit="{Binding Fit}" ColorHex="{Binding Color}"
+                                                              MonitorWidth="{Binding MonitorWidth}" MonitorHeight="{Binding MonitorHeight}" EmptyText="не выбрано" />
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <!-- справа столбиком: режим (есть картинка), сплошной цвет (картинки нет), «✕» -->
+                        <StackPanel Margin="6,0,0,0" VerticalAlignment="Top">
+                            <Button x:Name="FitButton" Command="{Binding CycleCommand}" ToolTip="{Binding ToolTip}" Style="{StaticResource Style.SettingsButton}"
+                                    Padding="5" Margin="0,0,0,4" Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                <Grid Width="24" Height="16">
+                                    <Path Data="{StaticResource Geo.Screen}" StrokeThickness="1.3" Stroke="{Binding Foreground, ElementName=FitButton}" />
+                                    <Path x:Name="FitIcon" Data="{StaticResource Geo.Stretch}" StrokeThickness="1.3" Stroke="{Binding Foreground, ElementName=FitButton}" />
+                                </Grid>
                             </Button>
                             <Button x:Name="ColorButton" Command="{Binding OpenColorMenuCommand}" ToolTip="{Binding ColorToolTip}"
-                                    Style="{StaticResource Style.SettingsButton}" Padding="5" Margin="-1,0,0,0"
+                                    Style="{StaticResource Style.SettingsButton}" Padding="8,4" Margin="0,0,0,4"
                                     Visibility="{Binding ShowColor, Converter={StaticResource BoolToVis}}">
                                 <Grid Width="18" Height="18">
-                                    <Border CornerRadius="2" Background="{Binding ColorBrush}"
-                                            BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}" />
-                                    <!-- Цвет не выбран: черта «нет цвета» — на мониторе прежний фон. -->
+                                    <Border CornerRadius="2" Background="{Binding ColorBrush}" BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}" />
                                     <Path Data="M3,15 L15,3" StrokeThickness="1.3" Stroke="{StaticResource Brush.TextSecondary}">
                                         <Path.Style>
                                             <Style TargetType="Path">
@@ -172,35 +140,30 @@
                                     </ItemsControl>
                                 </Border>
                             </Popup>
+                            <Button Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.SettingsButton}" Padding="12,6" Margin="0"
+                                    ToolTip="Клик ЛКМ — убрать картинку этого монитора: сплошной чёрный (цвет можно сменить квадратиком).&#x0a;Клик ПКМ — вернуть на этом мониторе фон, который был до этого">
+                                <Button.InputBindings>
+                                    <MouseBinding Gesture="RightClick" Command="{Binding RestoreCommand}" />
+                                </Button.InputBindings>
+                            </Button>
                         </StackPanel>
-                        <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fit}">
-                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fit}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fill}">
-                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fill}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Center}">
-                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Center}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.None}">
-                                <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.None}" />
-                            </DataTrigger>
-                        </DataTemplate.Triggers>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- «✕»: левый щелчок — картинку убрать, на всех мониторах сплошной чёрный; правый — вернуть фон, который был до своих настроек. -->
-            <Button Grid.Column="2" Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.SettingsButton}" Padding="12,6"
-                    ToolTip="Клик ЛКМ — убрать картинку: на всех мониторах сплошной чёрный (цвет каждого можно сменить квадратиком у кнопки монитора).&#x0a;Клик ПКМ — вернуть фон, который был до этого">
-                <Button.InputBindings>
-                    <MouseBinding Gesture="RightClick" Command="{Binding RestoreCommand}" />
-                </Button.InputBindings>
-            </Button>
-        </Grid>
-        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
-                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), клик ПКМ по «✕» — вернуть фон, который был до этого." />
+                    </StackPanel>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fit}">
+                            <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fit}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Fill}">
+                            <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Fill}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Fit}" Value="{x:Static m:WallpaperFit.Center}">
+                            <Setter TargetName="FitIcon" Property="Data" Value="{StaticResource Geo.Center}" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,2,0,0"
+                   Text="У каждого монитора своя картинка: клик ЛКМ по монитору — выбрать. Кнопка справа меняет, как картинка ложится: растянуть → по размеру → заполнить → по центру. Без картинки квадратик задаёт сплошной цвет. «✕»: клик ЛКМ — сплошной чёрный, клик ПКМ — фон, который был до этого." />
         <TextBlock Text="{Binding Status}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.UpdateAccent}" />
         </StackPanel>
 

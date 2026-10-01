@@ -56,7 +56,8 @@ public sealed class ImportMonitorsViewModel
     private static string Describe(WallpaperPackageData data, int n)
     {
         var parts = new List<string>();
-        if (data.StaticModes.ContainsKey(n) || data.StaticColors.ContainsKey(n)) parts.Add("статичная заставка: режим/цвет");
+        if (data.StaticImages.ContainsKey(n)) parts.Add("статичная заставка: картинка");
+        else if (data.StaticModes.ContainsKey(n) || data.StaticColors.ContainsKey(n)) parts.Add("статичная заставка: режим/цвет");
         if (data.SlideshowMonitors.TryGetValue(n, out var slots))
             parts.Add($"слайдшоу: заполнено шагов {slots.Count(s => s is { IsEmpty: false })}");
         return parts.Count == 0 ? "без своих настроек" : string.Join("; ", parts);

@@ -1,0 +1,89 @@
+<Window x:Class="Time2Gadget.Views.WallpaperPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
+        Title="{Binding Title}"
+        Width="900" Height="560" MinWidth="720" MinHeight="420"
+        Background="{StaticResource Brush.Background}"
+        WindowStartupLocation="CenterOwner">
+    <!-- Докладка 2026-10-01: ViewModels/WallpaperPickerViewModel. Как окно шагов слайдшоу, справа — одна картинка монитора. -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Button Content="Добавить картинки" Command="{Binding AddImagesCommand}" Style="{StaticResource Style.SettingsButton}"
+                Height="34" Margin="0,0,0,8" HorizontalAlignment="Left"
+                ToolTip="Одну или несколько (jpg, jpeg, png) — копии в папку программы: за раз не больше 30, всего в папке до 500" />
+        <TextBlock Grid.Column="2" Text="{Binding SelectedName}" VerticalAlignment="Center" Margin="0,0,0,8"
+                   Foreground="{StaticResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis" />
+
+        <!-- Слева: картинки одной колонкой. Клик ЛКМ — выбрать; «✕» — удалить безвозвратно. -->
+        <DockPanel Grid.Row="1">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding LibraryCaption}" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" />
+            <ListBox x:Name="LibraryList" ItemsSource="{Binding Library}" Background="{StaticResource Brush.SurfaceSector}"
+                     BorderBrush="{StaticResource Brush.BorderSubtle}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     SelectionChanged="OnLibrarySelectionChanged">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="4,3" Cursor="Hand">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ToolTip="{Binding Name}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="64" Height="40" CornerRadius="2" ClipToBounds="True" Background="#101418">
+                                <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.TextPrimary}" Margin="8,0" />
+                            <Button Grid.Column="2" Content="✕" Command="{Binding DeleteCommand}" Style="{StaticResource Style.SettingsButton}"
+                                    Padding="8,3" Margin="0" Cursor="Hand"
+                                    ToolTip="Удалить картинку безвозвратно (шаги и мониторы, где она выбрана, очистятся)" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Справа: монитор с выбранной картинкой — так, как она ляжет в его режиме. -->
+        <Border Grid.Row="1" Grid.Column="2" CornerRadius="6" BorderThickness="1" BorderBrush="{StaticResource Brush.BorderSubtle}"
+                Background="{StaticResource Brush.SurfaceSector}" Padding="10">
+            <c:MonitorPreview ImagePath="{Binding Selected}" Fit="{Binding Fit}" ColorHex="{Binding Color}"
+                              MonitorWidth="{Binding MonitorWidth}" MonitorHeight="{Binding MonitorHeight}" EmptyText="не выбрано" />
+        </Border>
+
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding Status}" TextWrapping="Wrap" FontSize="11"
+                   Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0" />
+
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="✕" Click="OnCancel" Style="{StaticResource Style.SettingsButton}" Height="34" Padding="12,0" Margin="0,0,6,0" IsCancel="True"
+                    ToolTip="Отмена — закрыть без сохранения" />
+            <Button Content="Сохранить" Click="OnSave" Style="{StaticResource Style.SettingsButton}" Height="34" Padding="20,0" Margin="0" IsDefault="True"
+                    ToolTip="Поставить выбранную картинку на этот монитор" />
+        </StackPanel>
+    </Grid>
+</Window>

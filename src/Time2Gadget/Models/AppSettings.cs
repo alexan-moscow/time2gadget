@@ -56,6 +56,9 @@ public sealed class AppSettings
     /// <summary>Своя картинка фона (файл в папке картинок программы); null — Тайм2гаджет фон не ставит (докладка 2026-09-30).</summary>
     public string? WallpaperImage { get; set; }
 
+    /// <summary>Своя картинка каждого монитора (путь устройства → файл; докладка 2026-10-01). Нет записи — общая WallpaperImage.</summary>
+    public Dictionary<string, string> WallpaperImages { get; set; } = new();
+
     /// <summary>Как картинка ложится на каждый монитор: путь устройства монитора → режим; нет записи — «растянуть».</summary>
     public Dictionary<string, WallpaperFit> WallpaperModes { get; set; } = new();
 

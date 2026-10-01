@@ -9,25 +9,18 @@ using Time2Gadget.Services;
 
 namespace Time2Gadget.ViewModels;
 
-/// <summary>Пункт списка картинок: «Выбрать свой файл» (первый) или картинка из папки программы.</summary>
-public sealed record WallpaperImageOption(string? Path, string Label)
-{
-    public bool IsBrowse => Path is null;
-    public System.Windows.Media.ImageSource? Thumb => Thumbnails.For(Path);
-}
-
 /// <summary>Цвет из палитры квадратика монитора.</summary>
 public sealed record WallpaperColorOption(string Hex, string Name);
 
 /// <summary>
-/// Кнопка «Мон N»: щелчок — следующий режим (растянуть → по размеру → заполнить → по центру → не отображать). Когда на мониторе
-/// нет картинки (её сняли или «не отображать»), к кнопке прилипает квадратик сплошного цвета — щелчок открывает 16 цветов.
+/// Плитка монитора статичной заставки (докладка 2026-10-01): «Монитор N», ниже — превью его картинки в его режиме (или цвет,
+/// или «не выбрано»). Клик ЛКМ по плитке — окно выбора картинки; справа — режим (растянуть → по размеру → заполнить → по центру),
+/// квадратик сплошного цвета (когда картинки нет) и «✕» (клик ЛКМ — сплошной чёрный, клик ПКМ — прежний фон этого монитора).
 /// </summary>
 public sealed class MonitorFitItem : INotifyPropertyChanged
 {
     private readonly Action<MonitorFitItem> _onFitChanged;
     private readonly Action<MonitorFitItem> _onColorChanged;
-    private readonly Func<bool> _hasImage;
     private WallpaperFit _fit;
     private string? _color;
     private bool _isColorMenuOpen;
@@ -41,18 +34,19 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
         new("#00FF00", "Салатовый"), new("#00FFFF", "Голубой"), new("#0000FF", "Синий"), new("#FF00FF", "Пурпурный"),
     };
 
-    public MonitorFitItem(WallpaperMonitor monitor, WallpaperFit fit, string? color, Func<bool> hasImage,
-                          Action<MonitorFitItem> onFitChanged, Action<MonitorFitItem> onColorChanged)
+    public MonitorFitItem(WallpaperMonitor monitor, string? image, WallpaperFit fit, string? color,
+                          Action<MonitorFitItem> onFitChanged, Action<MonitorFitItem> onColorChanged,
+                          Action<MonitorFitItem> open, Action<MonitorFitItem> clear, Action<MonitorFitItem> restore)
     {
         Monitor = monitor;
-        _fit = fit;
+        Image = image;
+        _fit = fit == WallpaperFit.None ? WallpaperFit.Stretch : fit;
         _color = color;
-        _hasImage = hasImage;
         _onFitChanged = onFitChanged;
         _onColorChanged = onColorChanged;
         CycleCommand = new RelayCommand(() =>
         {
-            Fit = Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1;
+            Fit = NextFit(Fit);
             _onFitChanged(this);
         });
         OpenColorMenuCommand = new RelayCommand(() => IsColorMenuOpen = true);
@@ -61,23 +55,34 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
             IsColorMenuOpen = false;
             if (p is not string hex) return;
             _color = hex;
-            Raise(nameof(ColorBrush));
-            Raise(nameof(HasColor));
-            Raise(nameof(ColorToolTip));
+            Raise(nameof(Color)); Raise(nameof(ColorBrush)); Raise(nameof(HasColor)); Raise(nameof(ColorToolTip));
             _onColorChanged(this);
         });
+        OpenCommand = new RelayCommand(() => open(this));
+        ClearCommand = new RelayCommand(() => clear(this));
+        RestoreCommand = new RelayCommand(() => restore(this));
     }
 
     public WallpaperMonitor Monitor { get; }
-    public string Label => $"Мон{Monitor.Number}";
+    public string Label => $"Монитор {Monitor.Number}";
+    public double MonitorWidth => Monitor.Bounds.Width;
+    public double MonitorHeight => Monitor.Bounds.Height;
+
+    /// <summary>Картинка монитора; null — нет (цвет или прежний фон).</summary>
+    public string? Image { get; }
+    public bool HasImage => Image is not null;
+
     public RelayCommand CycleCommand { get; }
     public RelayCommand OpenColorMenuCommand { get; }
     public RelayCommand ChooseColorCommand { get; }
+    public RelayCommand OpenCommand { get; }
+    public RelayCommand ClearCommand { get; }
+    public RelayCommand RestoreCommand { get; }
 
     public WallpaperFit Fit
     {
         get => _fit;
-        private set { _fit = value; Raise(nameof(Fit)); Raise(nameof(ToolTip)); Raise(nameof(ShowColor)); }
+        private set { _fit = value; Raise(nameof(Fit)); Raise(nameof(ToolTip)); }
     }
 
     public string? Color => _color;
@@ -87,7 +92,7 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
     public bool HasColor => _color is not null;
 
     /// <summary>Квадратик цвета — только когда на мониторе нет картинки.</summary>
-    public bool ShowColor => !_hasImage() || Fit == WallpaperFit.None;
+    public bool ShowColor => !HasImage;
 
     public bool IsColorMenuOpen
     {
@@ -99,8 +104,11 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
         ? $"Монитор {Monitor.Number}: прежний фон. Клик ЛКМ — выбрать сплошной цвет"
         : $"Монитор {Monitor.Number}: сплошной цвет {BasicColors.FirstOrDefault(c => c.Hex == _color)?.Name ?? _color}. Клик ЛКМ — другой цвет";
 
-    /// <summary>Картинку выбрали или сняли — показать/скрыть квадратик.</summary>
-    public void RefreshShowColor() => Raise(nameof(ShowColor));
+    public string TileToolTip => HasImage
+        ? $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}: {System.IO.Path.GetFileName(Image)}.\nКлик ЛКМ — выбрать другую картинку"
+        : $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}: картинка не выбрана.\nКлик ЛКМ — выбрать картинку";
+
+    public static WallpaperFit NextFit(WallpaperFit fit) => fit >= WallpaperFit.Center ? WallpaperFit.Stretch : fit + 1;
 
     public static string FitName(WallpaperFit fit) => fit switch
     {
@@ -111,22 +119,19 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
         _ => "растянуть",
     };
 
-    public string ToolTip =>
-        $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}: {FitName(Fit)}.\n" +
-        $"Клик ЛКМ — {FitName(Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1)}";
+    public string ToolTip => $"Сейчас: {FitName(Fit)}. Клик ЛКМ — {FitName(NextFit(Fit))}";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
+
 /// <summary>
-/// Окно «Заставка и фон экрана» (докладка 2026-09-30): «Закрепить фоны» (перенесено из настроек) и своя картинка фона —
-/// список картинок (свои файлы копируются в папку программы), у каждого монитора свой режим, «✕» — вернуть прежний фон.
-/// Состояние — в MainViewModel (MainViewModel.Wallpaper.cs), здесь только список и кнопки.
+/// Окно «Фоновая заставка и слайдшоу экрана» (докладка 2026-09-30/10-01): статичная заставка — плитки мониторов (у каждого своя
+/// картинка, режим, цвет), слайдшоу, «Закрепить фоны», экспорт/импорт. Состояние — в MainViewModel (MainViewModel.Wallpaper.cs).
 /// </summary>
 public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
 {
     private readonly MainViewModel _main;
-    private WallpaperImageOption? _selectedImage;
     private string _status = string.Empty;
 
     public DesktopBackgroundViewModel(MainViewModel main)
@@ -135,99 +140,46 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
         Reload();
     }
 
-    /// <summary>Галочка «Закрепить фоны» привязана прямо к MainViewModel.</summary>
+    /// <summary>Тумблеры, «Закрепить фоны» и расписание привязаны прямо к MainViewModel.</summary>
     public MainViewModel Main => _main;
 
-    public ObservableCollection<WallpaperImageOption> Images { get; } = new();
     public ObservableCollection<MonitorFitItem> Monitors { get; } = new();
 
-    /// <summary>Выбор в списке: «Выбрать свой файл» открывает выбор файлов; картинка — сразу ставится на мониторы.</summary>
-    public WallpaperImageOption? SelectedImage
-    {
-        get => _selectedImage;
-        set
-        {
-            if (value is null || ReferenceEquals(value, _selectedImage)) return;
-            if (value.IsBrowse)
-            {
-                // Выделение вернуть на прежнюю картинку (или на пусто), выбранные файлы — ниже.
-                Dispatcher.CurrentDispatcher.BeginInvoke(() => { OnPropertyChanged(); Browse(); });
-                return;
-            }
-            _selectedImage = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(HasImage));
-            foreach (var m in Monitors) m.RefreshShowColor();
-            Status = _main.SetWallpaperImage(value.Path) ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
-        }
-    }
-
-    public bool HasImage => _selectedImage is not null;
-
-    /// <summary>Строка под кнопками — только когда что-то не получилось.</summary>
+    /// <summary>Строка под плитками — только когда что-то не получилось.</summary>
     public string Status
     {
         get => _status;
         private set { _status = value; OnPropertyChanged(); }
     }
 
-    /// <summary>«✕» (левый щелчок): картинку убрать — на всех мониторах сплошной чёрный.</summary>
-    public RelayCommand ClearCommand => _clearCommand ??= new RelayCommand(() =>
-    {
-        _main.BlackoutWallpaper();
-        Reload();
-        Status = string.Empty;
-    });
-    private RelayCommand? _clearCommand;
+    /// <summary>Окно выбора картинки монитора открывает View (нужен владелец окна).</summary>
+    public Action<WallpaperMonitor>? OpenImagePicker { get; set; }
 
-    /// <summary>Список картинок, мониторы с режимами и выбранная картинка — из настроек.</summary>
+    /// <summary>Плитки мониторов и мониторы слайдшоу — из настроек.</summary>
     public void Reload()
     {
-        Images.Clear();
-        Images.Add(new WallpaperImageOption(null, "Выбрать свой файл"));
-        foreach (var file in WallpaperService.ListImages())
-            Images.Add(new WallpaperImageOption(file, Path.GetFileName(file)));
-        _selectedImage = _main.WallpaperImage is { } current
-            ? Images.FirstOrDefault(i => string.Equals(i.Path, current, StringComparison.OrdinalIgnoreCase))
-            : null;
-        OnPropertyChanged(nameof(SelectedImage));
-        OnPropertyChanged(nameof(HasImage));
-
         Monitors.Clear();
         foreach (var m in WallpaperService.Monitors())
-            Monitors.Add(new MonitorFitItem(m, _main.WallpaperFitFor(m.Id), _main.WallpaperColorFor(m.Id), () => HasImage, OnFitChanged, OnColorChanged));
+            Monitors.Add(new MonitorFitItem(m, _main.WallpaperImageFor(m.Id), _main.WallpaperFitFor(m.Id), _main.WallpaperColorFor(m.Id),
+                OnFitChanged, OnColorChanged,
+                open: item => OpenImagePicker?.Invoke(item.Monitor),
+                clear: item => { _main.BlackoutMonitorWallpaper(item.Monitor.Id); Status = string.Empty; },
+                restore: item => { _main.RestoreMonitorWallpaper(item.Monitor.Id); Status = string.Empty; }));
         ReloadSlideshowMonitors();
     }
 
     private void OnFitChanged(MonitorFitItem item)
     {
         bool ok = _main.SetWallpaperFit(item.Monitor.Id, item.Fit);
-        if (HasImage) Status = ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
+        Status = ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
+        Reload(); // превью — в новом режиме
     }
 
     private void OnColorChanged(MonitorFitItem item)
     {
         if (item.Color is { } hex)
             Status = _main.SetWallpaperColor(item.Monitor.Id, hex) ? string.Empty : "Не удалось поставить фон.";
-    }
-
-    /// <summary>«✕» (правый щелчок): вернуть фон, который был до своих настроек.</summary>
-    public RelayCommand RestoreCommand => _restoreCommand ??= new RelayCommand(() =>
-    {
-        _main.ClearWallpaper();
         Reload();
-        Status = string.Empty;
-    });
-    private RelayCommand? _restoreCommand;
-
-    /// <summary>Выбрать один или несколько файлов — копии в папку программы; первая выбранная сразу ставится.</summary>
-    private void Browse()
-    {
-        var (imported, message) = PickImages(_main);
-        Status = message;
-        if (imported.Count == 0) return;
-        Reload();
-        SelectedImage = Images.FirstOrDefault(i => string.Equals(i.Path, imported[0], StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

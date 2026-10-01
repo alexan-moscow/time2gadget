@@ -112,18 +112,23 @@ public sealed partial class MainViewModel
             : new MonitorWallpaperPlan(m, null, WallpaperFit.None, null);
 
     // ---- Статичная заставка / сплошной фон ----
+    // Докладка 2026-10-01: у каждого монитора своя картинка (плитка монитора → окно выбора картинки). Прежняя «одна картинка
+    // на все мониторы» (WallpaperImage) действует для мониторов без своей и переходит в свои при первой правке.
 
-    internal string? WallpaperImage => _settings.WallpaperImage;
+    /// <summary>Картинка монитора: своя, иначе прежняя общая; null — картинки нет (цвет или прежний фон).</summary>
+    internal string? WallpaperImageFor(string monitorId) =>
+        _settings.WallpaperImages.TryGetValue(monitorId, out var own) ? own : _settings.WallpaperImage;
 
     internal WallpaperFit WallpaperFitFor(string monitorId) =>
-        _settings.WallpaperModes.TryGetValue(monitorId, out var fit) ? fit : WallpaperFit.Stretch;
+        _settings.WallpaperModes.TryGetValue(monitorId, out var fit) && fit != WallpaperFit.None ? fit : WallpaperFit.Stretch;
 
     /// <summary>Сплошной цвет монитора («#RRGGBB») или null — у монитора прежний фон.</summary>
     internal string? WallpaperColorFor(string monitorId) =>
         _settings.WallpaperColors.TryGetValue(monitorId, out var color) ? color : null;
 
     /// <summary>Задана своя статичная настройка: картинка или хотя бы один сплошной цвет.</summary>
-    internal bool HasOwnWallpaper => _settings.WallpaperImage is not null || _settings.WallpaperColors.Count > 0;
+    internal bool HasOwnWallpaper =>
+        _settings.WallpaperImage is not null || _settings.WallpaperImages.Count > 0 || _settings.WallpaperColors.Count > 0;
 
     /// <summary>Тумблер «Статичная заставка / сплошной фон»: включён — настройка на экране, выключен — прежний фон (настройка хранится).</summary>
     public bool StaticWallpaperEnabled
@@ -152,17 +157,29 @@ public sealed partial class MainViewModel
     /// <summary>Раздел статичной заставки доступен, пока не включено слайдшоу.</summary>
     public bool IsStaticSectionEnabled => !SlideshowEnabled;
 
-    private string? _appliedWallpaperSignature; // что поставлено сейчас: картинка + мониторы + режимы + цвета
+    private string? _appliedWallpaperSignature; // что поставлено сейчас: картинки + мониторы + режимы + цвета
 
-    /// <summary>Выбрать картинку; при включённом режиме — сразу на мониторы.</summary>
-    internal bool SetWallpaperImage(string? image)
+    /// <summary>Прежняя общая картинка — в свои картинки подключённых мониторов (перед правкой одного монитора).</summary>
+    private void SplitSharedWallpaperImage()
     {
-        _settings.WallpaperImage = image;
-        _settingsService.Save(_settings);
-        return !StaticWallpaperEnabled || ApplyWallpaper(force: true);
+        if (_settings.WallpaperImage is not { } shared) return;
+        foreach (var m in WallpaperService.Monitors())
+            _settings.WallpaperImages.TryAdd(m.Id, shared);
+        _settings.WallpaperImage = null;
     }
 
-    /// <summary>Режим монитора (кнопка «Мон N»).</summary>
+    /// <summary>Картинка монитора (окно выбора картинки → «Сохранить»); при включённом режиме — сразу на экран.</summary>
+    internal bool SetWallpaperImageFor(string monitorId, string image)
+    {
+        SplitSharedWallpaperImage();
+        _settings.WallpaperImages[monitorId] = image;
+        _settingsService.Save(_settings);
+        bool ok = !StaticWallpaperEnabled || ApplyWallpaper(force: true);
+        RaiseWallpaperChanged();
+        return ok;
+    }
+
+    /// <summary>Режим монитора (кнопка режима у плитки).</summary>
     internal bool SetWallpaperFit(string monitorId, WallpaperFit fit)
     {
         if (fit == WallpaperFit.Stretch) _settings.WallpaperModes.Remove(monitorId);
@@ -171,7 +188,7 @@ public sealed partial class MainViewModel
         return !StaticWallpaperEnabled || ApplyWallpaper(force: true);
     }
 
-    /// <summary>Сплошной цвет монитора без картинки (квадратик у кнопки монитора).</summary>
+    /// <summary>Сплошной цвет монитора без картинки (квадратик у плитки).</summary>
     internal bool SetWallpaperColor(string monitorId, string hex)
     {
         _settings.WallpaperColors[monitorId] = hex;
@@ -180,9 +197,8 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// Поставить статичную настройку: на каждый монитор — картинку в его режиме, а без картинки («не отображать» или картинки
-    /// нет) — его сплошной цвет, иначе его прежний фон. Без <paramref name="force"/> — только если с прошлого раза поменялись
-    /// мониторы (подключили монитор, сменили разрешение).
+    /// Поставить статичную настройку: на каждый монитор — его картинку в его режиме, без картинки — его сплошной цвет, иначе его
+    /// прежний фон. Без <paramref name="force"/> — только если с прошлого раза поменялись мониторы (подключили, сменили разрешение).
     /// </summary>
     internal bool ApplyWallpaper(bool force)
     {
@@ -194,9 +210,7 @@ public sealed partial class MainViewModel
         var plans = monitors.Select(m =>
         {
             var color = WallpaperColorFor(m.Id) is { } hex ? WallpaperService.ParseColor(hex) : (System.Drawing.Color?)null;
-            var fit = WallpaperFitFor(m.Id);
-            if (_settings.WallpaperImage is { } image && fit != WallpaperFit.None)
-                return new MonitorWallpaperPlan(m, image, fit, color);
+            if (WallpaperImageFor(m.Id) is { } image) return new MonitorWallpaperPlan(m, image, WallpaperFitFor(m.Id), color);
             return color is null ? PreviousBackgroundPlan(m) : new MonitorWallpaperPlan(m, null, WallpaperFit.None, color);
         }).ToList();
         bool ok = WallpaperService.Apply(plans);
@@ -204,10 +218,11 @@ public sealed partial class MainViewModel
         return ok;
     }
 
-    /// <summary>«✕» (правый щелчок): своя картинка, режимы и цвета сняты, фон — как был до них.</summary>
+    /// <summary>Сброс настроек: свои картинки, режимы и цвета сняты, фон — как был до них.</summary>
     internal void ClearWallpaper()
     {
         _settings.WallpaperImage = null;
+        _settings.WallpaperImages.Clear();
         _settings.WallpaperModes.Clear();
         _settings.WallpaperColors.Clear();
         _settingsService.Save(_settings);
@@ -215,19 +230,36 @@ public sealed partial class MainViewModel
         RaiseWallpaperChanged();
     }
 
-    /// <summary>«✕» (левый щелчок): картинка и режимы сняты, на всех мониторах — сплошной чёрный (цвет каждого можно сменить).</summary>
-    internal void BlackoutWallpaper()
+    /// <summary>«✕» у плитки монитора, клик ЛКМ: картинку этого монитора убрать — на нём сплошной чёрный (цвет можно сменить).</summary>
+    internal void BlackoutMonitorWallpaper(string monitorId)
     {
-        _settings.WallpaperImage = null;
-        _settings.WallpaperModes.Clear();
-        _settings.WallpaperColors = WallpaperService.Monitors().ToDictionary(m => m.Id, _ => "#000000");
+        SplitSharedWallpaperImage();
+        _settings.WallpaperImages.Remove(monitorId);
+        _settings.WallpaperModes.Remove(monitorId);
+        _settings.WallpaperColors[monitorId] = "#000000";
         _settingsService.Save(_settings);
         ApplyWallpaper(force: true);
         RaiseWallpaperChanged();
     }
 
+    /// <summary>
+    /// «✕» у плитки монитора, клик ПКМ: на этом мониторе — фон, который был до своих настроек (картинка, режим и цвет сняты);
+    /// своих настроек не осталось ни на одном мониторе — фон всех мониторов как был.
+    /// </summary>
+    internal void RestoreMonitorWallpaper(string monitorId)
+    {
+        SplitSharedWallpaperImage();
+        _settings.WallpaperImages.Remove(monitorId);
+        _settings.WallpaperModes.Remove(monitorId);
+        _settings.WallpaperColors.Remove(monitorId);
+        _settingsService.Save(_settings);
+        if (!HasOwnWallpaper) { if (StaticWallpaperEnabled) RestoreBackgroundBefore(); }
+        else ApplyWallpaper(force: true);
+        RaiseWallpaperChanged();
+    }
+
     private string WallpaperSignature(IEnumerable<WallpaperMonitor> monitors) =>
-        _settings.WallpaperImage + "|" + string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperFitFor(m.Id)}:{WallpaperColorFor(m.Id)}"));
+        string.Join(";", monitors.Select(m => $"{m.Id}={m.Bounds}:{WallpaperImageFor(m.Id)}:{WallpaperFitFor(m.Id)}:{WallpaperColorFor(m.Id)}"));
 
     // ---- Динамичная заставка / слайдшоу ----
 
@@ -601,6 +633,7 @@ public sealed partial class MainViewModel
     {
         bool Same(string? p) => p is not null && string.Equals(p, path, StringComparison.OrdinalIgnoreCase);
         if (Same(_settings.WallpaperImage)) _settings.WallpaperImage = null;
+        foreach (var id in _settings.WallpaperImages.Where(kv => Same(kv.Value)).Select(kv => kv.Key).ToList()) _settings.WallpaperImages.Remove(id);
         foreach (var dict in new[] { Slideshow.Monitors, Slideshow.Cleared })
             foreach (var list in dict.Values)
                 for (int i = 0; i < list.Count; i++)
@@ -625,7 +658,9 @@ public sealed partial class MainViewModel
         var data = new WallpaperPackageData
         {
             StaticEnabled = StaticWallpaperEnabled,
-            StaticImage = Name(_settings.WallpaperImage),
+            // общая картинка старых настроек — уже по мониторам
+            StaticImages = current.Select(m => (m.Number, Image: Name(WallpaperImageFor(m.Id)))).Where(x => x.Image is not null)
+                                  .ToDictionary(x => x.Number, x => x.Image!),
             StaticModes = _settings.WallpaperModes.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value, kv => kv.Value),
             StaticColors = _settings.WallpaperColors.Where(kv => Num(kv.Key) is not null).ToDictionary(kv => Num(kv.Key)!.Value, kv => kv.Value),
             SlideshowEnabled = SlideshowEnabled,
@@ -657,7 +692,10 @@ public sealed partial class MainViewModel
 
         string? Id(int number) => monitorMap.TryGetValue(number, out var id) ? id : null;
         string? CopyOf(string? name) => name is not null && images.TryGetValue(name, out var p) ? p : null;
-        _settings.WallpaperImage = CopyOf(data.StaticImage);
+        // старый архив — одна картинка на все мониторы (раскладывается по мониторам при первом изменении)
+        _settings.WallpaperImage = data.StaticImages.Count == 0 ? CopyOf(data.StaticImage) : null;
+        _settings.WallpaperImages = data.StaticImages.Select(kv => (Id: Id(kv.Key), Path: CopyOf(kv.Value))).Where(x => x.Id is not null && x.Path is not null)
+                                                     .ToDictionary(x => x.Id!, x => x.Path!);
         _settings.WallpaperModes = data.StaticModes.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         _settings.WallpaperColors = data.StaticColors.Where(kv => Id(kv.Key) is not null).ToDictionary(kv => Id(kv.Key)!, kv => kv.Value);
         var s = Slideshow;

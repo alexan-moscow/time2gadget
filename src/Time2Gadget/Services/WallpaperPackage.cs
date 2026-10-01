@@ -10,7 +10,10 @@ public sealed class WallpaperPackageData
 {
     public int Version { get; set; } = 1;
     public bool StaticEnabled { get; set; }
+    /// <summary>Старые архивы: одна картинка на все мониторы. Новые пишут <see cref="StaticImages"/>.</summary>
     public string? StaticImage { get; set; }
+    /// <summary>Картинка статичной заставки каждого монитора: номер → имя файла (докладка 2026-10-01).</summary>
+    public Dictionary<int, string> StaticImages { get; set; } = new();
     public Dictionary<int, WallpaperFit> StaticModes { get; set; } = new();
     public Dictionary<int, string> StaticColors { get; set; } = new();
     public bool SlideshowEnabled { get; set; }
@@ -32,7 +35,7 @@ public sealed class WallpaperPackageData
 
     /// <summary>Все номера мониторов, у которых в архиве есть настройки.</summary>
     public IEnumerable<int> MonitorNumbers() =>
-        MonitorSizes.Keys.Concat(StaticModes.Keys).Concat(StaticColors.Keys).Concat(SlideshowMonitors.Keys).Concat(CycleLengths.Keys)
+        MonitorSizes.Keys.Concat(StaticImages.Keys).Concat(StaticModes.Keys).Concat(StaticColors.Keys).Concat(SlideshowMonitors.Keys).Concat(CycleLengths.Keys)
                     .Distinct().OrderBy(n => n);
 }
 
