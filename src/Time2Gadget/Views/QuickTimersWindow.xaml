@@ -365,8 +365,12 @@
             <TextBlock Text="Виджет быстрых таймеров" Style="{StaticResource Style.SectionHeader}" Margin="0,16,0,6" />
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Button Content="Показать / скрыть виджет" Command="{Binding ToggleQuickPanelCommand}" Style="{StaticResource Style.SettingsButton}"
-                        Margin="0" ToolTip="Клик ЛКМ — показать или скрыть виджет" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Показать / скрыть виджет" Command="{Binding ToggleQuickPanelCommand}" Style="{StaticResource Style.SettingsButton}"
+                            Margin="0" ToolTip="Клик ЛКМ — показать или скрыть виджет" />
+                    <Button Content="Сброс положения" Click="OnResetWidgetPosition" Style="{StaticResource Style.SettingsButton}" Margin="6,0,0,0"
+                            ToolTip="Клик ЛКМ — показать виджет по центру монитора, на котором это окно" />
+                </StackPanel>
                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding QuickPanelScaleLabel}" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
                     <Slider Minimum="0.6" Maximum="1.6" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding QuickPanelScale}"

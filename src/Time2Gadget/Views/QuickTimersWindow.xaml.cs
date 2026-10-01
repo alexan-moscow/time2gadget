@@ -113,6 +113,9 @@ public partial class QuickTimersWindow : Window
 
     private void OnRingtonePreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
+    /// <summary>«Сброс положения» виджета — по центру монитора с этим окном.</summary>
+    private void OnResetWidgetPosition(object sender, RoutedEventArgs e) => QuickPanelWindow.CenterOnMonitorOf(_viewModel, this);
+
     // ---- Имя таймера: применяется по Enter и по клику в сторону (раньше — только когда фокус уходил в другое поле) ----
 
     private void OnNameKeyDown(object sender, System.Windows.Input.KeyEventArgs e)

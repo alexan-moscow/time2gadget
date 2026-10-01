@@ -149,6 +149,14 @@
                                     </ItemsControl>
                                 </Border>
                             </Popup>
+                            <!-- ▶▶ — эти же настройки на следующий монитор (между режимом/цветом и «✕») -->
+                            <Button Command="{Binding CopyNextCommand}" ToolTip="{Binding CopyNextToolTip}" Style="{StaticResource Style.SettingsButton}"
+                                    Padding="5" Margin="0,0,0,4" Visibility="{Binding ShowCopyNext, Converter={StaticResource BoolToVis}}">
+                                <Grid Width="24" Height="16">
+                                    <Path Data="M3,2 L12,8 L3,14 Z" Fill="{StaticResource Brush.Accent}" Opacity="0.55" />
+                                    <Path Data="M10,2 L19,8 L10,14 Z" Fill="{StaticResource Brush.Accent}" />
+                                </Grid>
+                            </Button>
                             <Button x:Name="ClearButton" Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.SettingsButton}" Padding="12,6" Margin="0"
                                     ToolTip="Клик ЛКМ — убрать картинку этого монитора: сплошной чёрный (цвет можно сменить квадратиком).&#x0a;Клик ПКМ — вернуть на этом мониторе фон, который был до этого">
                                 <Button.InputBindings>

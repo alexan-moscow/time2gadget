@@ -55,6 +55,26 @@ public partial class QuickPanelWindow : Window
     /// <summary>Просмотр эффекта закончился, а виджет открывался только ради него — скрыть.</summary>
     public static void HideForPreview(MainViewModel main) => HidePanel(main);
 
+    /// <summary>
+    /// «Сброс положения» (окно «Быстрые таймеры», докладка 2026-10-01): виджет — показать и поставить по центру рабочей области
+    /// монитора, где открыто окно <paramref name="from"/>. В пикселях (SetWindowPos) — верно и при разном масштабе мониторов.
+    /// </summary>
+    public static void CenterOnMonitorOf(MainViewModel main, Window from)
+    {
+        ShowPanel(main);
+        if (_current is not { } w) return;
+        w.UpdateLayout();
+        var fromHwnd = new WindowInteropHelper(from).Handle;
+        var hwnd = new WindowInteropHelper(w).Handle;
+        if (fromHwnd == IntPtr.Zero || hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var r)) return;
+        var area = System.Windows.Forms.Screen.FromHandle(fromHwnd).WorkingArea;
+        int width = r.Right - r.Left, height = r.Bottom - r.Top;
+        SetWindowPos(hwnd, IntPtr.Zero, area.X + (area.Width - width) / 2, area.Y + (area.Height - height) / 2, 0, 0, 0x0001 | 0x0004 | 0x0010);
+        w.Dispatcher.BeginInvoke(() => main.SaveQuickPanelPosition(w.Left, w.Top), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
     /// <summary>Сброс настроек: панель по умолчанию скрыта.</summary>
     public static void SyncWithSettings(MainViewModel main)
     {

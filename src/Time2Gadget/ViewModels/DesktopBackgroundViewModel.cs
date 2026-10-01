@@ -132,6 +132,11 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
     public bool IsSpanActive => Span != WallpaperSpan.None;
     public RelayCommand? SpanCommand { get; init; }
 
+    /// <summary>«▶▶»: эти же картинка, режим и цвет — следующему монитору (есть следующий и есть что копировать).</summary>
+    public RelayCommand? CopyNextCommand { get; init; }
+    public bool ShowCopyNext => CopyNextCommand is not null && !IsSpanFollower && (HasImage || HasColor);
+    public string CopyNextToolTip => $"Клик ЛКМ — эти же картинку, режим и цвет поставить на монитор {Monitor.Number + 1}";
+
     /// <summary>Превью: при растяжке — картинка «Монитора 1» в общем прямоугольнике (кусок этого монитора).</summary>
     public string? PreviewImage { get => _previewImage ?? Image; init => _previewImage = value; }
     private readonly string? _previewImage;
@@ -228,6 +233,7 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
                 IsSpanMain = isMain,
                 IsSpanFollower = follower,
                 SpanCommand = isMain ? new RelayCommand(() => { Status = _main.CycleWallpaperSpan(); Reload(); }) : null,
+                CopyNextCommand = monitors.Any(o => o.Number > m.Number) ? new RelayCommand(() => { Status = _main.CopyWallpaperToNext(m.Id); Reload(); }) : null,
                 PreviewImage = span != WallpaperSpan.None ? spanImage : null,
                 PreviewFitOverride = span == WallpaperSpan.None ? null : spanArea ? MainViewModel.SpanFit(span) : _main.WallpaperFitFor(spanMain!.Id),
                 PreviewColor = span != WallpaperSpan.None ? _main.WallpaperColorFor(spanMain!.Id) ?? "#000000" : null,

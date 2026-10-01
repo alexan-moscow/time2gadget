@@ -251,6 +251,27 @@ public sealed partial class MainViewModel
         return ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
     }
 
+    /// <summary>
+    /// Кнопка «▶▶» у плитки (докладка 2026-10-01): картинка, режим и цвет этого монитора — следующему по номеру.
+    /// Возвращает текст ошибки (пусто — всё получилось).
+    /// </summary>
+    internal string CopyWallpaperToNext(string monitorId)
+    {
+        var monitors = WallpaperService.Monitors();
+        var from = monitors.FirstOrDefault(m => m.Id == monitorId);
+        var next = from is null ? null : monitors.Where(m => m.Number > from.Number).OrderBy(m => m.Number).FirstOrDefault();
+        if (from is null || next is null) return string.Empty;
+        SplitSharedWallpaperImage();
+        void Copy<T>(Dictionary<string, T> map) { if (map.TryGetValue(from.Id, out var v)) map[next.Id] = v; else map.Remove(next.Id); }
+        Copy(_settings.WallpaperImages);
+        Copy(_settings.WallpaperModes);
+        Copy(_settings.WallpaperColors);
+        _settingsService.Save(_settings);
+        bool ok = !StaticWallpaperEnabled || ApplyWallpaper(force: true);
+        RaiseWallpaperChanged();
+        return ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
+    }
+
     /// <summary>«✕» у «Монитора 1» — одна картинка на все больше не нужна.</summary>
     private void StopSpanIfMain(string monitorId)
     {
