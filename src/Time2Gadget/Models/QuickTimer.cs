@@ -11,6 +11,11 @@ public sealed class QuickTimer
     /// <summary>Звонок, подсвеченный в меню, пока звук не выбран (решение пользователя 2026-09-28).</summary>
     public const string DefaultRingtoneId = "timer-finished";
 
+    /// <summary>Имя (докладка 2026-10-01): по умолчанию «Таймер N» — даётся при создании и не сдвигается, когда другие удаляют.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
+    public int Days { get; set; }
     public int Hours { get; set; }
     public int Minutes { get; set; }
     public int Seconds { get; set; }
@@ -31,9 +36,50 @@ public sealed class QuickTimer
     /// <summary>Своя громкость 0..1; null — общая громкость (галочка «общая» в меню звука).</summary>
     public double? Volume { get; set; }
 
-    [System.Text.Json.Serialization.JsonIgnore] public TimeSpan Duration => new(Hours, Minutes, Seconds);
+    // ---- Панель быстрых таймеров (докладка 2026-10-01) ----
+
+    /// <summary>Показывать в панели быстрых таймеров.</summary>
+    public bool ShowInPanel { get; set; }
+
+    /// <summary>Эффект хода в панели и его цвет (#RRGGBB).</summary>
+    public QuickPanelProgress PanelProgress { get; set; } = QuickPanelProgress.Fill;
+    public string PanelColor { get; set; } = "#3D8BFF";
+
+    /// <summary>Эффект окончания в панели (длительность — общая из настроек, «Длительность эффекта»).</summary>
+    public QuickPanelFinish PanelFinish { get; set; } = QuickPanelFinish.Blink;
+
+    /// <summary>После окончания (и эффекта) — сбросить и убрать из панели.</summary>
+    public bool PanelResetAndClose { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public TimeSpan Duration => new(Days, Hours, Minutes, Seconds);
     [System.Text.Json.Serialization.JsonIgnore] public bool IsUsable => Duration > TimeSpan.Zero && !Binding.IsEmpty;
 
     [System.Text.Json.Serialization.JsonIgnore]
     public SoundChoice Sound => new(RingtoneId, CustomSoundFilePath, AudioDeviceId, Volume);
+}
+
+/// <summary>Эффект хода быстрого таймера в панели.</summary>
+public enum QuickPanelProgress
+{
+    None,
+    /// <summary>Строка заливается цветом слева направо.</summary>
+    Fill,
+    /// <summary>Заливка строки убывает — остаток времени.</summary>
+    Drain,
+    /// <summary>Тонкая полоска под строкой.</summary>
+    Line,
+    /// <summary>Полоска из десяти делений под строкой.</summary>
+    Segments,
+}
+
+/// <summary>Эффект окончания быстрого таймера в панели.</summary>
+public enum QuickPanelFinish
+{
+    None,
+    /// <summary>Строка мигает.</summary>
+    Blink,
+    /// <summary>Строка вспыхивает цветом таймера.</summary>
+    Flash,
+    /// <summary>Время пульсирует цветом таймера.</summary>
+    Pulse,
 }

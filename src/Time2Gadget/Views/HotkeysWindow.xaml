@@ -75,7 +75,7 @@
             <TextBlock Text="Клавиши окон" Style="{StaticResource Style.SectionHeader}" />
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
                 <TextBlock Text="Указатель мыши: свободен / снова в окне" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                            ToolTip="Для окон с «Не выпускать указатель мыши из окна» (окно «Размер и положение окон программ»); работает, пока такие окна есть" />
                 <c:HotkeyBox Grid.Column="1" BindingValue="{Binding CursorConfineKey}" Margin="0,2" />
@@ -85,8 +85,8 @@
                 </CheckBox>
                 <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding WindowProfilesKeyShown}" IsEnabled="{Binding WindowProfilesHotkeyEnabled}" Margin="0,2" />
                 <CheckBox Grid.Row="2" IsChecked="{Binding BackgroundWindowHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
-                          ToolTip="Открыть окно «Заставка и фон экрана» из любой программы">
-                    <TextBlock Text="Открыть «Заставка и фон экрана»" TextTrimming="CharacterEllipsis" />
+                          ToolTip="Открыть окно «Фоновая заставка и слайдшоу экрана» из любой программы">
+                    <TextBlock Text="Открыть «Фоновая заставка и слайдшоу экрана»" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
                 <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding BackgroundWindowKeyShown}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Margin="0,2" />
                 <CheckBox Grid.Row="3" IsChecked="{Binding QuickTimersWindowHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -94,6 +94,11 @@
                     <TextBlock Text="Открыть «Быстрые таймеры»" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
                 <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding QuickTimersWindowKeyShown}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}" Margin="0,2" />
+                <CheckBox Grid.Row="4" IsChecked="{Binding QuickPanelHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
+                          ToolTip="Показать или скрыть панель быстрых таймеров из любой программы">
+                    <TextBlock Text="Панель быстрых таймеров" TextTrimming="CharacterEllipsis" />
+                </CheckBox>
+                <c:HotkeyBox Grid.Row="4" Grid.Column="1" BindingValue="{Binding QuickPanelKeyShown}" IsEnabled="{Binding QuickPanelHotkeyEnabled}" Margin="0,2" />
             </Grid>
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0"
                        Text="Клавиши окон работают везде, когда галочка включена (по умолчанию выключены — «Не задано»). Те же настройки — в самих окнах. Клик ЛКМ по полю — назначить другое сочетание." />

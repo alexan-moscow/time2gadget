@@ -58,6 +58,7 @@ public partial class MainWindow : Window
         _viewModel.SettingsReset += (_, _) =>
         {
             OnSettingsReset();
+            QuickPanelWindow.SyncWithSettings(_viewModel);
             _settingsWindow?.CenterOnOwner();
         };
 
@@ -115,6 +116,11 @@ public partial class MainWindow : Window
         // Быстрое открытие окон «Заставка и фон экрана» и «Быстрые таймеры» клавишей (докладка 2026-10-01).
         _viewModel.BackgroundWindowRequested += (_, _) => DesktopBackgroundWindow.ShowSingle(_viewModel, null);
         _viewModel.QuickTimersWindowRequested += (_, _) => QuickTimersWindow.ShowSingle(_viewModel, null);
+        // Панель быстрых таймеров: клавиша/кнопка — показать или скрыть; таймер панели закончился — показать.
+        _viewModel.QuickPanelToggleRequested += (_, _) => QuickPanelWindow.Toggle(_viewModel);
+        _viewModel.QuickPanelShowRequested += (_, _) => QuickPanelWindow.ShowPanel(_viewModel);
+        // была открыта при выходе — открыть снова
+        SourceInitialized += (_, _) => { if (_viewModel.QuickPanelOpen) Dispatcher.BeginInvoke(() => QuickPanelWindow.ShowPanel(_viewModel)); };
 
         // Клавиши (докладка 2026-09-28): окна — здесь, пока окно в фокусе; глобальные — через RegisterHotKey/хук мыши.
         PreviewKeyDown += OnWindowKeyDown;

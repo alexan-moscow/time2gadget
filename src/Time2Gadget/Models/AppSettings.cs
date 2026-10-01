@@ -111,6 +111,23 @@ public sealed class AppSettings
     public HotkeyBinding QuickTimersWindowKey { get; set; } =
         HotkeyBinding.FromKey(System.Windows.Input.Key.PageDown, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
+    /// <summary>Показать/скрыть панель быстрых таймеров глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
+    public bool QuickPanelHotkeyEnabled { get; set; } = false;
+
+    /// <summary>Сочетание для панели быстрых таймеров, по умолчанию Ctrl+Shift+Insert.</summary>
+    public HotkeyBinding QuickPanelKey { get; set; } =
+        HotkeyBinding.FromKey(System.Windows.Input.Key.Insert, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
+    /// <summary>Панель быстрых таймеров была открыта при выходе — открыть при запуске.</summary>
+    public bool QuickPanelOpen { get; set; }
+
+    /// <summary>Место панели быстрых таймеров (null — у правого нижнего угла рабочей области).</summary>
+    public double? QuickPanelLeft { get; set; }
+    public double? QuickPanelTop { get; set; }
+
+    /// <summary>Размер панели быстрых таймеров: 1.0 — высота компактного вида при его масштабе 100%.</summary>
+    public double QuickPanelScale { get; set; } = 1.0;
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

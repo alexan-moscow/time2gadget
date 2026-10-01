@@ -95,6 +95,7 @@ public sealed partial class MainViewModel
         yield return (WindowProfilesHotkeyId, WindowProfilesKey, WindowProfilesHotkeyEnabled);
         yield return (BackgroundWindowHotkeyId, BackgroundWindowKey, BackgroundWindowHotkeyEnabled);
         yield return (QuickTimersWindowHotkeyId, QuickTimersWindowKey, QuickTimersWindowHotkeyEnabled);
+        yield return (QuickPanelHotkeyId, QuickPanelKey, QuickPanelHotkeyEnabled);
     }
 
     // ---- «Не выпускать указатель мыши из окна» (докладка 2026-09-29): клавиша — в окне «Размер и положение окон программ» ----
@@ -206,7 +207,10 @@ public sealed partial class MainViewModel
     public RelayCommand AddQuickTimerCommand => _addQuickTimerCommand ??= new RelayCommand(() =>
     {
         if (!CanAddQuickTimer) return;
-        var model = new QuickTimer();
+        // имя — первое свободное «Таймер N» (имена других строк не сдвигаются)
+        int n = 1;
+        while (QuickTimers.Any(q => q.Model.Name == $"Таймер {n}")) n++;
+        var model = new QuickTimer { Name = $"Таймер {n}" };
         _settings.QuickTimers.Add(model);
         QuickTimers.Add(new QuickTimerItem(this, model));
         OnQuickTimersChanged(listChanged: true);
@@ -220,8 +224,10 @@ public sealed partial class MainViewModel
         _settings.QuickTimers.Remove(item.Model);
         DeleteSoundIfUnused(item.Model.CustomSoundFilePath);
         QuickTimers.Remove(item);
-        if (QuickTimers.Count == 0) { AddQuickTimerCommand.Execute(null); return; } // всегда хотя бы одна строка
-        OnQuickTimersChanged(listChanged: true);
+        item.Panel.Stop();
+        if (QuickTimers.Count == 0) AddQuickTimerCommand.Execute(null); // всегда хотя бы одна строка
+        else OnQuickTimersChanged(listChanged: true);
+        RefreshPanelTimers();
     }
 
     internal void OnQuickTimersChanged(bool listChanged = false, bool hotkeys = true)
@@ -241,6 +247,7 @@ public sealed partial class MainViewModel
         _settings.QuickTimers.RemoveAll(q => q is null);
         if (_settings.QuickTimers.Count > MaxQuickTimers) _settings.QuickTimers.RemoveRange(MaxQuickTimers, _settings.QuickTimers.Count - MaxQuickTimers);
         if (_settings.QuickTimers.Count == 0) _settings.QuickTimers.Add(new QuickTimer());
+        for (int i = 0; i < _settings.QuickTimers.Count; i++) _settings.QuickTimers[i].Name ??= $"Таймер {i + 1}"; // строки до имён
 
         QuickTimers.Clear();
         foreach (var q in _settings.QuickTimers)
@@ -249,6 +256,8 @@ public sealed partial class MainViewModel
             QuickTimers.Add(new QuickTimerItem(this, q) { Number = QuickTimers.Count + 1 });
         }
         OnPropertyChanged(nameof(CanAddQuickTimer));
+        RefreshPanelTimers();
+        UpdatePanelTicker();
     }
 
     // ---- Звук быстрого таймера (докладка 2026-09-28): свой звонок и своё устройство; null — как в разделе «Звук» ----
@@ -298,8 +307,9 @@ public sealed partial class MainViewModel
         CompactHotkeyId => "Компактный вид",
         CursorConfineHotkeyId => "Указатель мыши в окне",
         WindowProfilesHotkeyId => "Размер и положение окон программ",
-        BackgroundWindowHotkeyId => "Заставка и фон экрана",
+        BackgroundWindowHotkeyId => "Фоновая заставка и слайдшоу экрана",
         QuickTimersWindowHotkeyId => "Быстрые таймеры (окно)",
+        QuickPanelHotkeyId => "Панель быстрых таймеров",
         _ => "Показать / скрыть"
     };
 
@@ -326,7 +336,7 @@ public sealed partial class MainViewModel
         var all = ActionKeys().Select(a => (Name: ActionName(a.Id), a.Key)).ToList();
         all.Add((ActionName(CursorConfineHotkeyId), CursorConfineKey));
         foreach (var (id, key, enabled) in WindowOpenKeys()) if (enabled) all.Add((ActionName(id), key));
-        all.AddRange(QuickTimers.Select(q => ($"Таймер {q.Number}", q.Model.Binding)));
+        all.AddRange(QuickTimers.Select(q => (q.Name, q.Model.Binding)));
         var duplicates = all.Where(a => !a.Key.IsEmpty).GroupBy(a => a.Key).Where(g => g.Count() > 1)
             .Select(g => $"«{g.Key}» назначено дважды: {string.Join(", ", g.Select(x => x.Name))}.");
 
@@ -335,11 +345,11 @@ public sealed partial class MainViewModel
         {
             var m = q.Model;
             if (_failedHotkeyIds.Contains(QuickTimerHotkeyIdBase + q.Number - 1))
-                timers.Add($"Таймер {q.Number}: «{m.Binding}» занято другой программой.");
-            else if (m.Binding.IsEmpty && m.Duration > TimeSpan.Zero)
-                timers.Add($"Таймер {q.Number}: не назначена клавиша.");
+                timers.Add($"{q.Name}: «{m.Binding}» занято другой программой.");
+            else if (m.Binding.IsEmpty && m.Duration > TimeSpan.Zero && !m.ShowInPanel) // в панели и без клавиши — можно
+                timers.Add($"{q.Name}: не назначена клавиша.");
             else if (!m.Binding.IsEmpty && m.Duration <= TimeSpan.Zero)
-                timers.Add($"Таймер {q.Number}: не задано время.");
+                timers.Add($"{q.Name}: не задано время.");
         }
 
         HotkeysWarning = string.Join("\n", keys.Concat(duplicates));
@@ -371,6 +381,9 @@ public sealed partial class MainViewModel
                 return;
             case QuickTimersWindowHotkeyId:
                 QuickTimersWindowRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            case QuickPanelHotkeyId:
+                QuickPanelToggleRequested?.Invoke(this, EventArgs.Empty);
                 return;
         }
         int index = id - QuickTimerHotkeyIdBase;
@@ -420,12 +433,32 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         _owner = owner;
         Model = model;
         RemoveCommand = new RelayCommand(() => _owner.RemoveQuickTimer(this));
+        Panel = new QuickPanelTimer(owner, this);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public int Number { get => _number; set { _number = value; OnPropertyChanged(); } }
 
+    /// <summary>Отсчёт этой строки в панели быстрых таймеров (свой, независимо от главного таймера).</summary>
+    public QuickPanelTimer Panel { get; }
+
+    /// <summary>Имя (по умолчанию «Таймер N»); пустое — вернуть прежнее.</summary>
+    public string Name
+    {
+        get => Model.Name ?? $"Таймер {Number}";
+        set
+        {
+            value = (value ?? "").Trim();
+            if (value.Length == 0 || value == Model.Name) { OnPropertyChanged(); return; }
+            Model.Name = value.Length > 24 ? value[..24] : value;
+            OnPropertyChanged();
+            Panel.RaiseLook();
+            _owner.OnQuickTimersChanged(hotkeys: false);
+        }
+    }
+
+    public int Days { get => Model.Days; set => Set(Math.Clamp(value, 0, 99), v => Model.Days = v, Model.Days); }
     public int Hours { get => Model.Hours; set => Set(Math.Clamp(value, 0, 23), v => Model.Hours = v, Model.Hours); }
     public int Minutes { get => Model.Minutes; set => Set(Math.Clamp(value, 0, 59), v => Model.Minutes = v, Model.Minutes); }
     public int Seconds { get => Model.Seconds; set => Set(Math.Clamp(value, 0, 59), v => Model.Seconds = v, Model.Seconds); }
@@ -618,7 +651,102 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         if (value == current) return;
         assign(value);
         OnPropertyChanged(name);
+        Panel.OnDurationChanged();
         _owner.OnQuickTimersChanged();
+    }
+
+    // ---- Панель быстрых таймеров (докладка 2026-10-01): переключатель «в панели», эффект хода и цвет, эффект окончания ----
+
+    /// <summary>Показывать в панели быстрых таймеров.</summary>
+    public bool ShowInPanel
+    {
+        get => Model.ShowInPanel;
+        set
+        {
+            if (Model.ShowInPanel == value) return;
+            Model.ShowInPanel = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PanelToolTip));
+            _owner.OnQuickTimersChanged(hotkeys: false);
+            _owner.RefreshPanelTimers();
+        }
+    }
+
+    public RelayCommand TogglePanelCommand => _togglePanelCommand ??= new RelayCommand(() => ShowInPanel = !ShowInPanel);
+    private RelayCommand? _togglePanelCommand;
+
+    public string PanelToolTip => ShowInPanel
+        ? "Показывается в панели быстрых таймеров. Клик ЛКМ — убрать из панели"
+        : "Не показывается в панели быстрых таймеров. Клик ЛКМ — показывать (настройки панели появятся под строкой)";
+
+    public static IReadOnlyList<EnumOption<QuickPanelProgress>> ProgressOptions { get; } = new[]
+    {
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Fill, "заливка строки"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Drain, "убывающая заливка"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Line, "полоска под строкой"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Segments, "деления под строкой"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.None, "без хода"),
+    };
+
+    public static IReadOnlyList<EnumOption<QuickPanelFinish>> FinishOptions { get; } = new[]
+    {
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Blink, "мигание"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Flash, "вспышки цветом"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Pulse, "пульсация времени"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.None, "без эффекта"),
+    };
+
+    public QuickPanelProgress PanelProgress
+    {
+        get => Model.PanelProgress;
+        set { if (Model.PanelProgress == value) return; Model.PanelProgress = value; OnPanelLookChanged(); }
+    }
+
+    public QuickPanelFinish PanelFinish
+    {
+        get => Model.PanelFinish;
+        set { if (Model.PanelFinish == value) return; Model.PanelFinish = value; OnPanelLookChanged(); }
+    }
+
+    public bool PanelResetAndClose
+    {
+        get => Model.PanelResetAndClose;
+        set { if (Model.PanelResetAndClose == value) return; Model.PanelResetAndClose = value; OnPanelLookChanged(); }
+    }
+
+    public string PanelColor => Model.PanelColor;
+
+    private bool _isColorMenuOpen;
+    public bool IsColorMenuOpen { get => _isColorMenuOpen; set { if (_isColorMenuOpen != value) { _isColorMenuOpen = value; OnPropertyChanged(); } } }
+
+    public RelayCommand OpenColorMenuCommand => _openColorMenuCommand ??= new RelayCommand(() => IsColorMenuOpen = true);
+    private RelayCommand? _openColorMenuCommand;
+
+    public RelayCommand ChooseColorCommand => _chooseColorCommand ??= new RelayCommand(p =>
+    {
+        IsColorMenuOpen = false;
+        if (p is not string hex || hex == Model.PanelColor) return;
+        Model.PanelColor = hex;
+        OnPanelLookChanged();
+    });
+    private RelayCommand? _chooseColorCommand;
+
+    /// <summary>Цвета эффекта хода: синий программы и яркие основные.</summary>
+    public static IReadOnlyList<WallpaperColorOption> PanelColors { get; } = new WallpaperColorOption[]
+    {
+        new("#3D8BFF", "Синий (как в программе)"), new("#00C2FF", "Голубой"), new("#00C853", "Зелёный"), new("#AEEA00", "Салатовый"),
+        new("#FFD600", "Жёлтый"), new("#FF9100", "Оранжевый"), new("#FF1744", "Красный"), new("#F50057", "Малиновый"),
+        new("#D500F9", "Пурпурный"), new("#7C4DFF", "Фиолетовый"), new("#FFFFFF", "Белый"), new("#90A4AE", "Серый"),
+    };
+
+    public string ColorToolTip => $"Цвет хода и эффекта в панели: {PanelColors.FirstOrDefault(c => c.Hex == Model.PanelColor)?.Name ?? Model.PanelColor}. Клик ЛКМ — выбрать";
+
+    private void OnPanelLookChanged()
+    {
+        foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelResetAndClose), nameof(PanelColor), nameof(ColorToolTip) })
+            OnPropertyChanged(n);
+        Panel.RaiseLook();
+        _owner.OnQuickTimersChanged(hotkeys: false);
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
