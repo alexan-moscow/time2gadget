@@ -23,6 +23,7 @@ public partial class DesktopBackgroundWindow : Window
         viewModel.ChooseImport = data =>
         {
             var dialog = new ImportMonitorsWindow(new ImportMonitorsViewModel(data)) { Owner = this };
+            WindowMemory.Attach(dialog, main, "ImportMonitors"); // открывается там, где оставили
             return dialog.ShowDialog() == true ? (dialog.Apply, dialog.Map) : null;
         };
         // «✕», сброс настроек — перечитать список и кнопки мониторов.
