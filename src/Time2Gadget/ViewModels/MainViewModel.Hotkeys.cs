@@ -470,6 +470,69 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     /// <summary>Отсчёт этой строки в виджете быстрых таймеров (свой, независимо от главного таймера).</summary>
     public QuickPanelTimer Panel { get; }
 
+    // ---- Действие после окончания (кнопка между колокольчиком и «×», докладка 2026-10-01) ----
+
+    public static IReadOnlyList<EnumOption<QuickAfterAction>> AfterOptions { get; } = new[]
+    {
+        new EnumOption<QuickAfterAction>(QuickAfterAction.None, "ничего"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.StartTimer, "запустить быстрый таймер"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Sleep, "спящий режим"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Restart, "перезагрузка"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Shutdown, "завершение работы"),
+    };
+
+    public QuickAfterAction AfterAction
+    {
+        get => Model.AfterAction;
+        set
+        {
+            if (Model.AfterAction == value) return;
+            Model.AfterAction = value;
+            if (value == QuickAfterAction.StartTimer && AfterTargets.FirstOrDefault(t => t.Id == Model.AfterTimerId) is null)
+                Model.AfterTimerId = AfterTargets.FirstOrDefault()?.Id; // сразу — следующий по списку
+            RaiseAfter();
+        }
+    }
+
+    /// <summary>Другие таймеры — кого запустить.</summary>
+    public IReadOnlyList<AfterTarget> AfterTargets => _owner.QuickTimers.Where(q => !ReferenceEquals(q, this)).Select(q => new AfterTarget(q.Model.Id, q.Name)).ToList();
+
+    public string? AfterTimerId
+    {
+        get => Model.AfterTimerId;
+        set { if (Model.AfterTimerId == value) return; Model.AfterTimerId = value; RaiseAfter(); }
+    }
+
+    public bool IsAfterStartTimer => Model.AfterAction == QuickAfterAction.StartTimer;
+    public bool IsAfterPower => Model.AfterAction is QuickAfterAction.Restart or QuickAfterAction.Shutdown;
+    public bool HasAfterAction => Model.AfterAction != QuickAfterAction.None;
+
+    private bool _isAfterMenuOpen;
+    public bool IsAfterMenuOpen
+    {
+        get => _isAfterMenuOpen;
+        set { if (_isAfterMenuOpen == value) return; _isAfterMenuOpen = value; if (value) OnPropertyChanged(nameof(AfterTargets)); OnPropertyChanged(); }
+    }
+
+    public RelayCommand AfterCommand => _afterCommand ??= new RelayCommand(() => IsAfterMenuOpen = true);
+    private RelayCommand? _afterCommand;
+
+    public string AfterToolTip => "После окончания (когда отыграют эффект и звук): " + Model.AfterAction switch
+    {
+        QuickAfterAction.StartTimer => $"запустить «{AfterTargets.FirstOrDefault(t => t.Id == Model.AfterTimerId)?.Name ?? "—"}»",
+        QuickAfterAction.Sleep => "спящий режим",
+        QuickAfterAction.Restart => "перезагрузка (через 30 с)",
+        QuickAfterAction.Shutdown => "завершение работы (через 30 с)",
+        _ => "ничего",
+    } + "\nКлик ЛКМ — выбрать";
+
+    private void RaiseAfter()
+    {
+        foreach (var n in new[] { nameof(AfterAction), nameof(AfterTimerId), nameof(IsAfterStartTimer), nameof(IsAfterPower), nameof(HasAfterAction), nameof(AfterToolTip) })
+            OnPropertyChanged(n);
+        _owner.OnQuickTimersChanged(hotkeys: false);
+    }
+
     // ---- Плей/пауза и сброс перед именем (докладка 2026-10-01): таймер виджета — его отсчёт в виджете, иначе — главный таймер ----
 
     /// <summary>Этот таймер сейчас идёт (или на паузе, или звонит) на главном таймере.</summary>

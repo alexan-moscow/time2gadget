@@ -267,6 +267,40 @@ public sealed partial class MainViewModel
         _previewOpenedWidget = false;
     }
 
+    // ---- Действие после окончания быстрого таймера (докладка 2026-10-01) ----
+
+    /// <summary>Таймер закончился сам и отыграли эффект и звук — выполнить его действие.</summary>
+    internal void RunAfterAction(QuickTimer timer)
+    {
+        switch (timer.AfterAction)
+        {
+            case QuickAfterAction.StartTimer:
+                if (QuickTimers.FirstOrDefault(q => q.Model.Id == timer.AfterTimerId && !ReferenceEquals(q.Model, timer)) is not { } next
+                    || next.Model.Duration <= TimeSpan.Zero) return;
+                _dispatcher.BeginInvoke(() =>
+                {
+                    if (next.Model.ShowInPanel) StartPanelTimer(next);
+                    else StartQuickTimer(next.Model);
+                });
+                break;
+            case QuickAfterAction.Sleep:
+                _dispatcher.BeginInvoke(() => System.Windows.Forms.Application.SetSuspendState(System.Windows.Forms.PowerState.Suspend, false, false));
+                break;
+            case QuickAfterAction.Restart:
+            case QuickAfterAction.Shutdown:
+                // через 30 с — Windows сама предупредит; передумали — Win+R, «shutdown /a»
+                bool restart = timer.AfterAction == QuickAfterAction.Restart;
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("shutdown", restart ? "/r /t 30" : "/s /t 30")
+                        { CreateNoWindow = true, UseShellExecute = false });
+                    _trayService.ShowBalloon("Тайм2гаджет", $"«{timer.Name}» закончился: {(restart ? "перезагрузка" : "выключение")} через 30 секунд. Отменить — Win+R, shutdown /a");
+                }
+                catch { /* нет прав или shutdown недоступен — ничего не делаем */ }
+                break;
+        }
+    }
+
     /// <summary>Клавиша таймера виджета: запустить в виджете заново и показать виджет.</summary>
     internal void StartPanelTimer(QuickTimerItem item)
     {
@@ -618,7 +652,11 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         {
             RaiseEffect();
             // закрыть (или сбросить) — когда отыграли и эффект, и звук: что дольше
-            if (!IsEffectActive && _soundNumber == 0) EndFinish();
+            if (!IsEffectActive && _soundNumber == 0)
+            {
+                EndFinish();
+                _owner.RunAfterAction(Model); // закончился сам и всё отыграло
+            }
         }
     }
 

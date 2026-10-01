@@ -4,7 +4,7 @@
         xmlns:c="clr-namespace:Time2Gadget.Controls"
         xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
         Title="Быстрые таймеры — Тайм2гаджет"
-        Width="620" SizeToContent="Height" MinWidth="600" PreviewMouseDown="OnWindowPreviewMouseDown"
+        Width="650" SizeToContent="Height" MinWidth="630" PreviewMouseDown="OnWindowPreviewMouseDown"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize">
     <!-- Докладка 2026-10-01: раздел «Быстрые таймеры» из настроек — отдельным окном (привязка — MainViewModel, как в настройках). -->
@@ -125,6 +125,7 @@
                                 <ColumnDefinition Width="30" />
                                 <ColumnDefinition Width="30" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
@@ -272,7 +273,36 @@
                                 </Border>
                             </Popup>
 
-                            <Button Grid.Column="10" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                            <!-- Действие после окончания: между колокольчиком и «×» -->
+                            <Button x:Name="AfterButton" Grid.Column="10" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                                    Command="{Binding AfterCommand}" ToolTip="{Binding AfterToolTip}">
+                                <Viewbox Width="12" Height="12">
+                                    <Canvas Width="24" Height="24">
+                                        <Path x:Name="AfterIcon" Data="{StaticResource Geometry.Power}" Fill="{StaticResource Brush.TextSecondary}" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Button>
+                            <Popup Grid.Column="10" PlacementTarget="{Binding ElementName=AfterButton}" Placement="Bottom" HorizontalOffset="-220"
+                                   StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsAfterMenuOpen, Mode=TwoWay}">
+                                <Border Width="250" Style="{StaticResource Style.MenuBorder}">
+                                    <StackPanel>
+                                        <TextBlock Text="После окончания — когда отыграют эффект и звук:" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6" />
+                                        <ListBox ItemsSource="{x:Static vm:QuickTimerItem.AfterOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                                 SelectedValue="{Binding AfterAction}" Background="Transparent" BorderThickness="0"
+                                                 ItemContainerStyle="{StaticResource Style.SoundListItem}" />
+                                        <ComboBox Margin="0,6,0,0" ItemsSource="{Binding AfterTargets}" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                                  SelectedValue="{Binding AfterTimerId}" ToolTip="Какой быстрый таймер запустить"
+                                                  Visibility="{Binding IsAfterStartTimer, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock Text="Через 30 секунд, Windows предупредит. Передумали — Win+R, shutdown /a" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0"
+                                                   Visibility="{Binding IsAfterPower, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock Text="Сброс таймера до этого момента действие отменяет." TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                            <Button Grid.Column="11" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
                                     Width="22" Height="24" Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
                         </Grid>
                         <!-- Настройки панели — под строкой, пока таймер в панели -->
@@ -326,6 +356,12 @@
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsColorMenuOpen}" Value="True">
                                 <Setter TargetName="PanelColorButton" Property="IsHitTestVisible" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding HasAfterAction}" Value="True">
+                                <Setter TargetName="AfterIcon" Property="Fill" Value="{StaticResource Brush.Accent}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsAfterMenuOpen}" Value="True">
+                                <Setter TargetName="AfterButton" Property="IsHitTestVisible" Value="False" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding MainEffectEnabled}" Value="False">
                                 <Setter TargetName="EffectButton" Property="Opacity" Value="0.3" />

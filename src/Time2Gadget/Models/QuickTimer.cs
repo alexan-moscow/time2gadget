@@ -14,6 +14,13 @@ public sealed class QuickTimer
     /// <summary>Имя (докладка 2026-10-01): по умолчанию «Таймер N» — даётся при создании и не сдвигается, когда другие удаляют.</summary>
     public string? Name { get; set; }
 
+    /// <summary>Постоянный id (для «после окончания — запустить другой таймер»; имя и порядок могут меняться).</summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>Действие после окончания — когда отыграют эффект и звук (что дольше); сброс до этого отменяет.</summary>
+    public QuickAfterAction AfterAction { get; set; }
+    /// <summary>Для <see cref="QuickAfterAction.StartTimer"/> — какой быстрый таймер запустить (его <see cref="Id"/>).</summary>
+    public string? AfterTimerId { get; set; }
     /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
     public int Days { get; set; }
     public int Hours { get; set; }
@@ -128,4 +135,15 @@ public enum QuickPanelSort
     RemainingAscending,
     StartedDescending,
     StartedAscending,
+}
+
+/// <summary>Действие после окончания быстрого таймера (докладка 2026-10-01).</summary>
+public enum QuickAfterAction
+{
+    None,
+    /// <summary>Запустить другой быстрый таймер (как его клавишей).</summary>
+    StartTimer,
+    Sleep,
+    Restart,
+    Shutdown,
 }

@@ -906,6 +906,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
                                && ActiveFinishEffect != FinishVisualEffect.None
                                && (duration == 0 || SecondsSinceFinish < duration);
 
+        // Действие быстрого таймера после окончания (докладка 2026-10-01): звонок отыграл и эффект закончился
+        // («бесконечный» эффект — ждём только звонок). Сброс до этого действие отменяет.
+        if (_pendingAfterAction is { } after && Status == TimerStatus.Finished && !_alarmPlaying
+            && (ActiveFinishEffect == FinishVisualEffect.None || duration == 0 || SecondsSinceFinish >= duration))
+        {
+            _pendingAfterAction = null;
+            RunAfterAction(after);
+        }
         // «Сбросить таймер по окончании эффекта» (докладка 2026-10-01): эффект отыграл своё время и звонок закончился —
         // сброс, виджет снова показывает часы. «Бесконечный» эффект или без эффекта — нечего ждать, не сбрасываем.
         if (Status == TimerStatus.Finished && _settings.ResetAfterFinishEffect && !_resetAfterEffectQueued && !_alarmPlaying
@@ -921,6 +929,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private bool _alarmPlaying;            // звонок завершения ещё играет — сброс по окончании эффекта ждёт его
+    private QuickTimer? _pendingAfterAction; // быстрый таймер на главном закончился — его действие ждёт конца эффекта и звонка
     private bool _resetAfterEffectQueued;
 
     /// <summary>Галочка «Сбросить таймер по окончании эффекта» (под ползунком длительности эффекта).</summary>
@@ -1195,6 +1204,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         ClearQuickTimerOverrides(); // свой звук и эффект быстрого таймера — только до сброса
         _soundService.StopAlarm();
         _alarmPlaying = false;
+        _pendingAfterAction = null; // сброс до окончания эффекта и звонка — действие отменено
         _engine.Reset();
         RaiseStatusDependentChanges();
     }
@@ -1251,6 +1261,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     private void OnEngineFinished(object? sender, EventArgs e)
     {
         _finishedAtUtc = DateTime.UtcNow;
+        _pendingAfterAction = MainQuickTimer is { AfterAction: not QuickAfterAction.None } quick ? quick : null;
         _trayEffectTimer ??= CreateTrayEffectTimer();
         _trayEffectTimer.Start();
 
