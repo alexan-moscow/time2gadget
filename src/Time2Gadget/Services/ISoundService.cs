@@ -33,6 +33,19 @@ public interface ISoundService
     /// </summary>
     int PlayPreview(AppSettings settings, SoundChoice? choice = null);
 
+    /// <summary>
+    /// Звук окончания таймера виджета (докладка 2026-10-01): играет сам по себе — одновременно с другими такими звуками,
+    /// звонком и прослушиванием, на своём устройстве; файл открывается в фоновом потоке (отсчёт не подтормаживает).
+    /// Возвращает номер звучания для <see cref="IndependentEnded"/> (0 — звука нет). <see cref="StopAlarm"/> его не трогает.
+    /// </summary>
+    int PlayIndependent(AppSettings settings, SoundChoice? choice);
+
+    /// <summary>Остановить звучание с этим номером (с затуханием).</summary>
+    void StopIndependent(int id);
+
+    /// <summary>Звучание <see cref="PlayIndependent"/> закончилось — доиграло или остановлено. Может прийти из фонового потока.</summary>
+    event EventHandler<int>? IndependentEnded;
+
     /// <summary>Останавливает любое текущее воспроизведение (звонок или прослушивание) с быстрым затуханием.</summary>
     void StopAlarm();
 

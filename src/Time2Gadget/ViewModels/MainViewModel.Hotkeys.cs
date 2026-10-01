@@ -590,7 +590,12 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     public RelayCommand EffectCommand => _effectCommand ??= new RelayCommand(() => IsEffectMenuOpen = true);
     private RelayCommand? _effectCommand;
 
-    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}\nКлик ЛКМ — выбрать";
+    public string EffectToolTip => ShowInPanel
+        ? "Эффект главного таймера недоступен: таймер в виджете, у него свои эффекты (строка «В виджете»)"
+        : $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}\nКлик ЛКМ — выбрать";
+
+    /// <summary>Эффект главного таймера — только у обычного таймера (синий/оранжевый идут в виджете, там свои эффекты).</summary>
+    public bool MainEffectEnabled => !ShowInPanel;
 
     /// <summary>Щелчок по эффекту в меню: выбрать, прекратить показ и закрыть меню.</summary>
     public void ChooseEffect(object value)
@@ -713,6 +718,8 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(PanelToolTip));
             OnPropertyChanged(nameof(IsPanelPermanentShown));
+            OnPropertyChanged(nameof(MainEffectEnabled));
+            OnPropertyChanged(nameof(EffectToolTip));
             RaiseRowState();
             _owner.OnQuickTimersChanged(hotkeys: false);
             _owner.RefreshPanelTimers();

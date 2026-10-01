@@ -74,6 +74,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
         _engine.Finished += OnEngineFinished;
         _soundService.PreviewEnded += OnPreviewEnded;
+        _soundService.IndependentEnded += (_, number) => _dispatcher.BeginInvoke(() => NotifyPanelSoundEnded(number)); // виджет ждёт конца звука
         LoadBuiltInDurations();
         PropertyChanged += (_, e) =>
         {

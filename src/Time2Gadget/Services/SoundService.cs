@@ -60,9 +60,12 @@ public sealed class SoundService : ISoundService, IDisposable
             return;
         }
 
-        _ringCts = new CancellationTokenSource();
-        _ = RingLoopAsync(path, choice?.DeviceId ?? settings.AudioDeviceId, choice?.Volume ?? settings.AlarmVolume,
-            Math.Clamp(settings.AlarmRepeatCount, 1, 10), _ringCts.Token);
+        var cts = _ringCts = new CancellationTokenSource();
+        string device = choice?.DeviceId ?? settings.AudioDeviceId;
+        double volume = choice?.Volume ?? settings.AlarmVolume;
+        int repeats = Math.Clamp(settings.AlarmRepeatCount, 1, 10);
+        // в фоновом потоке: открытие файла и устройства не должно подтормаживать отсчёт на экране (докладка 2026-10-01)
+        _ = Task.Run(() => RingLoopAsync(path, device, volume, repeats, cts.Token));
     }
 
     public event EventHandler<int>? PreviewEnded;
@@ -77,6 +80,68 @@ public sealed class SoundService : ISoundService, IDisposable
         PlayOnceAsync(path, choice?.DeviceId ?? settings.AudioDeviceId, choice?.Volume ?? settings.AlarmVolume, CancellationToken.None)
             .ContinueWith(_ => PreviewEnded?.Invoke(this, id), TaskScheduler.Default);
         return id;
+    }
+
+    // ---- Звуки окончания таймеров виджета — каждый сам по себе (докладка 2026-10-01) ----
+
+    private readonly Dictionary<int, (WasapiOut Output, FadeInOutSampleProvider Fade)> _independent = new();
+    private readonly HashSet<int> _stoppedEarly = new(); // остановили, пока файл ещё открывался
+    public event EventHandler<int>? IndependentEnded;
+
+    public int PlayIndependent(AppSettings settings, SoundChoice? choice)
+    {
+        var path = ResolveSoundPath(settings, choice);
+        if (path is null) return 0;
+        int id = Interlocked.Increment(ref _previewSeq);
+        string deviceId = choice?.DeviceId ?? settings.AudioDeviceId;
+        double volume = choice?.Volume ?? settings.AlarmVolume;
+        Task.Run(() =>
+        {
+            try
+            {
+                var reader = new AudioFileReader(path) { Volume = (float)Math.Clamp(volume, 0, 1) };
+                var fade = new FadeInOutSampleProvider(reader);
+                var device = ResolveDeviceOrNull(deviceId);
+                var output = device is not null
+                    ? new WasapiOut(device, AudioClientShareMode.Shared, true, OutputLatencyMs)
+                    : new WasapiOut(AudioClientShareMode.Shared, OutputLatencyMs);
+                output.PlaybackStopped += (_, _) =>
+                {
+                    lock (_lock) _independent.Remove(id);
+                    try { reader.Dispose(); } catch { }
+                    try { output.Dispose(); } catch { }
+                    IndependentEnded?.Invoke(this, id);
+                };
+                lock (_lock)
+                {
+                    if (_stoppedEarly.Remove(id)) { reader.Dispose(); output.Dispose(); IndependentEnded?.Invoke(this, id); return; }
+                    _independent[id] = (output, fade);
+                }
+                output.Init(fade);
+                output.Play();
+            }
+            catch
+            {
+                lock (_lock) _independent.Remove(id);
+                IndependentEnded?.Invoke(this, id); // устройство/файл недоступны — «отыграло» сразу
+            }
+        });
+        return id;
+    }
+
+    public void StopIndependent(int id)
+    {
+        (WasapiOut Output, FadeInOutSampleProvider Fade) entry;
+        lock (_lock)
+        {
+            if (!_independent.TryGetValue(id, out entry)) { _stoppedEarly.Add(id); return; }
+            _independent.Remove(id);
+        }
+        try { entry.Fade.BeginFadeOut(FadeOutDuration.TotalMilliseconds); } catch { }
+        _ = Task.Delay(FadeOutDuration + TimeSpan.FromMilliseconds(OutputLatencyMs)).ContinueWith(_ =>
+        {
+            try { entry.Output.Stop(); } catch { }
+        }, TaskScheduler.Default);
     }
 
     public TimeSpan? GetDuration(string ringtoneId, string? customPath)

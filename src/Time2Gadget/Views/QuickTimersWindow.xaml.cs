@@ -99,4 +99,28 @@ public partial class QuickTimersWindow : Window
     private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();
 
     private void OnRingtonePreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
+
+    // ---- Имя таймера: применяется по Enter и по клику в сторону (раньше — только когда фокус уходил в другое поле) ----
+
+    private void OnNameKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter || sender is not System.Windows.Controls.TextBox box) return;
+        CommitName(box);
+        e.Handled = true;
+    }
+
+    private void OnWindowPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (System.Windows.Input.Keyboard.FocusedElement is not System.Windows.Controls.TextBox { Tag: "TimerName" } box) return;
+        for (var d = e.OriginalSource as DependencyObject; d is not null; d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+            if (ReferenceEquals(d, box)) return; // клик в самом поле
+        CommitName(box);
+    }
+
+    private void CommitName(System.Windows.Controls.TextBox box)
+    {
+        box.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+        System.Windows.Input.Keyboard.ClearFocus();
+        System.Windows.Input.FocusManager.SetFocusedElement(this, null);
+    }
 }

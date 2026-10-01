@@ -4,7 +4,7 @@
         xmlns:c="clr-namespace:Time2Gadget.Controls"
         xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
         Title="Быстрые таймеры — Тайм2гаджет"
-        Width="620" SizeToContent="Height" MinWidth="600"
+        Width="620" SizeToContent="Height" MinWidth="600" PreviewMouseDown="OnWindowPreviewMouseDown"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize">
     <!-- Докладка 2026-10-01: раздел «Быстрые таймеры» из настроек — отдельным окном (привязка — MainViewModel, как в настройках). -->
@@ -112,7 +112,7 @@
                                     </Viewbox>
                                 </Button>
                             </StackPanel>
-                            <TextBox Grid.Column="1" Text="{Binding Name}" Height="24" VerticalContentAlignment="Center" MaxLength="24"
+                            <TextBox Grid.Column="1" Text="{Binding Name}" Height="24" Tag="TimerName" KeyDown="OnNameKeyDown" VerticalContentAlignment="Center" MaxLength="24"
                                      ToolTip="Имя таймера — так он называется в виджете и в предупреждениях" />
                             <c:TimeSpinner Grid.Column="2" Height="24" Maximum="99" Value="{Binding Days}" ToolTip="Дни" Margin="4,0,0,0" />
                             <c:TimeSpinner Grid.Column="3" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" Margin="2,0,0,0" />
@@ -134,7 +134,7 @@
 
                             <!-- Эффект завершения таймера: иконка текущего эффекта («—» нет), меню с просмотром. -->
                             <Button x:Name="EffectButton" Grid.Column="8" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
-                                    Command="{Binding EffectCommand}" ToolTip="{Binding EffectToolTip}">
+                                    Command="{Binding EffectCommand}" ToolTip="{Binding EffectToolTip}" IsEnabled="{Binding MainEffectEnabled}" ToolTipService.ShowOnDisabled="True">
                                 <ContentControl Content="{Binding FinishEffect, Converter={StaticResource EffectIcon}}" Focusable="False" />
                             </Button>
                             <Popup Grid.Column="8" PlacementTarget="{Binding ElementName=EffectButton}" Placement="Bottom" HorizontalOffset="-150"
@@ -291,6 +291,9 @@
                             <DataTrigger Binding="{Binding IsColorMenuOpen}" Value="True">
                                 <Setter TargetName="PanelColorButton" Property="IsHitTestVisible" Value="False" />
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding MainEffectEnabled}" Value="False">
+                                <Setter TargetName="EffectButton" Property="Opacity" Value="0.3" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding ProgressColorEnabled}" Value="False">
                                 <Setter TargetName="PanelColorButton" Property="Opacity" Value="0.3" />
                             </DataTrigger>
@@ -349,7 +352,9 @@
                       ToolTip="Включено — высота по идущим таймерам (нет таймеров — только заголовок), место виджета не меняется.&#x0a;Выключено — высота под все синие и оранжевые таймеры, пустое место — надпись «нет активных быстрых таймеров».&#x0a;Ширина — всегда по самому длинному имени и времени синих и оранжевых таймеров" />
             <CheckBox Content="Быстрое управление кликами по таймеру" IsChecked="{Binding QuickPanelClickControl}" Margin="0,6,0,0"
                       IsEnabled="{Binding QuickPanelClickControlAvailable}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Клик ЛКМ по таймеру в виджете — пауза / продолжить (запустить).&#x0a;Клик ПКМ по идущему таймеру (синему или оранжевому) — сброс; по остановленному оранжевому — сделать синим (убрать из виджета до запуска).&#x0a;Доступно, когда выключено «меню по ПКМ на виджете»" />
+                      ToolTip="Клик ЛКМ по таймеру в виджете — пауза / продолжить (запустить).&#x0a;Клик ПКМ по идущему таймеру (синему или оранжевому) — сброс.&#x0a;Доступно, когда выключено «меню по ПКМ на виджете»" />
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="22,2,0,0"
+                       Text="Клик ЛКМ по таймеру в виджете — пауза / продолжить (остановленный — запустить). Клик ПКМ по идущему, стоящему на паузе или доигрывающему окончание таймеру — сброс. Кнопки строки работают как обычно, виджет перетаскивается за заголовок и края. Доступно, когда выключено «меню по ПКМ на виджете»." />
             <CheckBox Content="Виджет поверх всех окон" IsChecked="{Binding QuickPanelTopmost}" Margin="0,6,0,0"
                       ToolTip="То же, что клик ЛКМ по кнопке в заголовке виджета (верхняя половина значка — зелёная). Не зависит от «поверх всех окон» главного окна" />
             <TextBlock Text="Таймеры виджета идут сами по себе (главный таймер не трогают): в строке плей/пауза, под ней сброс, имя и время. Закончился — свой эффект окончания (цвет и секунды — во второй строке таймера) и звук, если колокольчик включён. В заголовке виджета: кнопка «поверх всех окон» (клик ЛКМ) / «закрепить» (клик ПКМ) и крестик — закрыть (клик ЛКМ); клик ПКМ по крестику — открывать виджет снова на том же месте, когда таймер закончится. Клик ПКМ по виджету — порядок таймеров."

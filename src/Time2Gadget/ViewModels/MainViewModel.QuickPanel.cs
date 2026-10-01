@@ -290,11 +290,8 @@ public sealed partial class MainViewModel
     internal int OnPanelTimerFinished(QuickTimer timer)
     {
         int sound = 0;
-        if (timer.SoundEnabled)
-        {
-            StopPreview();
-            sound = _soundService.PlayPreview(_settings, timer.Sound);
-        }
+        // свой звук окончания — одновременно с другими таймерами и главным звонком, каждый на своём устройстве
+        if (timer.SoundEnabled) sound = _soundService.PlayIndependent(_settings, timer.Sound);
         if (QuickPanelReopenOnFinish) QuickPanelShowRequested?.Invoke(this, EventArgs.Empty);
         return sound;
     }
@@ -305,7 +302,7 @@ public sealed partial class MainViewModel
         foreach (var q in QuickTimers) q.Panel.OnSoundEnded(number);
     }
 
-    internal void StopPanelSound() => _soundService.StopAlarm();
+    internal void StopPanelSound(int number) => _soundService.StopIndependent(number);
 
     /// <summary>Старые сочетания по умолчанию (панель — Ctrl+Shift+Insert, окно фона — Ctrl+Shift+PageUp) — поменять местами.</summary>
     private void SwapOldPanelDefaults()
@@ -414,11 +411,10 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         _owner.UpdatePanelTicker();
     }
 
-    /// <summary>Быстрое управление, клик ПКМ по строке: идёт (на паузе, доигрывает окончание) — сброс; остановленный оранжевый — синий.</summary>
+    /// <summary>Быстрое управление, клик ПКМ по строке: идёт (на паузе, доигрывает окончание) — сброс; остановленный — ничего.</summary>
     internal void QuickRightClick()
     {
         if (IsActive) ResetFromRow();
-        else if (Model.PanelPermanent) _item.PanelPermanent = false;
     }
 
     /// <summary>Кнопка плей/пауза (виджет и строка окна «Быстрые таймеры»).</summary>
@@ -555,8 +551,9 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     private void StopOwnSound()
     {
         if (_soundNumber == 0) return;
+        int number = _soundNumber;
         _soundNumber = 0;
-        _owner.StopPanelSound();
+        _owner.StopPanelSound(number);
     }
 
     /// <summary>
