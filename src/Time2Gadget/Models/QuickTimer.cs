@@ -29,7 +29,9 @@ public sealed class QuickTimer
     public string? AfterMessageText { get; set; }
     public MessagePosition AfterMessagePosition { get; set; } = MessagePosition.Center;
     public string AfterMessageColor { get; set; } = "#000000";
-    public int AfterMessageFontSize { get; set; } = 72;    /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
+    public int AfterMessageFontSize { get; set; } = 72;
+    /// <summary>Прозрачность фона сообщения, % (0 — фон не виден, 100 — сплошной).</summary>
+    public int AfterMessageTransparency { get; set; } = 8;    /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
     public int Days { get; set; }
     public int Hours { get; set; }
     public int Minutes { get; set; }

@@ -12,7 +12,7 @@ namespace Time2Gadget.Views;
 /// </summary>
 public sealed class MessageOverlayWindow : Window
 {
-    public MessageOverlayWindow(string text, MessagePosition position, string colorHex, double fontSize)
+    public MessageOverlayWindow(string text, MessagePosition position, string colorHex, double fontSize, int transparencyPercent)
     {
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
@@ -21,7 +21,9 @@ public sealed class MessageOverlayWindow : Window
         ShowInTaskbar = false;
         Title = "Тайм2гаджет";
         var color = ParseColor(colorHex);
-        Background = new SolidColorBrush(Color.FromArgb(235, color.R, color.G, color.B));
+        // прозрачность фона — из настроек (0 — сплошной); совсем прозрачным не делаем — окно должно ловить клик для закрытия
+        byte alpha = (byte)Math.Max(1, Math.Round(255 * (100 - Math.Clamp(transparencyPercent, 0, 100)) / 100.0));
+        Background = new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
         // светлый фон — тёмный текст
         var fore = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B > 150 ? Brushes.Black : Brushes.White;
 

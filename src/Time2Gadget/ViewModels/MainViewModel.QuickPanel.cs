@@ -320,7 +320,7 @@ public sealed partial class MainViewModel
     internal void ShowAfterMessage(QuickTimer timer)
     {
         var text = string.IsNullOrWhiteSpace(timer.AfterMessageText) ? $"Таймер «{timer.Name}» закончился" : timer.AfterMessageText!;
-        new Views.MessageOverlayWindow(text, timer.AfterMessagePosition, timer.AfterMessageColor, timer.AfterMessageFontSize).Show();
+        new Views.MessageOverlayWindow(text, timer.AfterMessagePosition, timer.AfterMessageColor, timer.AfterMessageFontSize, timer.AfterMessageTransparency).Show();
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool LockWorkStation();

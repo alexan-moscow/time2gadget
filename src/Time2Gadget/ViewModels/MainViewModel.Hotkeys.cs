@@ -561,6 +561,13 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         set { int v = (int)Math.Round(Math.Clamp(value, 16, 200)); if (Model.AfterMessageFontSize == v) return; Model.AfterMessageFontSize = v; RaiseAfter(); }
     }
 
+    /// <summary>Прозрачность фона сообщения, %.</summary>
+    public double AfterMessageTransparency
+    {
+        get => Model.AfterMessageTransparency;
+        set { int v = (int)Math.Round(Math.Clamp(value, 0, 100)); if (Model.AfterMessageTransparency == v) return; Model.AfterMessageTransparency = v; RaiseAfter(); }
+    }
+
     public RelayCommand ShowMessageCommand => _showMessageCommand ??= new RelayCommand(() => { IsAfterMenuOpen = false; _owner.ShowAfterMessage(Model); });
     private RelayCommand? _showMessageCommand;
     public bool IsAfterPower => Model.AfterAction is QuickAfterAction.Restart or QuickAfterAction.Shutdown;
@@ -592,7 +599,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     private void RaiseAfter()
     {
         foreach (var n in new[] { nameof(AfterAction), nameof(AfterTimerId), nameof(IsAfterStartTimer), nameof(IsAfterPower), nameof(HasAfterAction), nameof(AfterToolTip),
-                     nameof(IsAfterOpen), nameof(IsAfterMessage), nameof(AfterOpenTarget), nameof(AfterMessageText), nameof(AfterMessagePosition), nameof(AfterMessageColor), nameof(AfterMessageFontSize) })
+                     nameof(IsAfterOpen), nameof(IsAfterMessage), nameof(AfterOpenTarget), nameof(AfterMessageText), nameof(AfterMessagePosition), nameof(AfterMessageColor), nameof(AfterMessageFontSize), nameof(AfterMessageTransparency) })
             OnPropertyChanged(n);
         _owner.OnQuickTimersChanged(hotkeys: false);
     }

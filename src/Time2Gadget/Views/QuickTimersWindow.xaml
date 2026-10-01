@@ -324,6 +324,11 @@
                                                 <Run Text="Размер шрифта:" /> <Run Text="{Binding AfterMessageFontSize, Mode=OneWay}" />
                                             </TextBlock>
                                             <Slider Minimum="16" Maximum="200" Value="{Binding AfterMessageFontSize}" SmallChange="2" LargeChange="10" />
+                                            <TextBlock FontSize="11" Margin="0,6,0,2">
+                                                <Run Text="Прозрачность фона:" /> <Run Text="{Binding AfterMessageTransparency, Mode=OneWay}" /><Run Text="%" />
+                                            </TextBlock>
+                                            <Slider Minimum="0" Maximum="100" Value="{Binding AfterMessageTransparency}" SmallChange="5" LargeChange="10"
+                                                    ToolTip="0% — сплошной фон, 100% — фона не видно (только текст поверх экрана)" />
                                             <Button Content="Показать" Command="{Binding ShowMessageCommand}" Style="{StaticResource Style.SettingsButton}" HorizontalAlignment="Left"
                                                     Margin="0,6,0,0" ToolTip="Клик ЛКМ — показать сообщение сейчас (закрыть — клик или любая клавиша)" />
                                         </StackPanel>
