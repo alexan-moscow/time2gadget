@@ -177,6 +177,15 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
 
     public ObservableCollection<MonitorFitItem> Monitors { get; } = new();
 
+    /// <summary>Строка под плитками: включена одна картинка на все мониторы — каким способом (докладка 2026-10-01).</summary>
+    public string SpanStatus
+    {
+        get => _spanStatus;
+        private set { _spanStatus = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasSpanStatus)); }
+    }
+    private string _spanStatus = string.Empty;
+    public bool HasSpanStatus => _spanStatus.Length > 0;
+
     /// <summary>Строка под плитками — только когда что-то не получилось.</summary>
     public string Status
     {
@@ -196,6 +205,8 @@ public sealed class DesktopBackgroundViewModel : INotifyPropertyChanged
         string? spanImage = spanMain is null ? null : _main.WallpaperImageFor(spanMain.Id);
         var span = spanImage is null ? WallpaperSpan.None : _main.WallpaperSpan;
         var area = monitors.Count > 0 ? MainViewModel.SpanArea(monitors) : System.Drawing.Rectangle.Empty;
+        SpanStatus = span == WallpaperSpan.None ? string.Empty
+            : $"Картинка монитора {spanMain!.Number} на все мониторы: {MainViewModel.SpanName(span)}. Кнопка внизу у монитора {spanMain.Number} — другой способ, «✕» у него — выключить.";
         foreach (var m in monitors)
         {
             bool isMain = spanMain is not null && m.Id == spanMain.Id;

@@ -80,6 +80,9 @@ public static class WallpaperService
     /// <summary>Подключённые мониторы по номерам (номер — как в Windows и в окне «Размер и положение окон программ»).</summary>
     public static List<WallpaperMonitor> Monitors()
     {
+#if DEBUG
+        if (FakeMonitors() is { } fake) return fake;
+#endif
         var list = new List<WallpaperMonitor>();
         try
         {
@@ -100,6 +103,27 @@ public static class WallpaperService
         catch { /* нет доступа к фону — пустой список */ }
         return list.OrderBy(m => m.Number).ToList();
     }
+
+#if DEBUG
+    /// <summary>
+    /// Только отладочная сборка: проверка вида окна при другом числе мониторов (докладка 2026-10-01). Переменная окружения
+    /// TIME2GADGET_FAKE_MONITORS = «ширина x высота @ x , y» через «;». Фон при этом не ставится (<see cref="Apply"/>).
+    /// </summary>
+    private static List<WallpaperMonitor>? FakeMonitors()
+    {
+        var spec = Environment.GetEnvironmentVariable("TIME2GADGET_FAKE_MONITORS");
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+        var list = new List<WallpaperMonitor>();
+        foreach (var part in spec.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var p = part.Split('@');
+            var size = p[0].Split('x');
+            var pos = p[1].Split(',');
+            list.Add(new WallpaperMonitor($"FAKE{list.Count + 1}", new Rectangle(int.Parse(pos[0]), int.Parse(pos[1]), int.Parse(size[0]), int.Parse(size[1])), list.Count + 1));
+        }
+        return list;
+    }
+#endif
 
     /// <summary>Папка своих картинок: у портативной копии — рядом с программой, у установленной — в %APPDATA% (как свои звуки).</summary>
     public static string ImagesDir
@@ -219,6 +243,9 @@ public static class WallpaperService
     /// </summary>
     public static bool Apply(IReadOnlyList<MonitorWallpaperPlan> plans)
     {
+#if DEBUG
+        if (FakeMonitors() is not null) return true; // проверка вида: настоящий фон не трогаем
+#endif
         try
         {
             if (plans.Count == 0) return false;

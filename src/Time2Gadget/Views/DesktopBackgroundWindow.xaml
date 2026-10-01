@@ -84,7 +84,7 @@
                             </Button.Template>
                         </Button>
                         <!-- справа столбиком: режим (есть картинка), сплошной цвет (картинки нет), «✕» -->
-                        <DockPanel Margin="6,0,0,0" LastChildFill="False">
+                        <DockPanel Margin="6,0,0,0" LastChildFill="False" Width="40"><!-- постоянная ширина: плитки в рядах — по столбцам, даже когда кнопок нет -->
                             <!-- самый низ: одна картинка этого монитора на все мониторы (только у «Монитора 1») -->
                             <Button DockPanel.Dock="Bottom" Command="{Binding SpanCommand}" ToolTip="{Binding SpanToolTip}" Style="{StaticResource Style.SettingsButton}"
                                     Padding="5" Margin="0" Visibility="{Binding IsSpanMain, Converter={StaticResource BoolToVis}}">
@@ -183,6 +183,9 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+        <!-- текущий способ «одна картинка на все мониторы» -->
+        <TextBlock Text="{Binding SpanStatus}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource Brush.Accent}" Margin="0,0,0,4"
+                   Visibility="{Binding HasSpanStatus, Converter={StaticResource BoolToVis}}" />
         <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,2,0,0"
                    Text="У каждого монитора своя картинка: клик ЛКМ по монитору — выбрать. Кнопка справа меняет, как картинка ложится: растянуть → по размеру → заполнить → по центру. Без картинки квадратик задаёт сплошной цвет. «✕»: клик ЛКМ — сплошной чёрный, клик ПКМ — фон, который был до этого. Кнопка внизу у монитора 1 — его картинка на все мониторы: охватить (заполнить общий экран, лишнее обрезается) → растянуть → вписать целиком → та же картинка на каждом; «✕» у монитора 1 выключает." />
         <TextBlock Text="{Binding Status}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.UpdateAccent}" />
