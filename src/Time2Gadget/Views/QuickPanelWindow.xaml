@@ -185,7 +185,7 @@
                                     <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="8,0,14,0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" />
                                     <TextBlock Grid.Column="2" Text="{Binding GhostText}" Style="{StaticResource Style.SegmentDigits}" FontSize="18" VerticalAlignment="Center" />
                                 </Grid>
-                                <Border x:Name="Track" Grid.Row="1" Height="3" Margin="8,3,8,0" Visibility="Collapsed" />
+                                <Border x:Name="Track" Grid.Row="1" Height="3" Margin="31,-4,10,0" Visibility="Collapsed" />
                             </Grid>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding Progress}" Value="{x:Static m:QuickPanelProgress.Line}">
@@ -280,15 +280,15 @@
                                         </Grid>
                                     </Grid>
 
-                                    <!-- «полоска под строкой» и «деления под строкой» -->
-                                    <Border x:Name="LineTrack" Grid.Row="1" Height="3" Margin="8,3,8,0" CornerRadius="1.5" Visibility="Collapsed"
+                                    <!-- «полоска», «деления», «тонкие линии» под строкой — вплотную к имени и цифрам (правее кнопок, поднято на 4) -->
+                                    <Border x:Name="LineTrack" Grid.Row="1" Height="3" Margin="31,-4,10,0" CornerRadius="1.5" Visibility="Collapsed"
                                             Background="{StaticResource Brush.BorderSubtle}">
                                         <Border Background="{Binding Color}" CornerRadius="1.5" RenderTransformOrigin="0,0.5">
                                             <Border.RenderTransform><ScaleTransform ScaleX="{Binding Fraction}" /></Border.RenderTransform>
                                         </Border>
                                     </Border>
-                                    <c:ThinLinesBar x:Name="ThinTrack" Grid.Row="1" Margin="8,3,8,0" Visibility="Collapsed" Fraction="{Binding Fraction}" ColorHex="{Binding Color}" />
-                                    <ItemsControl x:Name="SegmentTrack" Grid.Row="1" Margin="7,3,7,0" Visibility="Collapsed" ItemsSource="{Binding Segments}"
+                                    <c:ThinLinesBar x:Name="ThinTrack" Grid.Row="1" Margin="31,-4,10,0" Visibility="Collapsed" Fraction="{Binding Fraction}" ColorHex="{Binding Color}" />
+                                    <ItemsControl x:Name="SegmentTrack" Grid.Row="1" Margin="30,-4,9,0" Visibility="Collapsed" ItemsSource="{Binding Segments}"
                                                   Tag="{Binding Color}" Focusable="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
