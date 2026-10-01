@@ -11,6 +11,7 @@ public partial class DesktopBackgroundWindow : Window
     public DesktopBackgroundWindow(MainViewModel main)
     {
         InitializeComponent();
+        WindowMemory.Attach(this, main, "DesktopBackground"); // открывается там, где оставили
         MaxHeight = SystemParameters.WorkArea.Height; // выше экрана — прокрутка, а не обрезанное окно
         var viewModel = new DesktopBackgroundViewModel(main);
         DataContext = viewModel;
@@ -36,7 +37,7 @@ public partial class DesktopBackgroundWindow : Window
         if (_current is null)
         {
             _current = new DesktopBackgroundWindow(main) { Owner = owner };
-            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            if (owner is null && _current.WindowStartupLocation != WindowStartupLocation.Manual) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             _current.Closed += (_, _) => _current = null;
             _current.Show();
         }

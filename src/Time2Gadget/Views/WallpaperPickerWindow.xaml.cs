@@ -13,6 +13,7 @@ public partial class WallpaperPickerWindow : Window
     public WallpaperPickerWindow(MainViewModel main, WallpaperMonitor monitor)
     {
         InitializeComponent();
+        WindowMemory.Attach(this, main, "WallpaperPicker", rememberSize: true); // открывается там, где оставили
         DataContext = _viewModel = new WallpaperPickerViewModel(main, monitor);
         // выбранная сейчас картинка — подсвечена в списке
         Loaded += (_, _) =>

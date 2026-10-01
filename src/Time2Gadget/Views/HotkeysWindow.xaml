@@ -96,7 +96,7 @@
                 <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding QuickTimersWindowKeyShown}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}" Margin="0,2" />
                 <CheckBox Grid.Row="4" IsChecked="{Binding QuickPanelHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
                           ToolTip="Показать или скрыть виджет быстрых таймеров из любой программы">
-                    <TextBlock Text="Виджет быстрых таймеров" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="Вкл/выкл виджет быстрых таймеров" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
                 <c:HotkeyBox Grid.Row="4" Grid.Column="1" BindingValue="{Binding QuickPanelKeyShown}" IsEnabled="{Binding QuickPanelHotkeyEnabled}" Margin="0,2" />
             </Grid>

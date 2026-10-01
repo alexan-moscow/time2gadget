@@ -11,6 +11,7 @@ public partial class HotkeysWindow : Window
     public HotkeysWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        WindowMemory.Attach(this, viewModel, "Hotkeys"); // открывается там, где оставили
         DataContext = viewModel;
         MaxHeight = SystemParameters.WorkArea.Height;
     }
@@ -21,7 +22,7 @@ public partial class HotkeysWindow : Window
         if (_current is null)
         {
             _current = new HotkeysWindow(main) { Owner = owner };
-            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            if (owner is null && _current.WindowStartupLocation != WindowStartupLocation.Manual) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             _current.Closed += (_, _) => _current = null;
             _current.Show();
         }

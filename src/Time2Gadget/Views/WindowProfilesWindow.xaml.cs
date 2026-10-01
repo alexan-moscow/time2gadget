@@ -12,6 +12,7 @@ public partial class WindowProfilesWindow : Window
     public WindowProfilesWindow(MainViewModel main)
     {
         InitializeComponent();
+        _placed = WindowMemory.Attach(this, main, "WindowProfiles"); // открывается там, где оставили
         DataContext = _viewModel = new WindowProfilesViewModel(main);
         Loaded += (_, _) => FitHeightToOptions();
     }
@@ -27,12 +28,14 @@ public partial class WindowProfilesWindow : Window
     /// монитора с указателем; <paramref name="select"/> — окно, активное в момент нажатия, сразу выбирается в списке).
     /// Уже открыто — вывести вперёд.
     /// </summary>
+    private readonly bool _placed;
+
     public static void ShowSingle(MainViewModel main, Window? owner, IntPtr select = default)
     {
         if (_current is null)
         {
             _current = new WindowProfilesWindow(main) { Owner = owner };
-            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.Manual;
+            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.Manual; // место — FitHeightToOptions или запомненное
             _current.Closed += (_, _) => _current = null;
             if (select != IntPtr.Zero) _current._viewModel.SelectWindow(select);
             _current.Show();
@@ -65,6 +68,7 @@ public partial class WindowProfilesWindow : Window
         }
         Height = Math.Min(Math.Max(wanted, MinHeight), area.Height);
 
+        if (_placed) { Top = Math.Max(area.Top, Math.Min(Top, area.Bottom - Height)); return; } // запомненное место — только не ниже экрана
         double top;
         if (Owner is { } owner) top = owner.Top + (owner.ActualHeight - Height) / 2;
         else

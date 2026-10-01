@@ -156,6 +156,17 @@ public sealed partial class MainViewModel
             : "Клик ПКМ — открывать снова на том же месте, когда таймер закончится (крестик станет зелёным)");
     internal bool QuickPanelOpen => _settings.QuickPanelOpen;
 
+    // ---- Места окон (Views/WindowMemory) ----
+    internal WindowPlacement? GetWindowPlacement(string key) =>
+        _settings.WindowPlacements is { } map && map.TryGetValue(key, out var p) ? p : null;
+
+    internal void SaveWindowPlacement(string key, double left, double top, double width, double height)
+    {
+        _settings.WindowPlacements ??= new();
+        _settings.WindowPlacements[key] = new WindowPlacement { Left = left, Top = top, Width = width, Height = height };
+        _settingsService.Save(_settings);
+    }
+
     internal void ShowQuickPanel() => QuickPanelShowRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>Главный таймер в покое (не идёт, не на паузе, не звонит).</summary>
@@ -410,6 +421,13 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     /// <summary>Эффект хода из эффектов главного таймера идёт: таймер идёт или его ход просматривают.</summary>
     public bool IsRunningFxActive => IsRunning || PreviewValue is QuickPanelProgress;
 
+    /// <summary>
+    /// Подложка «88» под цифрами: под заливками, вспышками и эффектом окончания её тёмные сегменты проступали сквозь цвет —
+    /// прячем, как на главном циферблате (докладка 2026-10-01).
+    /// </summary>
+    public bool ShowGhost => !IsEffectActive && Progress is not (QuickPanelProgress.Fill or QuickPanelProgress.Drain
+        or QuickPanelProgress.Flash or QuickPanelProgress.Breathe);
+
     internal void StartPreview(object value)
     {
         PreviewValue = value;
@@ -634,6 +652,7 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         if (active == _effectShown) return;
         _effectShown = active;
         Raise(nameof(IsEffectActive));
+        Raise(nameof(ShowGhost));
     }
 
     private void RaiseTime()
@@ -646,7 +665,7 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     /// <summary>Имя, цвета, эффекты поменяли в окне «Быстрые таймеры».</summary>
     internal void RaiseLook()
     {
-        foreach (var n in new[] { nameof(Name), nameof(FullName), nameof(Color), nameof(FinishColor), nameof(Progress), nameof(Finish), nameof(RunningFx), nameof(FinishFx) }) Raise(n);
+        foreach (var n in new[] { nameof(Name), nameof(FullName), nameof(Color), nameof(FinishColor), nameof(Progress), nameof(Finish), nameof(RunningFx), nameof(FinishFx), nameof(ShowGhost) }) Raise(n);
         RaiseTime();
     }
 

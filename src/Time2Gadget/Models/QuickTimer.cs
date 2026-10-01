@@ -41,6 +41,12 @@ public sealed class QuickTimer
     /// <summary>Показывать в панели быстрых таймеров.</summary>
     public bool ShowInPanel { get; set; }
 
+    /// <summary>
+    /// Эффекты и цвета виджета уже заданы (новым таймерам — случайные при создании). Первый таймер при первом включении в
+    /// виджет получает «тонкие линии» голубым и строб красным (решение пользователя 2026-10-01).
+    /// </summary>
+    public bool PanelConfigured { get; set; }
+
     /// <summary>Эффект хода в панели и его цвет (#RRGGBB).</summary>
     public QuickPanelProgress PanelProgress { get; set; } = QuickPanelProgress.Fill;
     public string PanelColor { get; set; } = "#3D8BFF";

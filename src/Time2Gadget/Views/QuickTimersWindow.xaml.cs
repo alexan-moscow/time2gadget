@@ -15,6 +15,7 @@ public partial class QuickTimersWindow : Window
     public QuickTimersWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        WindowMemory.Attach(this, viewModel, "QuickTimers"); // открывается там, где оставили
         _viewModel = viewModel;
         DataContext = viewModel;
         MaxHeight = SystemParameters.WorkArea.Height;
@@ -33,7 +34,7 @@ public partial class QuickTimersWindow : Window
         if (_current is null)
         {
             _current = new QuickTimersWindow(main) { Owner = owner };
-            if (owner is null) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            if (owner is null && _current.WindowStartupLocation != WindowStartupLocation.Manual) _current.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             _current.Closed += (_, _) => _current = null;
             _current.Show();
         }

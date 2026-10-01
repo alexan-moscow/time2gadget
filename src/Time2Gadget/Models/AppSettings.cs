@@ -138,20 +138,24 @@ public sealed class AppSettings
     /// <summary>Порядок таймеров в виджете (контекстное меню виджета и окно «Быстрые таймеры»).</summary>
     public QuickPanelSort QuickPanelSort { get; set; } = QuickPanelSort.Created;
 
-    /// <summary>Клик ПКМ по виджету открывает меню сортировки (по умолчанию да).</summary>
-    public bool QuickPanelSortMenu { get; set; } = true;
+    /// <summary>Места окон программы (Views/WindowMemory): ключ — окно, размер — у растягиваемых.</summary>
+    public Dictionary<string, WindowPlacement> WindowPlacements { get; set; } = new();
+    /// <summary>Клик ПКМ по виджету открывает меню сортировки (по умолчанию нет — клик ПКМ занят быстрым управлением).</summary>
+    public bool QuickPanelSortMenu { get; set; } = false;
 
     /// <summary>
-    /// Сокращать виджет под активные таймеры (по умолчанию нет): высота — по идущим таймерам, без них — только заголовок.
+    /// Сокращать виджет под активные таймеры (по умолчанию да): высота — по идущим таймерам, без них — только заголовок.
     /// Выключено — высота под все синие и оранжевые таймеры.
     /// </summary>
-    public bool QuickPanelShrink { get; set; }
+    public bool QuickPanelShrink { get; set; } = true;
 
     /// <summary>
-    /// Быстрое управление кликами по таймеру в виджете (по умолчанию нет; работает, только когда меню по ПКМ выключено):
+    /// Быстрое управление кликами по таймеру в виджете (по умолчанию да; работает, только когда меню по ПКМ выключено):
     /// клик ЛКМ — пауза/продолжить, клик ПКМ — сброс идущего, у остановленного оранжевого — сделать синим.
     /// </summary>
-    public bool QuickPanelClickControl { get; set; }    /// <summary>
+    public bool QuickPanelClickControl { get; set; } = true;
+
+    /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.
     /// </summary>

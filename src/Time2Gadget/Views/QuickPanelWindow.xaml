@@ -286,7 +286,7 @@
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding FullName}" Margin="8,0,14,0" VerticalAlignment="Center"
                                                    FontSize="14" FontWeight="Bold" Foreground="{StaticResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis" />
                                         <Grid Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBlock Text="{Binding GhostText}" Style="{StaticResource Style.SegmentGhost}" FontSize="18" />
+                                            <TextBlock Text="{Binding GhostText}" Style="{StaticResource Style.SegmentGhost}" FontSize="18" Visibility="{Binding ShowGhost, Converter={StaticResource BoolToVis}}" />
                                             <TextBlock Text="{Binding TimeText}" Style="{StaticResource Style.SegmentDigits}" FontSize="18" />
                                             <TextBlock x:Name="PulseText" Text="{Binding TimeText}" Style="{StaticResource Style.SegmentDigits}" FontSize="18"
                                                        Foreground="{Binding FinishColor}" Opacity="0" />

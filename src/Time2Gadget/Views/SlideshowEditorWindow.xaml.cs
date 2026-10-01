@@ -16,6 +16,7 @@ public partial class SlideshowEditorWindow : Window
     public SlideshowEditorWindow(MainViewModel main, WallpaperMonitor monitor)
     {
         InitializeComponent();
+        WindowMemory.Attach(this, main, "SlideshowEditor", rememberSize: true); // открывается там, где оставили
         DataContext = _viewModel = new SlideshowEditorViewModel(main, monitor);
     }
 
