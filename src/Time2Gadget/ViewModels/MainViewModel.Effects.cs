@@ -99,8 +99,13 @@ public sealed partial class MainViewModel
     /// <summary>Эффект завершения для окна и трея: свой у отсчёта, запущенного быстрым таймером, иначе — из настроек.</summary>
     public FinishVisualEffect ActiveFinishEffect => _quickFinishEffect ?? FinishEffect;
 
+    /// <summary>Быстрый таймер, который сейчас идёт на главном таймере (кнопки строки в окне «Быстрые таймеры» управляют им).</summary>
+    internal QuickTimer? MainQuickTimer { get; private set; }
+
     private void SetQuickTimerOverrides(QuickTimer? timer)
     {
+        MainQuickTimer = timer;
+        foreach (var q in QuickTimers) q.RaiseRowState();
         _alarmChoice = timer?.Sound;
         _quickSilent = timer is { SoundEnabled: false };
         _quickFinishEffect = timer?.FinishEffect;
@@ -111,7 +116,7 @@ public sealed partial class MainViewModel
     /// <summary>Время выбрали иначе (сектор, колесо, сброс) — звук и эффект снова общие.</summary>
     private void ClearQuickTimerOverrides()
     {
-        if (_alarmChoice is null && !_quickSilent && _quickFinishEffect is null) return;
+        if (MainQuickTimer is null && _alarmChoice is null && !_quickSilent && _quickFinishEffect is null) return;
         SetQuickTimerOverrides(null);
     }
 }

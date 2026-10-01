@@ -78,6 +78,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(AlarmVolume)) foreach (var q in QuickTimers) q.OnGeneralVolumeChanged(); // галочка «общая» — ползунок следует
+            if (e.PropertyName is nameof(IsRunning) or nameof(IsFinished) or "") foreach (var q in QuickTimers) q.RaiseRowState(); // кнопки строк окна «Быстрые таймеры»
         };
         _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(() => { _alarmPlaying = false; TryAutoClose(); RefreshFinishEffectActive(); });
         _engine.StatusChanged += (_, _) => RaiseStatusDependentChanges();

@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:m="clr-namespace:Time2Gadget.Models"
-        Title="Панель быстрых таймеров — Тайм2гаджет"
+        xmlns:c="clr-namespace:Time2Gadget.Controls"
+        Title="Виджет быстрых таймеров — Тайм2гаджет"
         SizeToContent="WidthAndHeight"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False"
@@ -29,10 +30,69 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Меню сортировки — в цветах программы (стандартное — светлое, с белой полосой слева). -->
+        <Style x:Key="Style.PanelMenu" TargetType="ContextMenu">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{StaticResource Brush.Background}" BorderBrush="{StaticResource Brush.BorderSubtle}" BorderThickness="1"
+                                CornerRadius="6" Padding="4">
+                            <StackPanel IsItemsHost="True" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="MenuItem">
+                        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="MenuItem">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Padding="6,4,12,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="Check" Text="✓" Visibility="Hidden" Foreground="{StaticResource Brush.Accent}" />
+                                            <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="False" />
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                        </Trigger>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border x:Name="Chrome" CornerRadius="20" Background="{StaticResource Brush.Background}" Margin="8"
             MouseLeftButtonDown="OnChromeMouseLeftButtonDown">
+        <Border.ContextMenu>
+            <ContextMenu Style="{StaticResource Style.PanelMenu}">
+                <MenuItem Header="Сортировать таймеры:" IsEnabled="False" />
+                <MenuItem Header="по порядку создания" IsCheckable="False" Command="{Binding SetQuickPanelSortCommand}" CommandParameter="{x:Static m:QuickPanelSort.Created}"
+                          IsChecked="{Binding QuickPanelSortOptions[0].IsChecked, Mode=OneWay}" />
+                <MenuItem Header="по оставшемуся времени, убывание" Command="{Binding SetQuickPanelSortCommand}" CommandParameter="{x:Static m:QuickPanelSort.RemainingDescending}"
+                          IsChecked="{Binding QuickPanelSortOptions[1].IsChecked, Mode=OneWay}" />
+                <MenuItem Header="по оставшемуся времени, возрастание" Command="{Binding SetQuickPanelSortCommand}" CommandParameter="{x:Static m:QuickPanelSort.RemainingAscending}"
+                          IsChecked="{Binding QuickPanelSortOptions[2].IsChecked, Mode=OneWay}" />
+                <MenuItem Header="по времени запуска, убывание" Command="{Binding SetQuickPanelSortCommand}" CommandParameter="{x:Static m:QuickPanelSort.StartedDescending}"
+                          IsChecked="{Binding QuickPanelSortOptions[3].IsChecked, Mode=OneWay}" />
+                <MenuItem Header="по времени запуска, возрастание" Command="{Binding SetQuickPanelSortCommand}" CommandParameter="{x:Static m:QuickPanelSort.StartedAscending}"
+                          IsChecked="{Binding QuickPanelSortOptions[4].IsChecked, Mode=OneWay}" />
+            </ContextMenu>
+        </Border.ContextMenu>
         <Border.LayoutTransform>
             <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
         </Border.LayoutTransform>
@@ -40,12 +100,12 @@
             <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
         </Border.Effect>
         <Border CornerRadius="14" Background="{StaticResource Brush.SurfaceSector}" MinWidth="180">
-            <StackPanel Margin="10,4,10,8">
+            <StackPanel Margin="5,4,5,4">
                 <!-- Заголовок справа: надпись, «поверх всех окон / закрепить», крестик -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,-4,2">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,1,2">
                     <TextBlock Text="Быстрые таймеры" FontSize="10" Foreground="{StaticResource Brush.TextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0" />
                     <Button Style="{StaticResource Style.PanelButton}" Width="16" Height="14" Background="Transparent"
-                            Command="{Binding ToggleQuickPanelTopmostCommand}" ToolTip="{Binding QuickPanelWindowToolTip}">
+                            Command="{Binding ToggleQuickPanelTopmostCommand}" ToolTip="{Binding QuickPanelWindowToolTip}" ContextMenuService.IsEnabled="False">
                         <Button.InputBindings>
                             <MouseBinding Gesture="RightClick" Command="{Binding ToggleQuickPanelPinnedCommand}" />
                         </Button.InputBindings>
@@ -78,7 +138,7 @@
                         </Grid>
                     </Button>
                     <Button Style="{StaticResource Style.PanelButton}" Width="16" Height="14" Margin="2,0,0,0" Background="Transparent"
-                            Click="OnCloseClick" ToolTip="{Binding QuickPanelCloseToolTip}">
+                            Click="OnCloseClick" ToolTip="{Binding QuickPanelCloseToolTip}" ContextMenuService.IsEnabled="False">
                         <Button.InputBindings>
                             <MouseBinding Gesture="RightClick" Command="{Binding ToggleQuickPanelReopenCommand}" />
                         </Button.InputBindings>
@@ -97,8 +157,8 @@
                     </Button>
                 </StackPanel>
             <Grid>
-                <TextBlock Text="Нет таймеров для панели.&#x0a;Включите их в окне «Быстрые таймеры»." TextWrapping="Wrap" TextAlignment="Center"
-                           HorizontalAlignment="Center" Margin="0,6" FontSize="12" Foreground="{StaticResource Brush.TextSecondary}">
+                <TextBlock Text="Нет идущих таймеров.&#x0a;Запустите таймер клавишей или в окне «Быстрые таймеры»." TextWrapping="Wrap" TextAlignment="Center"
+                           HorizontalAlignment="Center" Margin="8,6" FontSize="12" Foreground="{StaticResource Brush.TextSecondary}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
@@ -128,6 +188,9 @@
                                         <Border.RenderTransform><ScaleTransform ScaleX="{Binding RemainingFraction}" /></Border.RenderTransform>
                                     </Border>
                                     <Border x:Name="FlashBg" CornerRadius="9" Background="{Binding FinishColor}" Opacity="0" IsHitTestVisible="False" />
+                                    <!-- Эффекты главного таймера по строке: ход — пока идёт, окончание — пока идёт эффект -->
+                                    <c:PanelRowEffect Kind="{Binding RunningFx}" ColorHex="{Binding Color}" IsActive="{Binding IsRunning}" />
+                                    <c:PanelRowEffect Kind="{Binding FinishFx}" ColorHex="{Binding FinishColor}" IsActive="{Binding IsEffectActive}" Fast="True" />
 
                                     <Grid x:Name="RowContent" Margin="5,0,10,0">
                                         <Grid.ColumnDefinitions>

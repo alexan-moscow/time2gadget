@@ -310,7 +310,7 @@ public sealed partial class MainViewModel
         WindowProfilesHotkeyId => "Размер и положение окон программ",
         BackgroundWindowHotkeyId => "Фоновая заставка и слайдшоу экрана",
         QuickTimersWindowHotkeyId => "Быстрые таймеры (окно)",
-        QuickPanelHotkeyId => "Панель быстрых таймеров",
+        QuickPanelHotkeyId => "Виджет быстрых таймеров",
         _ => "Показать / скрыть"
     };
 
@@ -389,11 +389,15 @@ public sealed partial class MainViewModel
         }
         int index = id - QuickTimerHotkeyIdBase;
         if (index >= 0 && index < QuickTimers.Count && QuickTimers[index].Model.IsUsable)
-            StartQuickTimer(QuickTimers[index].Model);
+        {
+            // таймер виджета (синий/оранжевый) — запускается в виджете, иначе — на главном таймере (компакт и полный вид)
+            if (QuickTimers[index].Model.ShowInPanel) StartPanelTimer(QuickTimers[index]);
+            else StartQuickTimer(QuickTimers[index].Model);
+        }
     }
 
     /// <summary>Быстрый таймер: запустить заново на это время, что бы ни шло сейчас (звонок — выключить).</summary>
-    private void StartQuickTimer(QuickTimer timer)
+    internal void StartQuickTimer(QuickTimer timer)
     {
         _soundService.StopAlarm();
         var duration = timer.Duration;
@@ -441,8 +445,48 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
 
     public int Number { get => _number; set { _number = value; OnPropertyChanged(); } }
 
-    /// <summary>Отсчёт этой строки в панели быстрых таймеров (свой, независимо от главного таймера).</summary>
+    /// <summary>Отсчёт этой строки в виджете быстрых таймеров (свой, независимо от главного таймера).</summary>
     public QuickPanelTimer Panel { get; }
+
+    // ---- Плей/пауза и сброс перед именем (докладка 2026-10-01): таймер виджета — его отсчёт в виджете, иначе — главный таймер ----
+
+    /// <summary>Этот таймер сейчас идёт (или на паузе, или звонит) на главном таймере.</summary>
+    private bool IsOnMain => ReferenceEquals(_owner.MainQuickTimer, Model) && !_owner.IsMainIdle;
+
+    public bool RowIsRunning => ShowInPanel ? Panel.IsRunning : IsOnMain && _owner.IsRunning;
+
+    public RelayCommand RowPlayCommand => _rowPlayCommand ??= new RelayCommand(() =>
+    {
+        if (Model.Duration <= TimeSpan.Zero) return;
+        if (ShowInPanel)
+        {
+            bool wasIdle = !Panel.IsActive;
+            Panel.PlayPauseFromRow();
+            if (wasIdle) _owner.ShowQuickPanel();
+        }
+        else if (IsOnMain && !_owner.IsFinished) _owner.StartPauseCommand.Execute(null);
+        else _owner.StartQuickTimer(Model);
+    });
+    private RelayCommand? _rowPlayCommand;
+
+    public RelayCommand RowResetCommand => _rowResetCommand ??= new RelayCommand(() =>
+    {
+        if (ShowInPanel) Panel.ResetFromRow();
+        else if (IsOnMain) _owner.ResetCommand.Execute(null);
+    });
+    private RelayCommand? _rowResetCommand;
+
+    public string RowPlayToolTip => (ShowInPanel ? "В виджете быстрых таймеров. " : "На главном таймере. ") +
+        (RowIsRunning ? "Клик ЛКМ — пауза" : "Клик ЛКМ — запустить");
+
+    public string RowResetToolTip => ShowInPanel ? "Клик ЛКМ — сброс в виджете" : "Клик ЛКМ — сброс главного таймера (если идёт этот таймер)";
+
+    internal void RaiseRowState()
+    {
+        OnPropertyChanged(nameof(RowIsRunning));
+        OnPropertyChanged(nameof(RowPlayToolTip));
+        OnPropertyChanged(nameof(RowResetToolTip));
+    }
 
     /// <summary>Имя (по умолчанию «Таймер N»); пустое — вернуть прежнее.</summary>
     public string Name
@@ -669,6 +713,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(PanelToolTip));
             OnPropertyChanged(nameof(IsPanelPermanentShown));
+            RaiseRowState();
             _owner.OnQuickTimersChanged(hotkeys: false);
             _owner.RefreshPanelTimers();
         }
@@ -686,6 +731,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
             OnPropertyChanged(nameof(PanelToolTip));
             OnPropertyChanged(nameof(IsPanelPermanentShown));
             _owner.OnQuickTimersChanged(hotkeys: false);
+            _owner.RefreshPanelTimers();
         }
     }
 
@@ -711,10 +757,10 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     private RelayCommand? _permanentPanelCommand;
 
     public string PanelToolTip => !ShowInPanel
-        ? "Не в панели быстрых таймеров.\nКлик ЛКМ — показать до окончания (синий). Клик ПКМ — показывать постоянно (оранжевый)"
+        ? "Не в виджете: клавиша запускает главный таймер.\nКлик ЛКМ — таймер виджета (синий: виден, пока идёт и доигрывает окончание). Клик ПКМ — в виджете всегда (оранжевый)"
         : PanelPermanent
-            ? "В панели постоянно (оранжевый).\nКлик ЛКМ — убрать из панели. Клик ПКМ — только до окончания (синий)"
-            : "В панели до окончания (синий): пропадёт, когда отыграют эффект и звук окончания.\nКлик ЛКМ — убрать из панели. Клик ПКМ — показывать постоянно (оранжевый)";
+            ? "В виджете всегда (оранжевый).\nКлик ЛКМ — убрать из виджета. Клик ПКМ — синий: виден, пока идёт и доигрывает окончание"
+            : "Таймер виджета (синий): клавиша запускает его в виджете, по окончании (когда отыграют эффект и звук) он пропадает из виджета до следующего запуска.\nКлик ЛКМ — убрать из виджета. Клик ПКМ — в виджете всегда (оранжевый)";
 
     public static IReadOnlyList<EnumOption<QuickPanelProgress>> ProgressOptions { get; } = new[]
     {
@@ -722,6 +768,11 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Drain, "убывающая заливка"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Line, "полоска под строкой"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Segments, "деления под строкой"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Flash, "вспышки"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Breathe, "дыхание цвета"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Waves, "встречные волны"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.Snake, "змейка"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.RainbowSnake, "радужная змейка"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.None, "без хода"),
     };
 
@@ -730,6 +781,11 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.Blink, "мигание"),
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.Flash, "вспышки цветом"),
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.Pulse, "пульсация времени"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Strobe, "строб"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Rainbow, "радужная волна"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Waves, "встречные волны"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.Snake, "змейка"),
+        new EnumOption<QuickPanelFinish>(QuickPanelFinish.RainbowSnake, "радужная змейка"),
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.None, "без эффекта"),
     };
 
@@ -753,6 +809,10 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     }
 
     public string PanelColor => Model.PanelColor;
+
+    /// <summary>У радужных эффектов свой набор цветов — кнопка цвета недоступна.</summary>
+    public bool ProgressColorEnabled => Model.PanelProgress is not (QuickPanelProgress.None or QuickPanelProgress.RainbowSnake);
+    public bool FinishColorEnabled => Model.PanelFinish is not (QuickPanelFinish.None or QuickPanelFinish.Rainbow or QuickPanelFinish.RainbowSnake);
     public string PanelFinishColor => Model.PanelFinishColor;
 
     private bool _isFinishColorMenuOpen;
@@ -770,7 +830,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     });
     private RelayCommand? _chooseFinishColorCommand;
 
-    public string FinishColorToolTip => $"Цвет эффекта окончания в панели: {ColorName(Model.PanelFinishColor)}. Клик ЛКМ — выбрать";
+    public string FinishColorToolTip => $"Цвет эффекта окончания в виджете: {ColorName(Model.PanelFinishColor)}. Клик ЛКМ — выбрать";
     private static string ColorName(string hex) => PanelColors.FirstOrDefault(c => c.Hex == hex)?.Name ?? hex;
 
     private bool _isColorMenuOpen;
@@ -796,11 +856,11 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new("#D500F9", "Пурпурный"), new("#7C4DFF", "Фиолетовый"), new("#FFFFFF", "Белый"), new("#90A4AE", "Серый"),
     };
 
-    public string ColorToolTip => $"Цвет хода в панели: {ColorName(Model.PanelColor)}. Клик ЛКМ — выбрать";
+    public string ColorToolTip => $"Цвет хода в виджете: {ColorName(Model.PanelColor)}. Клик ЛКМ — выбрать";
 
     private void OnPanelLookChanged()
     {
-        foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelFinishSeconds), nameof(PanelColor), nameof(ColorToolTip), nameof(PanelFinishColor), nameof(FinishColorToolTip) })
+        foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelFinishSeconds), nameof(PanelColor), nameof(ColorToolTip), nameof(PanelFinishColor), nameof(FinishColorToolTip), nameof(ProgressColorEnabled), nameof(FinishColorEnabled) })
             OnPropertyChanged(n);
         Panel.RaiseLook();
         _owner.OnQuickTimersChanged(hotkeys: false);

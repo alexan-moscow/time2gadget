@@ -135,6 +135,9 @@ public sealed class AppSettings
     /// <summary>Панель закрыта крестиком — открыть снова на том же месте, когда таймер панели закончится (клик ПКМ по крестику).</summary>
     public bool QuickPanelReopenOnFinish { get; set; }
 
+    /// <summary>Порядок таймеров в виджете (контекстное меню виджета и окно «Быстрые таймеры»).</summary>
+    public QuickPanelSort QuickPanelSort { get; set; } = QuickPanelSort.Created;
+
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.

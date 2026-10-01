@@ -34,6 +34,25 @@
                 </Button.Template>
             </Button>
         </DataTemplate>
+        <!-- Мини-кнопки строки (плей/пауза над сбросом) — как в виджете быстрых таймеров. -->
+        <Style x:Key="Style.MiniButton" TargetType="Button" BasedOn="{StaticResource Style.RectButton}">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="11" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource Brush.SurfaceSectorHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- Прокрутка как в остальных окнах: полоса у правого края окна. -->
@@ -43,10 +62,10 @@
             <!-- Подписи столбцов (докладка 2026-10-01: имя и дни) -->
             <Grid Margin="0,0,0,2" TextElement.FontSize="11" TextElement.Foreground="{StaticResource Brush.TextSecondary}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="104" /><ColumnDefinition Width="30" /><ColumnDefinition Width="30" /><ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="128" /><ColumnDefinition Width="30" /><ColumnDefinition Width="30" /><ColumnDefinition Width="30" />
                     <ColumnDefinition Width="30" /><ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Имя" />
+                <TextBlock Text="Имя" Margin="24,0,0,0" />
                 <TextBlock Grid.Column="1" Text="дни" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="2" Text="час" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="3" Text="мин" HorizontalAlignment="Center" />
@@ -59,6 +78,7 @@
                         <StackPanel Margin="0,2">
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="32" />
                                 <ColumnDefinition Width="30" />
@@ -70,16 +90,34 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding Name}" Height="24" VerticalContentAlignment="Center" MaxLength="24"
-                                     ToolTip="Имя таймера — так он называется в панели и в предупреждениях" />
-                            <c:TimeSpinner Grid.Column="1" Height="24" Maximum="99" Value="{Binding Days}" ToolTip="Дни" Margin="4,0,0,0" />
-                            <c:TimeSpinner Grid.Column="2" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" Margin="2,0,0,0" />
-                            <c:TimeSpinner Grid.Column="3" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" Margin="2,0,0,0" />
-                            <c:TimeSpinner Grid.Column="4" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" Margin="2,0,0,0" />
-                            <c:HotkeyBox Grid.Column="5" BindingValue="{Binding Binding}" Margin="4,0,0,0" />
+                            <!-- Плей/пауза над сбросом: таймер виджета — в виджете, иначе — главный таймер -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left">
+                                <Button Style="{StaticResource Style.MiniButton}" Command="{Binding RowPlayCommand}" ToolTip="{Binding RowPlayToolTip}">
+                                    <Viewbox Width="7" Height="7">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Data="{Binding RowIsRunning, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.Pause|Geometry.Play}"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource Style.MiniButton}" Command="{Binding RowResetCommand}" ToolTip="{Binding RowResetToolTip}" Margin="0,2,0,0">
+                                    <Viewbox Width="7" Height="7">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Data="{StaticResource Geometry.Refresh}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding Name}" Height="24" VerticalContentAlignment="Center" MaxLength="24"
+                                     ToolTip="Имя таймера — так он называется в виджете и в предупреждениях" />
+                            <c:TimeSpinner Grid.Column="2" Height="24" Maximum="99" Value="{Binding Days}" ToolTip="Дни" Margin="4,0,0,0" />
+                            <c:TimeSpinner Grid.Column="3" Height="24" Maximum="23" Value="{Binding Hours}" ToolTip="Часы" Margin="2,0,0,0" />
+                            <c:TimeSpinner Grid.Column="4" Height="24" Value="{Binding Minutes}" ToolTip="Минуты" Margin="2,0,0,0" />
+                            <c:TimeSpinner Grid.Column="5" Height="24" Value="{Binding Seconds}" ToolTip="Секунды" Margin="2,0,0,0" />
+                            <c:HotkeyBox Grid.Column="6" BindingValue="{Binding Binding}" Margin="4,0,0,0" />
 
                             <!-- В панели быстрых таймеров: переключатель левее кнопки эффекта (подсвечен — показывается) -->
-                            <Button x:Name="PanelButton" Grid.Column="6" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                            <Button x:Name="PanelButton" Grid.Column="7" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding TogglePanelCommand}" ToolTip="{Binding PanelToolTip}">
                                 <Button.InputBindings>
                                     <MouseBinding Gesture="RightClick" Command="{Binding PermanentPanelCommand}" />
@@ -91,11 +129,11 @@
                             </Button>
 
                             <!-- Эффект завершения таймера: иконка текущего эффекта («—» нет), меню с просмотром. -->
-                            <Button x:Name="EffectButton" Grid.Column="7" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                            <Button x:Name="EffectButton" Grid.Column="8" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding EffectCommand}" ToolTip="{Binding EffectToolTip}">
                                 <ContentControl Content="{Binding FinishEffect, Converter={StaticResource EffectIcon}}" Focusable="False" />
                             </Button>
-                            <Popup Grid.Column="7" PlacementTarget="{Binding ElementName=EffectButton}" Placement="Bottom" HorizontalOffset="-150"
+                            <Popup Grid.Column="8" PlacementTarget="{Binding ElementName=EffectButton}" Placement="Bottom" HorizontalOffset="-150"
                                    StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsEffectMenuOpen, Mode=TwoWay}"
                                    Closed="OnQuickEffectPopupClosed">
                                 <Border Width="190" Style="{StaticResource Style.MenuBorder}">
@@ -125,7 +163,7 @@
                             </Popup>
 
                             <!-- Звук: включён — колокольчик синий, щелчок выключает; выключен — перечёркнут, щелчок открывает меню. -->
-                            <Button x:Name="SoundButton" Grid.Column="8" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
+                            <Button x:Name="SoundButton" Grid.Column="9" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding BellCommand}" ToolTip="{Binding SoundToolTip}">
                                 <Grid Width="12" Height="12">
                                     <Path x:Name="Bell" Stretch="Uniform" StrokeThickness="1.2"
@@ -134,7 +172,7 @@
                                     <Path x:Name="BellSlash" Data="M0.5,11.5 L11.5,0.5" Stroke="{StaticResource Brush.TextSecondary}" StrokeThickness="1.4" />
                                 </Grid>
                             </Button>
-                            <Popup Grid.Column="8" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-230"
+                            <Popup Grid.Column="9" PlacementTarget="{Binding ElementName=SoundButton}" Placement="Bottom" HorizontalOffset="-230"
                                    StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsSoundMenuOpen, Mode=TwoWay}"
                                    Closed="OnQuickSoundPopupClosed">
                                 <Border Width="260" Style="{StaticResource Style.MenuBorder}">
@@ -194,16 +232,16 @@
                                 </Border>
                             </Popup>
 
-                            <Button Grid.Column="9" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
+                            <Button Grid.Column="10" Content="×" Command="{Binding RemoveCommand}" Style="{StaticResource Style.SettingsButton}"
                                     Width="22" Height="24" Padding="0" Margin="4,0,0,0" ToolTip="Удалить таймер" />
                         </Grid>
                         <!-- Настройки панели — под строкой, пока таймер в панели -->
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,4" Visibility="{Binding ShowInPanel, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="В панели:" VerticalAlignment="Center" Width="100" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
+                            <TextBlock Text="В виджете:" VerticalAlignment="Center" Width="124" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
                             <ComboBox Width="150" Margin="4,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.ProgressOptions}" DisplayMemberPath="Label"
-                                      SelectedValuePath="Value" SelectedValue="{Binding PanelProgress}" ToolTip="Ход таймера в панели" />
+                                      SelectedValuePath="Value" SelectedValue="{Binding PanelProgress}" ToolTip="Ход таймера в виджете (заливки и полоски видны всегда, остальные эффекты — пока таймер идёт)" />
                             <Button x:Name="PanelColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
-                                    Command="{Binding OpenColorMenuCommand}" ToolTip="{Binding ColorToolTip}">
+                                    Command="{Binding OpenColorMenuCommand}" ToolTip="{Binding ColorToolTip}" IsEnabled="{Binding ProgressColorEnabled}" ToolTipService.ShowOnDisabled="True">
                                 <Border Width="14" Height="14" CornerRadius="2" Background="{Binding PanelColor}" />
                             </Button>
                             <Popup PlacementTarget="{Binding ElementName=PanelColorButton}" Placement="Bottom" StaysOpen="False"
@@ -217,9 +255,9 @@
                                     </ItemsControl>
                                 </Border>
                             </Popup>                            <ComboBox Width="136" Margin="12,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.FinishOptions}" DisplayMemberPath="Label"
-                                      SelectedValuePath="Value" SelectedValue="{Binding PanelFinish}" ToolTip="Эффект окончания в панели" />
+                                      SelectedValuePath="Value" SelectedValue="{Binding PanelFinish}" ToolTip="Эффект окончания в виджете" />
                             <Button x:Name="FinishColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
-                                    Command="{Binding OpenFinishColorMenuCommand}" ToolTip="{Binding FinishColorToolTip}">
+                                    Command="{Binding OpenFinishColorMenuCommand}" ToolTip="{Binding FinishColorToolTip}" IsEnabled="{Binding FinishColorEnabled}" ToolTipService.ShowOnDisabled="True">
                                 <Border Width="14" Height="14" CornerRadius="2" Background="{Binding PanelFinishColor}" />
                             </Button>                            <Popup PlacementTarget="{Binding ElementName=FinishColorButton}" Placement="Bottom" StaysOpen="False"
                                    AllowsTransparency="True" IsOpen="{Binding IsFinishColorMenuOpen, Mode=TwoWay}">
@@ -232,7 +270,7 @@
                                     </ItemsControl>
                                 </Border>
                             </Popup>                            <c:TimeSpinner Height="24" Width="30" Maximum="20" Value="{Binding PanelFinishSeconds}" Margin="4,0,0,0"
-                                           ToolTip="Сколько секунд идёт эффект окончания в панели (до 20)" />
+                                           ToolTip="Сколько секунд идёт эффект окончания в виджете (до 20)" />
                             <TextBlock Text="с" VerticalAlignment="Center" Margin="3,0,0,0" Foreground="{StaticResource Brush.TextSecondary}" />
                         </StackPanel>
                         </StackPanel>
@@ -247,6 +285,12 @@
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsColorMenuOpen}" Value="True">
                                 <Setter TargetName="PanelColorButton" Property="IsHitTestVisible" Value="False" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ProgressColorEnabled}" Value="False">
+                                <Setter TargetName="PanelColorButton" Property="Opacity" Value="0.3" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding FinishColorEnabled}" Value="False">
+                                <Setter TargetName="FinishColorButton" Property="Opacity" Value="0.3" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsFinishColorMenuOpen}" Value="True">
                                 <Setter TargetName="FinishColorButton" Property="IsHitTestVisible" Value="False" />
@@ -269,30 +313,37 @@
             <Button ToolTip="Добавить быстрый таймер (до 5)" Content="+ Добавить таймер" Command="{Binding AddQuickTimerCommand}" Style="{StaticResource Style.SettingsButton}"
                     HorizontalAlignment="Left" Margin="0,6,0,0"
                     Visibility="{Binding CanAddQuickTimer, Converter={StaticResource BoolToVis}}" />
-            <TextBlock Text="Клавиша запускает главный таймер на это время заново — где бы вы ни были, даже когда окно в трее (главный таймер считает не больше суток). Колокольчик — свой звонок и устройство (подсвечен, если заданы). Значок левее эффекта — таймер в панели быстрых таймеров: клик ЛКМ — до окончания (синий: пропадёт, когда отыграют эффект и звук), клик ПКМ — постоянно (оранжевый)."
+            <TextBlock Text="Значок левее эффекта: не горит — клавиша запускает таймер на главном таймере (компакт и полный вид). Клик ЛКМ — синий: таймер виджета, клавиша запускает его в виджете, а по окончании (когда отыграют эффект и звук) он пропадает из виджета до следующего запуска. Клик ПКМ — оранжевый: в виджете всегда. Кнопки перед именем — плей/пауза и сброс этого таймера. Главный таймер считает не больше суток. Колокольчик — свой звонок и устройство."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0" />
             <TextBlock Text="{Binding QuickTimersWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
-            <!-- Панель быстрых таймеров (докладка 2026-10-01) -->
-            <TextBlock Text="Панель быстрых таймеров" Style="{StaticResource Style.SectionHeader}" Margin="0,16,0,6" />
+            <!-- Виджет быстрых таймеров (докладка 2026-10-01) -->
+            <TextBlock Text="Виджет быстрых таймеров" Style="{StaticResource Style.SectionHeader}" Margin="0,16,0,6" />
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Button Content="Показать / скрыть панель" Command="{Binding ToggleQuickPanelCommand}" Style="{StaticResource Style.SettingsButton}"
-                        Margin="0" ToolTip="Клик ЛКМ — показать или скрыть панель" />
+                <Button Content="Показать / скрыть виджет" Command="{Binding ToggleQuickPanelCommand}" Style="{StaticResource Style.SettingsButton}"
+                        Margin="0" ToolTip="Клик ЛКМ — показать или скрыть виджет" />
                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding QuickPanelScaleLabel}" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
                     <Slider Minimum="0.6" Maximum="1.6" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding QuickPanelScale}"
-                            ToolTip="Размер панели быстрых таймеров (то же — в настройках, раздел «Размер»)" />
+                            ToolTip="Размер виджета быстрых таймеров (то же — в настройках, раздел «Размер»)" />
                 </StackPanel>
             </Grid>
-            <TextBlock Text="Таймеры панели идут сами по себе (главный таймер не трогают): в строке плей/пауза, под ней сброс, имя и время. Закончился — свой эффект окончания (цвет и секунды — во второй строке таймера) и звук, если колокольчик включён. В заголовке панели: кнопка «поверх всех окон» (клик ЛКМ) / «закрепить» (клик ПКМ) и крестик — закрыть (клик ЛКМ); клик ПКМ по крестику — открывать панель снова на том же месте, когда таймер закончится."
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBlock Text="Сортировать таймеры:" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" Margin="8,0,0,0" Width="260" HorizontalAlignment="Left" ItemsSource="{Binding QuickPanelSortOptions}"
+                          DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding QuickPanelSort}"
+                          ToolTip="Порядок таймеров в виджете (то же — клик ПКМ по виджету)" />
+            </Grid>
+            <TextBlock Text="Таймеры виджета идут сами по себе (главный таймер не трогают): в строке плей/пауза, под ней сброс, имя и время. Закончился — свой эффект окончания (цвет и секунды — во второй строке таймера) и звук, если колокольчик включён. В заголовке виджета: кнопка «поверх всех окон» (клик ЛКМ) / «закрепить» (клик ПКМ) и крестик — закрыть (клик ЛКМ); клик ПКМ по крестику — открывать виджет снова на том же месте, когда таймер закончится. Клик ПКМ по виджету — порядок таймеров."
                        TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0" />
             <Grid Margin="0,10,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
-                <CheckBox Content="Показ панели клавишей" IsChecked="{Binding QuickPanelHotkeyEnabled}" VerticalAlignment="Center"
-                          ToolTip="Сочетание справа показывает и скрывает панель из любой программы" />
+                <CheckBox Content="Показ виджета клавишей" IsChecked="{Binding QuickPanelHotkeyEnabled}" VerticalAlignment="Center"
+                          ToolTip="Сочетание справа показывает и скрывает виджет из любой программы" />
                 <c:HotkeyBox Grid.Column="1" BindingValue="{Binding QuickPanelKeyShown}" IsEnabled="{Binding QuickPanelHotkeyEnabled}"
-                             ToolTip="Сочетание для панели. Клик ЛКМ — назначить другое" />
+                             ToolTip="Сочетание для виджета. Клик ЛКМ — назначить другое" />
             </Grid>
 
             <!-- Быстрое открытие этого окна глобальной клавишей (по умолчанию выкл; то же — в «Настройке клавиш»). -->

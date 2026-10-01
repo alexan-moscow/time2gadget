@@ -63,7 +63,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    public string QuickPanelScaleLabel => $"Размер панели быстрых таймеров: {Math.Round(QuickPanelScale * 100)}%";
+    public string QuickPanelScaleLabel => $"Размер виджета быстрых таймеров: {Math.Round(QuickPanelScale * 100)}%";
 
     // ---- Кнопки в заголовке панели (докладка 2026-10-01) ----
 
@@ -109,11 +109,16 @@ public sealed partial class MainViewModel
         "Клик ЛКМ — поверх всех окон. Клик ПКМ — закрепить";
 
     public string QuickPanelCloseToolTip =>
-        "Клик ЛКМ — закрыть панель.\n" +
+        "Клик ЛКМ — закрыть виджет.\n" +
         (QuickPanelReopenOnFinish
             ? "Клик ПКМ — не открывать снова (сейчас открывается на том же месте, когда таймер закончится — крестик зелёный)"
             : "Клик ПКМ — открывать снова на том же месте, когда таймер закончится (крестик станет зелёным)");
     internal bool QuickPanelOpen => _settings.QuickPanelOpen;
+
+    internal void ShowQuickPanel() => QuickPanelShowRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Главный таймер в покое (не идёт, не на паузе, не звонит).</summary>
+    internal bool IsMainIdle => Status == TimerStatus.Ready;
 
     internal void SetQuickPanelOpen(bool open)
     {
@@ -132,12 +137,78 @@ public sealed partial class MainViewModel
         _settingsService.Save(_settings);
     }
 
-    /// <summary>Список панели — заново по галочкам «в панели» (идущие таймеры не сбрасываются: состояние живёт в строке).</summary>
+    // ---- Порядок таймеров в виджете (контекстное меню виджета и окно «Быстрые таймеры») ----
+
+    public IReadOnlyList<PanelSortOption> QuickPanelSortOptions => _sortOptions ??= new PanelSortOption[]
+    {
+        new(QuickPanelSort.Created, "по порядку создания"),
+        new(QuickPanelSort.RemainingDescending, "по оставшемуся времени, убывание"),
+        new(QuickPanelSort.RemainingAscending, "по оставшемуся времени, возрастание"),
+        new(QuickPanelSort.StartedDescending, "по времени запуска, убывание"),
+        new(QuickPanelSort.StartedAscending, "по времени запуска, возрастание"),
+    }.Select(o => { o.IsChecked = o.Value == _settings.QuickPanelSort; return o; }).ToList();
+    private IReadOnlyList<PanelSortOption>? _sortOptions;
+
+    public QuickPanelSort QuickPanelSort
+    {
+        get => _settings.QuickPanelSort;
+        set
+        {
+            if (_settings.QuickPanelSort == value) return;
+            _settings.QuickPanelSort = value;
+            _settingsService.Save(_settings);
+            foreach (var o in QuickPanelSortOptions) o.IsChecked = o.Value == value;
+            OnPropertyChanged();
+            RefreshPanelTimers();
+        }
+    }
+
+    public RelayCommand SetQuickPanelSortCommand => _setSort ??= new RelayCommand(p => { if (p is QuickPanelSort s) QuickPanelSort = s; });
+    private RelayCommand? _setSort;
+
+    private IEnumerable<QuickTimerItem> SortForPanel(IEnumerable<QuickTimerItem> items)
+    {
+        var list = items.ToList(); // порядок создания — порядок строк; он же — при равенстве
+        int Index(QuickTimerItem q) => list.IndexOf(q);
+        return _settings.QuickPanelSort switch
+        {
+            QuickPanelSort.RemainingDescending => list.OrderByDescending(q => q.Panel.Remaining).ThenBy(Index),
+            QuickPanelSort.RemainingAscending => list.OrderBy(q => q.Panel.Remaining).ThenBy(Index),
+            // не запускавшиеся — в конце
+            QuickPanelSort.StartedDescending => list.OrderBy(q => q.Panel.StartedUtc is null).ThenByDescending(q => q.Panel.StartedUtc).ThenBy(Index),
+            QuickPanelSort.StartedAscending => list.OrderBy(q => q.Panel.StartedUtc is null).ThenBy(q => q.Panel.StartedUtc).ThenBy(Index),
+            _ => list,
+        };
+    }
+
+    /// <summary>Клавиша таймера виджета: запустить в виджете заново и показать виджет.</summary>
+    internal void StartPanelTimer(QuickTimerItem item)
+    {
+        item.Panel.StartFresh();
+        QuickPanelShowRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool _refreshingPanel;
+
+    /// <summary>
+    /// Список виджета: оранжевые («постоянно») — всегда, синие — пока идут, на паузе или доигрывают окончание; порядок —
+    /// по настройке. Идущие таймеры не сбрасываются: состояние живёт в строке.
+    /// </summary>
     internal void RefreshPanelTimers()
     {
-        var wanted = QuickTimers.Where(q => q.Model.ShowInPanel).Select(q => q.Panel).ToList();
+        if (_refreshingPanel) return;
+        _refreshingPanel = true;
+        try { RefreshPanelTimersCore(); }
+        finally { _refreshingPanel = false; }
+    }
+
+    private void RefreshPanelTimersCore()
+    {
+        foreach (var q in QuickTimers.Where(q => !q.Model.ShowInPanel && q.Panel.IsActive)) q.Panel.Stop(); // убрали из виджета
+        var wanted = SortForPanel(QuickTimers.Where(q => q.Model.ShowInPanel && (q.Model.PanelPermanent || q.Panel.IsActive)))
+            .Select(q => q.Panel).ToList();
         for (int i = PanelTimers.Count - 1; i >= 0; i--)
-            if (!wanted.Contains(PanelTimers[i])) { PanelTimers[i].Stop(); PanelTimers.RemoveAt(i); }
+            if (!wanted.Contains(PanelTimers[i])) PanelTimers.RemoveAt(i);
         for (int i = 0; i < wanted.Count; i++)
         {
             int at = PanelTimers.IndexOf(wanted[i]);
@@ -160,6 +231,7 @@ public sealed partial class MainViewModel
             {
                 var now = DateTime.UtcNow;
                 foreach (var q in QuickTimers.ToList()) q.Panel.Tick(now);
+                if (_settings.QuickPanelSort is QuickPanelSort.RemainingAscending or QuickPanelSort.RemainingDescending) RefreshPanelTimers();
                 UpdatePanelTicker();
             };
         }
@@ -203,6 +275,21 @@ public sealed partial class MainViewModel
     }
 }
 public enum QuickPanelState { Ready, Running, Paused, Finished }
+
+/// <summary>Пункт «Сортировать» (контекстное меню виджета, список в окне «Быстрые таймеры»).</summary>
+public sealed class PanelSortOption : INotifyPropertyChanged
+{
+    private bool _isChecked;
+    public PanelSortOption(QuickPanelSort value, string label) { Value = value; Label = label; }
+    public QuickPanelSort Value { get; }
+    public string Label { get; }
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set { if (_isChecked != value) { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); } }
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
 
 /// <summary>Отсчёт быстрого таймера в панели — свой у каждой строки, независимо от главного таймера.</summary>
 public sealed class QuickPanelTimer : INotifyPropertyChanged
@@ -250,8 +337,45 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
             if (_state == value) return;
             _state = value;
             Raise(nameof(State)); Raise(nameof(IsRunning)); Raise(nameof(PlayToolTip));
+            _item.RaiseRowState();
+            _owner.RefreshPanelTimers(); // синий таймер появляется/пропадает в виджете
         }
     }
+
+    /// <summary>Идёт, на паузе или доигрывает окончание (синий таймер в это время виден в виджете).</summary>
+    public bool IsActive => _state != QuickPanelState.Ready;
+
+    /// <summary>Когда запущен заново в последний раз (сортировка «по времени запуска»).</summary>
+    public DateTime? StartedUtc { get; private set; }
+
+    /// <summary>Эффект хода из эффектов главного таймера (рисует Controls/PanelRowEffect) — только пока идёт.</summary>
+    public string? RunningFx => Progress is QuickPanelProgress.Flash or QuickPanelProgress.Breathe or QuickPanelProgress.Waves
+        or QuickPanelProgress.Snake or QuickPanelProgress.RainbowSnake ? Progress.ToString() : null;
+
+    /// <summary>Эффект окончания из эффектов главного таймера (строб, радуга, волны, змейки).</summary>
+    public string? FinishFx => Finish is QuickPanelFinish.Strobe or QuickPanelFinish.Rainbow or QuickPanelFinish.Waves
+        or QuickPanelFinish.Snake or QuickPanelFinish.RainbowSnake ? Finish.ToString() : null;
+
+    /// <summary>Клавиша таймера: заново на всё время, что бы ни было.</summary>
+    internal void StartFresh()
+    {
+        if (Total <= TimeSpan.Zero) return;
+        if (_state == QuickPanelState.Finished) StopOwnSound();
+        _effectUntil = null;
+        _left = Total;
+        _endUtc = DateTime.UtcNow + Total;
+        StartedUtc = DateTime.UtcNow;
+        State = QuickPanelState.Running;
+        RaiseTime();
+        RaiseEffect();
+        _owner.UpdatePanelTicker();
+    }
+
+    /// <summary>Кнопка плей/пауза (виджет и строка окна «Быстрые таймеры»).</summary>
+    internal void PlayPauseFromRow() => PlayPause();
+
+    /// <summary>Кнопка сброса (виджет и строка окна «Быстрые таймеры»).</summary>
+    internal void ResetFromRow() => ResetCommand.Execute(null);
 
     public bool IsRunning => _state == QuickPanelState.Running;
 
@@ -315,13 +439,8 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
                 State = QuickPanelState.Running;
                 break;
             default: // в покое или после окончания — заново на всё время
-                if (Total <= TimeSpan.Zero) return;
-                StopOwnSound();
-                _effectUntil = null;
-                _left = Total;
-                _endUtc = DateTime.UtcNow + Total;
-                State = QuickPanelState.Running;
-                break;
+                StartFresh();
+                return;
         }
         RaiseTime();
         RaiseEffect();
@@ -390,12 +509,14 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         _owner.StopPanelSound();
     }
 
-    /// <summary>Всё отыграло (или сброс после окончания): сбросить; не «постоянно в панели» — убрать из панели.</summary>
+    /// <summary>
+    /// Всё отыграло (или сброс после окончания): сбросить. Синий таймер при этом пропадает из виджета (настройка остаётся —
+    /// клавиша или кнопка в окне «Быстрые таймеры» покажет его снова), оранжевый остаётся.
+    /// </summary>
     private void EndFinish()
     {
         StopOwnSound();
         Reset();
-        if (!Model.PanelPermanent) _item.ShowInPanel = false;
     }
 
     private void RaiseEffect()
@@ -416,7 +537,7 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     /// <summary>Имя, цвета, эффекты поменяли в окне «Быстрые таймеры».</summary>
     internal void RaiseLook()
     {
-        foreach (var n in new[] { nameof(Name), nameof(FullName), nameof(Color), nameof(FinishColor), nameof(Progress), nameof(Finish) }) Raise(n);
+        foreach (var n in new[] { nameof(Name), nameof(FullName), nameof(Color), nameof(FinishColor), nameof(Progress), nameof(Finish), nameof(RunningFx), nameof(FinishFx) }) Raise(n);
         RaiseTime();
     }
 

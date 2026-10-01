@@ -75,6 +75,17 @@ public enum QuickPanelProgress
     Line,
     /// <summary>Полоска из десяти делений под строкой.</summary>
     Segments,
+    // Докладка 2026-10-01 — эффекты главного таймера на строке (в конец: сохранённые значения не сдвигаются).
+    /// <summary>Строка мягко вспыхивает цветом.</summary>
+    Flash,
+    /// <summary>Медленное «дыхание» цвета.</summary>
+    Breathe,
+    /// <summary>Встречные волны по контуру строки.</summary>
+    Waves,
+    /// <summary>Змейка по контуру строки.</summary>
+    Snake,
+    /// <summary>Радужная змейка по контуру строки (цвет не выбирается).</summary>
+    RainbowSnake,
 }
 
 /// <summary>Эффект окончания быстрого таймера в панели.</summary>
@@ -87,4 +98,26 @@ public enum QuickPanelFinish
     Flash,
     /// <summary>Время пульсирует цветом таймера.</summary>
     Pulse,
+    // Докладка 2026-10-01 — эффекты главного таймера на строке (в конец: сохранённые значения не сдвигаются).
+    /// <summary>Резкие короткие вспышки.</summary>
+    Strobe,
+    /// <summary>Строка переливается всеми цветами (цвет не выбирается).</summary>
+    Rainbow,
+    /// <summary>Встречные волны по контуру строки.</summary>
+    Waves,
+    /// <summary>Змейка по контуру строки.</summary>
+    Snake,
+    /// <summary>Радужная змейка по контуру строки (цвет не выбирается).</summary>
+    RainbowSnake,
+}
+
+/// <summary>Порядок таймеров в виджете быстрых таймеров.</summary>
+public enum QuickPanelSort
+{
+    /// <summary>По порядку создания (как строки в окне «Быстрые таймеры»).</summary>
+    Created,
+    RemainingDescending,
+    RemainingAscending,
+    StartedDescending,
+    StartedAscending,
 }
