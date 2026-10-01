@@ -247,6 +247,7 @@ public sealed partial class MainViewModel
         _settings.QuickTimers.RemoveAll(q => q is null);
         if (_settings.QuickTimers.Count > MaxQuickTimers) _settings.QuickTimers.RemoveRange(MaxQuickTimers, _settings.QuickTimers.Count - MaxQuickTimers);
         if (_settings.QuickTimers.Count == 0) _settings.QuickTimers.Add(new QuickTimer());
+        SwapOldPanelDefaults();
         for (int i = 0; i < _settings.QuickTimers.Count; i++) _settings.QuickTimers[i].Name ??= $"Таймер {i + 1}"; // строки до имён
 
         QuickTimers.Clear();
@@ -667,17 +668,53 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
             Model.ShowInPanel = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(PanelToolTip));
+            OnPropertyChanged(nameof(IsPanelPermanentShown));
             _owner.OnQuickTimersChanged(hotkeys: false);
             _owner.RefreshPanelTimers();
         }
     }
 
-    public RelayCommand TogglePanelCommand => _togglePanelCommand ??= new RelayCommand(() => ShowInPanel = !ShowInPanel);
+    /// <summary>Постоянно в панели (оранжевый); иначе (синий) — пропадает, когда отыграют эффект и звук окончания.</summary>
+    public bool PanelPermanent
+    {
+        get => Model.PanelPermanent;
+        set
+        {
+            if (Model.PanelPermanent == value) return;
+            Model.PanelPermanent = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PanelToolTip));
+            OnPropertyChanged(nameof(IsPanelPermanentShown));
+            _owner.OnQuickTimersChanged(hotkeys: false);
+        }
+    }
+
+    /// <summary>Переключатель оранжевый: в панели и постоянно.</summary>
+    public bool IsPanelPermanentShown => ShowInPanel && PanelPermanent;
+
+    /// <summary>Клик ЛКМ: показан — убрать; нет — показать до окончания (синий).</summary>
+    public RelayCommand TogglePanelCommand => _togglePanelCommand ??= new RelayCommand(() =>
+    {
+        if (ShowInPanel) { ShowInPanel = false; return; }
+        PanelPermanent = false;
+        ShowInPanel = true;
+    });
     private RelayCommand? _togglePanelCommand;
 
-    public string PanelToolTip => ShowInPanel
-        ? "Показывается в панели быстрых таймеров. Клик ЛКМ — убрать из панели"
-        : "Не показывается в панели быстрых таймеров. Клик ЛКМ — показывать (настройки панели появятся под строкой)";
+    /// <summary>Клик ПКМ: постоянно в панели (оранжевый); уже постоянно — обратно до окончания (синий).</summary>
+    public RelayCommand PermanentPanelCommand => _permanentPanelCommand ??= new RelayCommand(() =>
+    {
+        if (ShowInPanel && PanelPermanent) { PanelPermanent = false; return; }
+        PanelPermanent = true;
+        ShowInPanel = true;
+    });
+    private RelayCommand? _permanentPanelCommand;
+
+    public string PanelToolTip => !ShowInPanel
+        ? "Не в панели быстрых таймеров.\nКлик ЛКМ — показать до окончания (синий). Клик ПКМ — показывать постоянно (оранжевый)"
+        : PanelPermanent
+            ? "В панели постоянно (оранжевый).\nКлик ЛКМ — убрать из панели. Клик ПКМ — только до окончания (синий)"
+            : "В панели до окончания (синий): пропадёт, когда отыграют эффект и звук окончания.\nКлик ЛКМ — убрать из панели. Клик ПКМ — показывать постоянно (оранжевый)";
 
     public static IReadOnlyList<EnumOption<QuickPanelProgress>> ProgressOptions { get; } = new[]
     {
@@ -708,13 +745,33 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         set { if (Model.PanelFinish == value) return; Model.PanelFinish = value; OnPanelLookChanged(); }
     }
 
-    public bool PanelResetAndClose
+    /// <summary>Длительность эффекта окончания в панели, 0–20 с.</summary>
+    public int PanelFinishSeconds
     {
-        get => Model.PanelResetAndClose;
-        set { if (Model.PanelResetAndClose == value) return; Model.PanelResetAndClose = value; OnPanelLookChanged(); }
+        get => Model.PanelFinishSeconds;
+        set { value = Math.Clamp(value, 0, 20); if (Model.PanelFinishSeconds == value) return; Model.PanelFinishSeconds = value; OnPanelLookChanged(); }
     }
 
     public string PanelColor => Model.PanelColor;
+    public string PanelFinishColor => Model.PanelFinishColor;
+
+    private bool _isFinishColorMenuOpen;
+    public bool IsFinishColorMenuOpen { get => _isFinishColorMenuOpen; set { if (_isFinishColorMenuOpen != value) { _isFinishColorMenuOpen = value; OnPropertyChanged(); } } }
+
+    public RelayCommand OpenFinishColorMenuCommand => _openFinishColorMenuCommand ??= new RelayCommand(() => IsFinishColorMenuOpen = true);
+    private RelayCommand? _openFinishColorMenuCommand;
+
+    public RelayCommand ChooseFinishColorCommand => _chooseFinishColorCommand ??= new RelayCommand(p =>
+    {
+        IsFinishColorMenuOpen = false;
+        if (p is not string hex || hex == Model.PanelFinishColor) return;
+        Model.PanelFinishColor = hex;
+        OnPanelLookChanged();
+    });
+    private RelayCommand? _chooseFinishColorCommand;
+
+    public string FinishColorToolTip => $"Цвет эффекта окончания в панели: {ColorName(Model.PanelFinishColor)}. Клик ЛКМ — выбрать";
+    private static string ColorName(string hex) => PanelColors.FirstOrDefault(c => c.Hex == hex)?.Name ?? hex;
 
     private bool _isColorMenuOpen;
     public bool IsColorMenuOpen { get => _isColorMenuOpen; set { if (_isColorMenuOpen != value) { _isColorMenuOpen = value; OnPropertyChanged(); } } }
@@ -739,11 +796,11 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new("#D500F9", "Пурпурный"), new("#7C4DFF", "Фиолетовый"), new("#FFFFFF", "Белый"), new("#90A4AE", "Серый"),
     };
 
-    public string ColorToolTip => $"Цвет хода и эффекта в панели: {PanelColors.FirstOrDefault(c => c.Hex == Model.PanelColor)?.Name ?? Model.PanelColor}. Клик ЛКМ — выбрать";
+    public string ColorToolTip => $"Цвет хода в панели: {ColorName(Model.PanelColor)}. Клик ЛКМ — выбрать";
 
     private void OnPanelLookChanged()
     {
-        foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelResetAndClose), nameof(PanelColor), nameof(ColorToolTip) })
+        foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelFinishSeconds), nameof(PanelColor), nameof(ColorToolTip), nameof(PanelFinishColor), nameof(FinishColorToolTip) })
             OnPropertyChanged(n);
         Panel.RaiseLook();
         _owner.OnQuickTimersChanged(hotkeys: false);

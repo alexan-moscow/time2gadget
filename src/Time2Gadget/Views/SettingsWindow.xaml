@@ -137,6 +137,8 @@
             <Slider ToolTip="Размер полного вида" Minimum="0.6" Maximum="1.6" Value="{Binding FullViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
             <TextBlock Text="{Binding CompactViewScaleLabel}" Margin="0,10,0,2" />
             <Slider ToolTip="Размер компактного вида" Minimum="0.6" Maximum="1.6" Value="{Binding CompactViewScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+            <TextBlock Text="{Binding QuickPanelScaleLabel}" Margin="0,10,0,2" />
+            <Slider ToolTip="Размер панели быстрых таймеров (то же — в окне «Быстрые таймеры»)" Minimum="0.6" Maximum="1.6" Value="{Binding QuickPanelScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" />
 
             <!-- ============ Часы под статусом ============ -->
             <TextBlock Text="Часы" Style="{StaticResource Style.SectionHeader}" />

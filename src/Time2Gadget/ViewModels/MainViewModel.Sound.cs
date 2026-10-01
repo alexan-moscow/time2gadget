@@ -96,6 +96,7 @@ public sealed partial class MainViewModel
 
     private void OnPreviewEnded(object? sender, int number) => _dispatcher.BeginInvoke(() =>
     {
+        NotifyPanelSoundEnded(number); // звук окончания таймера панели — панель ждёт его
         if (number == _previewNumber && _previewOwner is not null) SetPreview(null, null, 0); // доиграл сам
     });
 

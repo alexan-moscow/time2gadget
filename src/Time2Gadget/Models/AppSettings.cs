@@ -100,9 +100,9 @@ public sealed class AppSettings
     /// <summary>Быстрое открытие окна «Заставка и фон экрана» глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
     public bool BackgroundWindowHotkeyEnabled { get; set; } = false;
 
-    /// <summary>Сочетание для окна «Заставка и фон экрана», по умолчанию Ctrl+Shift+PageUp.</summary>
+    /// <summary>Сочетание для окна «Фоновая заставка и слайдшоу экрана», по умолчанию Ctrl+Shift+Insert (2026-10-01: поменялись с панелью).</summary>
     public HotkeyBinding BackgroundWindowKey { get; set; } =
-        HotkeyBinding.FromKey(System.Windows.Input.Key.PageUp, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+        HotkeyBinding.FromKey(System.Windows.Input.Key.Insert, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
     /// <summary>Быстрое открытие окна «Быстрые таймеры» глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
     public bool QuickTimersWindowHotkeyEnabled { get; set; } = false;
@@ -114,9 +114,9 @@ public sealed class AppSettings
     /// <summary>Показать/скрыть панель быстрых таймеров глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
     public bool QuickPanelHotkeyEnabled { get; set; } = false;
 
-    /// <summary>Сочетание для панели быстрых таймеров, по умолчанию Ctrl+Shift+Insert.</summary>
+    /// <summary>Сочетание для панели быстрых таймеров, по умолчанию Ctrl+Shift+PageUp.</summary>
     public HotkeyBinding QuickPanelKey { get; set; } =
-        HotkeyBinding.FromKey(System.Windows.Input.Key.Insert, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+        HotkeyBinding.FromKey(System.Windows.Input.Key.PageUp, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
     /// <summary>Панель быстрых таймеров была открыта при выходе — открыть при запуске.</summary>
     public bool QuickPanelOpen { get; set; }
@@ -125,8 +125,15 @@ public sealed class AppSettings
     public double? QuickPanelLeft { get; set; }
     public double? QuickPanelTop { get; set; }
 
-    /// <summary>Размер панели быстрых таймеров: 1.0 — высота компактного вида при его масштабе 100%.</summary>
+    /// <summary>Размер панели быстрых таймеров, 0.6–1.6 (как размеры видов).</summary>
     public double QuickPanelScale { get; set; } = 1.0;
+
+    /// <summary>Панель поверх всех окон (по умолчанию да) и закреплена — не перетаскивается (по умолчанию нет).</summary>
+    public bool QuickPanelTopmost { get; set; } = true;
+    public bool QuickPanelPinned { get; set; }
+
+    /// <summary>Панель закрыта крестиком — открыть снова на том же месте, когда таймер панели закончится (клик ПКМ по крестику).</summary>
+    public bool QuickPanelReopenOnFinish { get; set; }
 
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать

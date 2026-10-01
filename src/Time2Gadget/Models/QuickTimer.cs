@@ -45,11 +45,16 @@ public sealed class QuickTimer
     public QuickPanelProgress PanelProgress { get; set; } = QuickPanelProgress.Fill;
     public string PanelColor { get; set; } = "#3D8BFF";
 
-    /// <summary>Эффект окончания в панели (длительность — общая из настроек, «Длительность эффекта»).</summary>
+    /// <summary>Эффект окончания в панели, его цвет и длительность (0–20 с).</summary>
     public QuickPanelFinish PanelFinish { get; set; } = QuickPanelFinish.Blink;
+    public string PanelFinishColor { get; set; } = "#FFD600";
+    public int PanelFinishSeconds { get; set; } = 5;
 
-    /// <summary>После окончания (и эффекта) — сбросить и убрать из панели.</summary>
-    public bool PanelResetAndClose { get; set; }
+    /// <summary>
+    /// В панели постоянно (переключатель оранжевый, клик ПКМ). Иначе (синий) — по окончании таймер пропадает из панели,
+    /// когда отыграют и эффект окончания, и звук (что дольше).
+    /// </summary>
+    public bool PanelPermanent { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore] public TimeSpan Duration => new(Days, Hours, Minutes, Seconds);
     [System.Text.Json.Serialization.JsonIgnore] public bool IsUsable => Duration > TimeSpan.Zero && !Binding.IsEmpty;

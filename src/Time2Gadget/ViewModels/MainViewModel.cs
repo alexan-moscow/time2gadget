@@ -792,7 +792,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             _settingsService.Save(_settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(CompactViewScaleLabel));
-            OnPropertyChanged(nameof(QuickPanelViewScale)); // панель быстрых таймеров — высотой с компактный вид
         }
     }
 
