@@ -119,6 +119,9 @@ public partial class MainWindow : Window
         // Панель быстрых таймеров: клавиша/кнопка — показать или скрыть; таймер панели закончился — показать.
         _viewModel.QuickPanelToggleRequested += (_, _) => QuickPanelWindow.Toggle(_viewModel);
         _viewModel.QuickPanelShowRequested += (_, _) => QuickPanelWindow.ShowPanel(_viewModel);
+        // просмотр эффекта виджета из окна «Быстрые таймеры»: открыть виджет на время просмотра, потом — как было
+        _viewModel.ShowWidgetForPreview = () => { bool hidden = !QuickPanelWindow.IsShown; if (hidden) QuickPanelWindow.ShowPanel(_viewModel); return hidden; };
+        _viewModel.HideWidgetAfterPreview = () => QuickPanelWindow.HideForPreview(_viewModel);
         // была открыта при выходе — открыть снова
         SourceInitialized += (_, _) => { if (_viewModel.QuickPanelOpen) Dispatcher.BeginInvoke(() => QuickPanelWindow.ShowPanel(_viewModel)); };
 

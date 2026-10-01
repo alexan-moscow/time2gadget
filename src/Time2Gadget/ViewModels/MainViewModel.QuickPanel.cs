@@ -222,6 +222,40 @@ public sealed partial class MainViewModel
         };
     }
 
+    // ---- Просмотр эффекта в виджете (▶/■ в списках эффектов окна «Быстрые таймеры», докладка 2026-10-01) ----
+
+    private QuickTimerItem? _previewItem;
+    private bool _previewOpenedWidget;
+
+    /// <summary>Показать виджет для просмотра; true — он был скрыт (по окончании просмотра — скрыть снова). Задаёт MainWindow.</summary>
+    internal Func<bool>? ShowWidgetForPreview { get; set; }
+    /// <summary>Скрыть виджет после просмотра. Задаёт MainWindow.</summary>
+    internal Action? HideWidgetAfterPreview { get; set; }
+
+    internal void TogglePanelPreview(QuickTimerItem item, EffectOption option)
+    {
+        bool same = ReferenceEquals(_previewItem, item) && Equals(item.Panel.PreviewValue, option.Value);
+        StopPanelPreview();
+        if (same || !option.CanPreview) return;
+        _previewItem = item;
+        item.Panel.StartPreview(option.Value);
+        item.MarkPanelPreview(option.Value);
+        RefreshPanelTimers(); // синий таймер в покое — появится на время просмотра
+        _previewOpenedWidget = ShowWidgetForPreview?.Invoke() ?? false;
+    }
+
+    /// <summary>■, закрытие списка, выбор пункта, закрытие окна: всё как было — синий в покое пропадает, скрытый виджет скрывается.</summary>
+    internal void StopPanelPreview()
+    {
+        if (_previewItem is not { } item) return;
+        _previewItem = null;
+        item.Panel.StopPreview();
+        item.MarkPanelPreview(null);
+        RefreshPanelTimers();
+        if (_previewOpenedWidget) HideWidgetAfterPreview?.Invoke();
+        _previewOpenedWidget = false;
+    }
+
     /// <summary>Клавиша таймера виджета: запустить в виджете заново и показать виджет.</summary>
     internal void StartPanelTimer(QuickTimerItem item)
     {
@@ -248,7 +282,7 @@ public sealed partial class MainViewModel
         foreach (var q in QuickTimers.Where(q => !q.Model.ShowInPanel && q.Panel.IsActive)) q.Panel.Stop(); // убрали из виджета
         var all = QuickTimers.Where(q => q.Model.ShowInPanel).Select(q => q.Panel).ToList();
         if (!all.SequenceEqual(PanelSizers)) { PanelSizers.Clear(); foreach (var p in all) PanelSizers.Add(p); }
-        var wanted = SortForPanel(QuickTimers.Where(q => q.Model.ShowInPanel && (q.Model.PanelPermanent || q.Panel.IsActive)))
+        var wanted = SortForPanel(QuickTimers.Where(q => q.Model.ShowInPanel && (q.Model.PanelPermanent || q.Panel.IsActive || q.Panel.IsPreviewing)))
             .Select(q => q.Panel).ToList();
         for (int i = PanelTimers.Count - 1; i >= 0; i--)
             if (!wanted.Contains(PanelTimers[i])) PanelTimers.RemoveAt(i);
@@ -366,8 +400,33 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     public string FullName => _item.Name;
     public string Color => Model.PanelColor;
     public string FinishColor => Model.PanelFinishColor;
-    public QuickPanelProgress Progress => Model.PanelProgress;
-    public QuickPanelFinish Finish => Model.PanelFinish;
+    public QuickPanelProgress Progress => PreviewValue is QuickPanelProgress p ? p : Model.PanelProgress;
+    public QuickPanelFinish Finish => PreviewValue is QuickPanelFinish f ? f : Model.PanelFinish;
+
+    /// <summary>Просматриваемый эффект (QuickPanelProgress или QuickPanelFinish); null — просмотра нет.</summary>
+    internal object? PreviewValue { get; private set; }
+    public bool IsPreviewing => PreviewValue is not null;
+
+    /// <summary>Эффект хода из эффектов главного таймера идёт: таймер идёт или его ход просматривают.</summary>
+    public bool IsRunningFxActive => IsRunning || PreviewValue is QuickPanelProgress;
+
+    internal void StartPreview(object value)
+    {
+        PreviewValue = value;
+        RaiseLook();
+        Raise(nameof(IsPreviewing)); Raise(nameof(IsRunningFxActive));
+        RaiseEffect();
+        _owner.UpdatePanelTicker();
+    }
+
+    internal void StopPreview()
+    {
+        PreviewValue = null;
+        RaiseLook();
+        Raise(nameof(IsPreviewing)); Raise(nameof(IsRunningFxActive));
+        RaiseEffect();
+        _owner.UpdatePanelTicker();
+    }
 
     public QuickPanelState State
     {
@@ -376,7 +435,7 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
         {
             if (_state == value) return;
             _state = value;
-            Raise(nameof(State)); Raise(nameof(IsRunning)); Raise(nameof(PlayToolTip));
+            Raise(nameof(State)); Raise(nameof(IsRunning)); Raise(nameof(PlayToolTip)); Raise(nameof(IsRunningFxActive));
             _item.RaiseRowState();
             _owner.RefreshPanelTimers(); // синий таймер появляется/пропадает в виджете
         }
@@ -426,10 +485,10 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     public bool IsRunning => _state == QuickPanelState.Running;
 
     /// <summary>Идёт эффект окончания (его длительность — своя у таймера, до 20 с).</summary>
-    public bool IsEffectActive => _state == QuickPanelState.Finished && _effectUntil is { } until && DateTime.UtcNow < until;
+    public bool IsEffectActive => PreviewValue is QuickPanelFinish || _state == QuickPanelState.Finished && _effectUntil is { } until && DateTime.UtcNow < until;
     private bool _effectShown;
 
-    internal bool NeedsTicks => _state == QuickPanelState.Running || _state == QuickPanelState.Finished;
+    internal bool NeedsTicks => _state == QuickPanelState.Running || _state == QuickPanelState.Finished || IsPreviewing;
 
     public RelayCommand PlayPauseCommand { get; }
     public RelayCommand ResetCommand { get; }
@@ -445,7 +504,9 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
     public TimeSpan Remaining => _state == QuickPanelState.Running && _endUtc is { } end ? Max0(end - DateTime.UtcNow) : _left;
 
     /// <summary>Пройденная доля 0..1 (для эффекта хода).</summary>
-    public double Fraction => Total <= TimeSpan.Zero ? 0 : Math.Clamp(1 - Remaining.TotalSeconds / Total.TotalSeconds, 0, 1);
+    public double Fraction => PreviewValue is QuickPanelProgress && _state != QuickPanelState.Running
+        ? DateTime.UtcNow.TimeOfDay.TotalMilliseconds % 4000 / 4000 // просмотр хода: заливка/полоски бегут по кругу за 4 с
+        : Total <= TimeSpan.Zero ? 0 : Math.Clamp(1 - Remaining.TotalSeconds / Total.TotalSeconds, 0, 1);
     public double RemainingFraction => 1 - Fraction;
 
     /// <summary>Время только с нужными разделами: 40 секунд — «40», 5 минут — «05:00», с днями — «2:03:00:00».</summary>
@@ -520,6 +581,7 @@ public sealed class QuickPanelTimer : INotifyPropertyChanged
 
     internal void Tick(DateTime now)
     {
+        if (IsPreviewing && _state != QuickPanelState.Running) RaiseTime();
         if (_state == QuickPanelState.Running && _endUtc is { } end)
         {
             if (now >= end)

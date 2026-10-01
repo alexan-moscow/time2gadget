@@ -252,7 +252,7 @@
                                     </Border>
                                     <Border x:Name="FlashBg" CornerRadius="9" Background="{Binding FinishColor}" Opacity="0" IsHitTestVisible="False" />
                                     <!-- Эффекты главного таймера по строке: ход — пока идёт, окончание — пока идёт эффект -->
-                                    <c:PanelRowEffect Kind="{Binding RunningFx}" ColorHex="{Binding Color}" IsActive="{Binding IsRunning}" />
+                                    <c:PanelRowEffect Kind="{Binding RunningFx}" ColorHex="{Binding Color}" IsActive="{Binding IsRunningFxActive}" />
                                     <c:PanelRowEffect Kind="{Binding FinishFx}" ColorHex="{Binding FinishColor}" IsActive="{Binding IsEffectActive}" Fast="True" />
 
                                     <Grid x:Name="RowContent" Margin="5,0,5,0">

@@ -211,7 +211,15 @@ public sealed partial class MainViewModel
         int n = 1;
         while (QuickTimers.Any(q => q.Model.Name == $"Таймер {n}")) n++;
         var model = new QuickTimer { Name = $"Таймер {n}" };
-        _settings.QuickTimers.Add(model);
+        // цвета виджета — случайные из палитры, ход и окончание разные, по возможности не как у других таймеров
+        var used = QuickTimers.SelectMany(q => new[] { q.Model.PanelColor, q.Model.PanelFinishColor }).ToHashSet();
+        var palette = QuickTimerItem.PanelColors.Select(c => c.Hex).ToList();
+        var fresh = palette.Where(c => !used.Contains(c)).ToList();
+        var pool = fresh.Count >= 2 ? fresh : palette;
+        var progress = pool[Random.Shared.Next(pool.Count)];
+        var finishPool = pool.Where(c => c != progress).ToList();
+        model.PanelColor = progress;
+        model.PanelFinishColor = finishPool[Random.Shared.Next(finishPool.Count)];        _settings.QuickTimers.Add(model);
         QuickTimers.Add(new QuickTimerItem(this, model));
         OnQuickTimersChanged(listChanged: true);
     });
@@ -769,7 +777,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
             ? "В виджете всегда (оранжевый).\nКлик ЛКМ — убрать из виджета. Клик ПКМ — синий: виден, пока идёт и доигрывает окончание"
             : "Таймер виджета (синий): клавиша запускает его в виджете, по окончании (когда отыграют эффект и звук) он пропадает из виджета до следующего запуска.\nКлик ЛКМ — убрать из виджета. Клик ПКМ — в виджете всегда (оранжевый)";
 
-    public static IReadOnlyList<EnumOption<QuickPanelProgress>> ProgressOptions { get; } = new[]
+    private static readonly EnumOption<QuickPanelProgress>[] ProgressChoices = new[]
     {
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Fill, "заливка строки"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Drain, "убывающая заливка"),
@@ -784,7 +792,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.None, "без хода"),
     };
 
-    public static IReadOnlyList<EnumOption<QuickPanelFinish>> FinishOptions { get; } = new[]
+    private static readonly EnumOption<QuickPanelFinish>[] FinishChoices = new[]
     {
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.Blink, "мигание"),
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.Flash, "вспышки цветом"),
@@ -796,6 +804,20 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.RainbowSnake, "радужная змейка"),
         new EnumOption<QuickPanelFinish>(QuickPanelFinish.None, "без эффекта"),
     };
+
+    /// <summary>Свои списки у каждой строки — у пунктов ▶/■ (просмотр в виджете, докладка 2026-10-01).</summary>
+    public IReadOnlyList<EffectOption> ProgressOptions => _progressOptions ??= ProgressChoices.Select(o => new EffectOption(o.Value, o.Label) { Tint = Model.PanelColor }).ToList();
+    private IReadOnlyList<EffectOption>? _progressOptions;
+    public IReadOnlyList<EffectOption> FinishOptions => _finishOptions ??= FinishChoices.Select(o => new EffectOption(o.Value, o.Label) { Tint = Model.PanelFinishColor }).ToList();
+    private IReadOnlyList<EffectOption>? _finishOptions;
+
+    /// <summary>▶/■ у эффекта виджета: показать этот таймер в виджете с эффектом (повторно — прекратить).</summary>
+    public void TogglePanelPreview(EffectOption option) => _owner.TogglePanelPreview(this, option);
+
+    internal void MarkPanelPreview(object? value)
+    {
+        foreach (var o in ProgressOptions.Concat(FinishOptions)) o.IsPlaying = value is not null && Equals(o.Value, value);
+    }
 
     public QuickPanelProgress PanelProgress
     {
@@ -870,6 +892,8 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     {
         foreach (var n in new[] { nameof(PanelProgress), nameof(PanelFinish), nameof(PanelFinishSeconds), nameof(PanelColor), nameof(ColorToolTip), nameof(PanelFinishColor), nameof(FinishColorToolTip), nameof(ProgressColorEnabled), nameof(FinishColorEnabled) })
             OnPropertyChanged(n);
+        foreach (var o in ProgressOptions) o.Tint = Model.PanelColor; // ▶/■ в списках — выбранным цветом
+        foreach (var o in FinishOptions) o.Tint = Model.PanelFinishColor;
         Panel.RaiseLook();
         _owner.OnQuickTimersChanged(hotkeys: false);
     }

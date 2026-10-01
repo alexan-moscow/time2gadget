@@ -22,6 +22,10 @@ public sealed class EffectOption : INotifyPropertyChanged
     private bool _isPlaying;
     public bool IsPlaying { get => _isPlaying; set { if (_isPlaying != value) { _isPlaying = value; OnPropertyChanged(); } } }
 
+    /// <summary>Цвет значка ▶/■ (эффекты виджета — выбранный цвет эффекта таймера); null — обычный.</summary>
+    private string? _tint;
+    public string? Tint { get => _tint; set { if (_tint != value) { _tint = value; OnPropertyChanged(); } } }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -50,6 +50,11 @@ public partial class QuickPanelWindow : Window
         main.SetQuickPanelOpen(true);
     }
 
+    public static bool IsShown => _current is { IsVisible: true };
+
+    /// <summary>Просмотр эффекта закончился, а виджет открывался только ради него — скрыть.</summary>
+    public static void HideForPreview(MainViewModel main) => HidePanel(main);
+
     /// <summary>Сброс настроек: панель по умолчанию скрыта.</summary>
     public static void SyncWithSettings(MainViewModel main)
     {

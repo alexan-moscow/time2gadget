@@ -23,6 +23,7 @@ public partial class QuickTimersWindow : Window
         {
             _viewModel.StopPreview();
             _viewModel.StopEffectPreview();
+            _viewModel.StopPanelPreview();
         };
     }
 
@@ -94,6 +95,17 @@ public partial class QuickTimersWindow : Window
     }
 
     private void OnQuickEffectPopupClosed(object? sender, EventArgs e) => _viewModel.StopEffectPreview();
+
+    /// <summary>▶/■ у эффекта виджета (списки хода и окончания): показ этого таймера в виджете; пункт не выбирается.</summary>
+    private void OnPanelEffectPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is FrameworkElement { DataContext: EffectOption option } button && FindQuickTimer(button) is { } item)
+            item.TogglePanelPreview(option);
+    }
+
+    /// <summary>Список эффектов виджета закрыли (или выбрали пункт) — просмотр прекращается, всё как было.</summary>
+    private void OnPanelEffectDropDownClosed(object? sender, EventArgs e) => _viewModel.StopPanelPreview();
 
     /// <summary>Закрыли меню звука быстрого таймера — играющий звук гаснет (с затуханием).</summary>
     private void OnQuickSoundPopupClosed(object? sender, EventArgs e) => _viewModel.StopPreview();

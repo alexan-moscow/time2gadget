@@ -18,7 +18,43 @@
         </Style>
         <!-- Название эффекта в списке: не помещается — сокращается «…» (полное — в подсказке и в раскрытом списке). -->
         <DataTemplate x:Key="EffectName">
-            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" VerticalAlignment="Center" />
+                <!-- ▶/■ — только в раскрытом списке (в поле выбора кнопки нет): показ этого таймера в виджете с эффектом; цвет значка — выбранный цвет эффекта (Tint пункта) -->
+                <Button Grid.Column="1" Padding="6,0" FontSize="10" Margin="8,0,0,0" Foreground="{Binding Tint}"
+                        PreviewMouseLeftButtonDown="OnPanelEffectPreviewMouseDown" PreviewMouseLeftButtonUp="OnRingtonePreviewMouseUp">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource Style.PreviewButton}">
+                            <Setter Property="ToolTip" Value="Клик ЛКМ — показать этот таймер в виджете с эффектом" />
+                            <!-- значок фигурой: символы ▶/■ шрифт рисует своими цветами, а нужен выбранный цвет эффекта -->
+                            <Setter Property="ContentTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <Viewbox Width="10" Height="10">
+                                            <Canvas Width="24" Height="24">
+                                                <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                      Data="{Binding DataContext.IsPlaying, RelativeSource={RelativeSource AncestorType=Button}, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.Stop|Geometry.Play}" />
+                                            </Canvas>
+                                        </Viewbox>
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                    <Setter Property="ToolTip" Value="Клик ЛКМ — остановить показ" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CanPreview}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ComboBoxItem}, FallbackValue={x:Null}}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
         </DataTemplate>
         <!-- Образец цвета в палитре: команда выбора — в Tag списка (палитры хода и окончания). -->
         <DataTemplate x:Key="PanelSwatch">
@@ -242,7 +278,7 @@
                         <!-- Настройки панели — под строкой, пока таймер в панели -->
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,4" Visibility="{Binding ShowInPanel, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="В виджете:" VerticalAlignment="Center" Width="124" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" />
-                            <ComboBox Width="150" Margin="4,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.ProgressOptions}" ItemTemplate="{StaticResource EffectName}"
+                            <ComboBox Width="150" Margin="4,0,0,0" ItemsSource="{Binding ProgressOptions}" ItemTemplate="{StaticResource EffectName}" Tag="{Binding PanelColor}" DropDownClosed="OnPanelEffectDropDownClosed"
                                       SelectedValuePath="Value" SelectedValue="{Binding PanelProgress}" ToolTip="Ход таймера в виджете (заливки и полоски видны всегда, остальные эффекты — пока таймер идёт)" />
                             <Button x:Name="PanelColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding OpenColorMenuCommand}" ToolTip="{Binding ColorToolTip}" IsEnabled="{Binding ProgressColorEnabled}" ToolTipService.ShowOnDisabled="True">
@@ -259,7 +295,7 @@
                                     </ItemsControl>
                                 </Border>
                             </Popup>
-                            <ComboBox Width="136" Margin="12,0,0,0" ItemsSource="{x:Static vm:QuickTimerItem.FinishOptions}" ItemTemplate="{StaticResource EffectName}"
+                            <ComboBox Width="136" Margin="12,0,0,0" ItemsSource="{Binding FinishOptions}" ItemTemplate="{StaticResource EffectName}" Tag="{Binding PanelFinishColor}" DropDownClosed="OnPanelEffectDropDownClosed"
                                       SelectedValuePath="Value" SelectedValue="{Binding PanelFinish}" ToolTip="Эффект окончания в виджете" />
                             <Button x:Name="FinishColorButton" Margin="4,0,0,0" Style="{StaticResource Style.RowIconButton}"
                                     Command="{Binding OpenFinishColorMenuCommand}" ToolTip="{Binding FinishColorToolTip}" IsEnabled="{Binding FinishColorEnabled}" ToolTipService.ShowOnDisabled="True">
