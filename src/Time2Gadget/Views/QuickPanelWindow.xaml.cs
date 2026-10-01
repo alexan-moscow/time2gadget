@@ -88,6 +88,9 @@ public partial class QuickPanelWindow : Window
     /// <summary>Крестик, клик ЛКМ — закрыть панель (клик ПКМ — «открывать снова, когда таймер закончится», команда VM).</summary>
     private void OnCloseClick(object sender, RoutedEventArgs e) => HidePanel(_viewModel);
 
+    /// <summary>Клик ПКМ по кнопкам заголовка — их собственное действие, меню сортировки виджета не открывается.</summary>
+    private void OnHeaderButtonContextMenuOpening(object sender, System.Windows.Controls.ContextMenuEventArgs e) => e.Handled = true;
+
     /// <summary>Место вне мониторов (монитор отключили) — к правому нижнему углу основного.</summary>
     private void EnsureOnScreen()
     {

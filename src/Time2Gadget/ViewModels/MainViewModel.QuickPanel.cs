@@ -20,6 +20,20 @@ public sealed partial class MainViewModel
 
     public bool HasPanelTimers => PanelTimers.Count > 0;
 
+    /// <summary>Все таймеры виджета (синие и оранжевые) — невидимый слой окна виджета для его ширины и высоты.</summary>
+    public ObservableCollection<QuickPanelTimer> PanelSizers { get; } = new();
+
+    public bool QuickPanelSortMenu
+    {
+        get => _settings.QuickPanelSortMenu;
+        set { if (_settings.QuickPanelSortMenu == value) return; _settings.QuickPanelSortMenu = value; _settingsService.Save(_settings); OnPropertyChanged(); }
+    }
+
+    public bool QuickPanelShrink
+    {
+        get => _settings.QuickPanelShrink;
+        set { if (_settings.QuickPanelShrink == value) return; _settings.QuickPanelShrink = value; _settingsService.Save(_settings); OnPropertyChanged(); }
+    }
     public bool QuickPanelHotkeyEnabled
     {
         get => _settings.QuickPanelHotkeyEnabled;
@@ -205,6 +219,8 @@ public sealed partial class MainViewModel
     private void RefreshPanelTimersCore()
     {
         foreach (var q in QuickTimers.Where(q => !q.Model.ShowInPanel && q.Panel.IsActive)) q.Panel.Stop(); // убрали из виджета
+        var all = QuickTimers.Where(q => q.Model.ShowInPanel).Select(q => q.Panel).ToList();
+        if (!all.SequenceEqual(PanelSizers)) { PanelSizers.Clear(); foreach (var p in all) PanelSizers.Add(p); }
         var wanted = SortForPanel(QuickTimers.Where(q => q.Model.ShowInPanel && (q.Model.PanelPermanent || q.Panel.IsActive)))
             .Select(q => q.Panel).ToList();
         for (int i = PanelTimers.Count - 1; i >= 0; i--)

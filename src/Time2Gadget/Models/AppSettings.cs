@@ -138,6 +138,14 @@ public sealed class AppSettings
     /// <summary>Порядок таймеров в виджете (контекстное меню виджета и окно «Быстрые таймеры»).</summary>
     public QuickPanelSort QuickPanelSort { get; set; } = QuickPanelSort.Created;
 
+    /// <summary>Клик ПКМ по виджету открывает меню сортировки (по умолчанию да).</summary>
+    public bool QuickPanelSortMenu { get; set; } = true;
+
+    /// <summary>
+    /// Сокращать виджет под активные таймеры (по умолчанию нет): высота — по идущим таймерам, без них — только заголовок.
+    /// Выключено — высота под все синие и оранжевые таймеры.
+    /// </summary>
+    public bool QuickPanelShrink { get; set; }
     /// <summary>
     /// Запускать с правами администратора (через задачу Планировщика, без UAC при каждом запуске) — чтобы возвращать
     /// и окна программ, запущенных от администратора. По умолчанию выкл. Services/ElevationService.
