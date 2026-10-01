@@ -768,6 +768,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Drain, "убывающая заливка"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Line, "полоска под строкой"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Segments, "деления под строкой"),
+        new EnumOption<QuickPanelProgress>(QuickPanelProgress.ThinLines, "тонкие линии под строкой"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Flash, "вспышки"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Breathe, "дыхание цвета"),
         new EnumOption<QuickPanelProgress>(QuickPanelProgress.Waves, "встречные волны"),

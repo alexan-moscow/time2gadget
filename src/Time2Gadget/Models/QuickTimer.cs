@@ -86,6 +86,8 @@ public enum QuickPanelProgress
     Snake,
     /// <summary>Радужная змейка по контуру строки (цвет не выбирается).</summary>
     RainbowSnake,
+    /// <summary>Тонкие вертикальные линии под строкой (2 через 2, высота 6).</summary>
+    ThinLines,
 }
 
 /// <summary>Эффект окончания быстрого таймера в панели.</summary>
