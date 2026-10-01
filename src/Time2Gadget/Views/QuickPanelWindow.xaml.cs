@@ -35,8 +35,11 @@ public partial class QuickPanelWindow : Window
     }
 
     /// <summary>Показать на запомненном месте (первый раз — у правого нижнего угла основного монитора).</summary>
-    public static void ShowPanel(MainViewModel main)
+    public static void ShowPanel(MainViewModel main, bool forPreview = false)
     {
+        // виджет включили (кнопкой, запуском синего/оранжевого таймера) — клавиша «Вкл/выкл виджет» становится активной сама;
+        // временный показ ради просмотра эффекта её не включает
+        if (!forPreview) main.QuickPanelHotkeyEnabled = true;
         _current ??= new QuickPanelWindow(main);
         var w = _current;
         if (!w.IsVisible)
