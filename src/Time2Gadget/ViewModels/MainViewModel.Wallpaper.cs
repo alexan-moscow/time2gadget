@@ -346,6 +346,9 @@ public sealed partial class MainViewModel
     public bool IsSlideshowUnderlay => Slideshow.UseUnderlay;
     public bool IsSlideshowWindows => !Slideshow.UseUnderlay;
 
+    /// <summary>Выбран распад при показе подложкой — рядом жёлтое «может тормозить».</summary>
+    public bool IsHeavyEffect => Slideshow.UseUnderlay && Slideshow.Effect == SlideshowEffect.Disintegration;
+
     /// <summary>Способ показа или эффект изменили — шаг не сбрасывается, показ — заново.</summary>
     private void ChangeDisplay(Action change)
     {
@@ -373,7 +376,7 @@ public sealed partial class MainViewModel
                      nameof(SlideshowHourlyStart), nameof(SlideshowDailyTime), nameof(SlideshowInterval), nameof(SlideshowIntervalStart),
                      nameof(IsSlideshowHourly), nameof(IsSlideshowDaily), nameof(IsSlideshowInterval),
                      nameof(ShowSlideshowHourlyTime), nameof(ShowSlideshowDailyTime), nameof(ShowSlideshowIntervalStart), nameof(SlideshowStatus),
-                     nameof(SlideshowDisplayIndex), nameof(SlideshowEffectIndex), nameof(IsSlideshowUnderlay), nameof(IsSlideshowWindows),
+                     nameof(SlideshowDisplayIndex), nameof(SlideshowEffectIndex), nameof(IsSlideshowUnderlay), nameof(IsSlideshowWindows), nameof(IsHeavyEffect),
                  })
             OnPropertyChanged(name);
     }
@@ -553,7 +556,7 @@ public sealed partial class MainViewModel
             var now = DateTime.Now;
             long changes = SlideshowSchedule.StepsSinceStart(Slideshow, now);
             int global = SlideshowGlobalLength(monitors);
-            if (global == 0) return "Шаги не заполнены — на мониторах прежний фон. Нажмите на монитор, чтобы разложить картинки по шагам.";
+            if (global == 0) return "Шаги не заполнены — на мониторах прежний фон. Клик ЛКМ по монитору — разложить картинки по шагам.";
             var next = SlideshowSchedule.NextChange(Slideshow, now);
             var when = next.Date == now.Date ? next.ToString("HH:mm:ss") : next.ToString("dd.MM HH:mm:ss");
             var text = $"Сейчас шаг {changes % global + 1} из {global} · следующая смена в {when}";

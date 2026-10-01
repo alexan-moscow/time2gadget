@@ -4,7 +4,7 @@
         xmlns:m="clr-namespace:Time2Gadget.Models"
         xmlns:vm="clr-namespace:Time2Gadget.ViewModels"
         xmlns:c="clr-namespace:Time2Gadget.Controls"
-        Title="Заставка и фон экрана — Тайм2гаджет"
+        Title="Фоновая заставка и слайдшоу экрана — Тайм2гаджет"
         Width="780" SizeToContent="Height" MinWidth="640"
         Background="{StaticResource Brush.Background}"
         WindowStartupLocation="CenterOwner"
@@ -44,34 +44,13 @@
     <!-- Прокрутка как в остальных окнах: полоса у правого края окна (поле справа — у содержимого). -->
     <ScrollViewer Margin="16,16,0,16" VerticalScrollBarVisibility="Auto" Padding="0,0,16,0">
     <StackPanel>
-        <!-- ============ Слайд-шоу Windows (перенесено из настроек, докладка 2026-09-29) ============ -->
-        <TextBlock Text="Слайд-шоу Windows" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,4" />
-        <StackPanel DataContext="{Binding Main}">
-            <CheckBox ToolTip="Остановить смену картинок слайд-шоу Windows — на каждом мониторе остаётся его текущая картинка" IsChecked="{Binding PinWallpapers}">
-                <TextBlock Text="Закрепить фоны рабочего стола (остановить слайд-шоу)" TextWrapping="Wrap" />
-            </CheckBox>
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
-                       Text="Слайд-шоу Windows ставит разные картинки на разные мониторы, но меняет их не реже раза в сутки. С галочкой смена останавливается: на каждом мониторе остаётся та картинка, что сейчас. Снимите галочку — слайд-шоу пойдёт снова из той же папки." />
-            <TextBlock Text="{Binding PinWallpapersStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,2,0,0">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding PinWallpapers}" Value="False">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-        </StackPanel>
-
         <!-- ============ Режим 1: статичная заставка / сплошной фон — картинка + режим на каждый монитор + «✕».
              Включён может быть только один из двух режимов: пока включён другой, раздел приглушён и недоступен. ============ -->
         <StackPanel IsEnabled="{Binding Main.IsStaticSectionEnabled}" Style="{StaticResource Style.ModeSection}">
-        <Grid Margin="0,16,0,8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <TextBlock Text="Статичная заставка / сплошной фон" Style="{StaticResource Style.SectionHeader}" Margin="0" VerticalAlignment="Center" />
-            <ToggleButton Grid.Column="1" Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.StaticWallpaperEnabled}"
+        <Grid Margin="0,4,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="1" Text="Статичная заставка / сплошной фон" Style="{StaticResource Style.SectionHeader}" Margin="10,0,0,0" VerticalAlignment="Center" />
+            <ToggleButton Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.StaticWallpaperEnabled}" VerticalAlignment="Center"
                           ToolTip="Включено — картинка/цвета на мониторах; выключено — прежний фон (настройки сохраняются)" />
         </Grid>
         <Grid>
@@ -214,23 +193,23 @@
 
             <!-- «✕»: левый щелчок — картинку убрать, на всех мониторах сплошной чёрный; правый — вернуть фон, который был до своих настроек. -->
             <Button Grid.Column="2" Content="✕" Command="{Binding ClearCommand}" Style="{StaticResource Style.SettingsButton}" Padding="12,6"
-                    ToolTip="Щелчок — убрать картинку: на всех мониторах сплошной чёрный (цвет каждого можно сменить квадратиком у кнопки монитора).&#x0a;Правый щелчок — вернуть фон, который был до этого">
+                    ToolTip="Клик ЛКМ — убрать картинку: на всех мониторах сплошной чёрный (цвет каждого можно сменить квадратиком у кнопки монитора).&#x0a;Клик ПКМ — вернуть фон, который был до этого">
                 <Button.InputBindings>
                     <MouseBinding Gesture="RightClick" Command="{Binding RestoreCommand}" />
                 </Button.InputBindings>
             </Button>
         </Grid>
         <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
-                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), правый щелчок по «✕» — вернуть фон, который был до этого." />
+                   Text="Картинка ставится на все мониторы. Кнопка монитора меняет, как она ложится: растянуть → по размеру → заполнить → по центру → не отображать. Где картинки нет, квадратик у кнопки задаёт сплошной цвет. «Выбрать свой файл» копирует картинки (jpg, png) в папку программы. «✕» — убрать картинку (сплошной чёрный), клик ПКМ по «✕» — вернуть фон, который был до этого." />
         <TextBlock Text="{Binding Status}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.UpdateAccent}" />
         </StackPanel>
 
         <!-- ============ Режим 2: динамичная заставка / слайдшоу — расписание, шаги на каждый монитор (окно SlideshowEditorWindow). ============ -->
         <StackPanel IsEnabled="{Binding Main.IsSlideshowSectionEnabled}" Style="{StaticResource Style.ModeSection}">
             <Grid Margin="0,16,0,8">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock Text="Динамичная заставка / слайдшоу" Style="{StaticResource Style.SectionHeader}" Margin="0" VerticalAlignment="Center" />
-                <ToggleButton Grid.Column="1" Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.SlideshowEnabled}"
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="1" Text="Динамичная заставка / слайдшоу" Style="{StaticResource Style.SectionHeader}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                <ToggleButton Style="{StaticResource Style.ToggleSwitch}" IsChecked="{Binding Main.SlideshowEnabled}" VerticalAlignment="Center"
                               ToolTip="Включено — картинки меняются по расписанию на всех мониторах разом; выключено — прежний фон" />
             </Grid>
             <WrapPanel DataContext="{Binding Main}">
@@ -292,6 +271,9 @@
                     <ComboBoxItem Content="дисперсия" ToolTip="Старую картинку сдувает крупными кусками волной слева направо" />
                     <ComboBoxItem Content="распад" ToolTip="Старая картинка рассыпается мелкими частицами, как пепел" />
                 </ComboBox>
+                <TextBlock Text="может тормозить" Foreground="{StaticResource Brush.UpdateAccent}" VerticalAlignment="Center" Margin="0,0,8,0"
+                           Visibility="{Binding IsHeavyEffect, Converter={StaticResource BoolToVis}}"
+                           ToolTip="Распад рисует тысячи частиц — на слабом компьютере смена может подтормаживать" />
                 <!-- средствами Windows: выбрать эффект Windows не даёт — у неё одна плавная смена -->
                 <ComboBox Width="190" SelectedIndex="0" IsEnabled="False" Margin="0,2,8,2" VerticalAlignment="Center"
                           Visibility="{Binding IsSlideshowWindows, Converter={StaticResource BoolToVis}}"
@@ -327,7 +309,26 @@
             </ItemsControl>
             <TextBlock Text="{Binding Main.SlideshowStatus}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.Accent}" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,4,0,0"
-                       Text="На каждом мониторе — до 30 шагов (щелчок по монитору). Все мониторы идут по шагам вместе: шаг 1, шаг 2… и по кругу до последнего заполненного шага. Пустой шаг монитора — его прежний фон." />
+                       Text="На каждом мониторе — до 30 шагов (клик ЛКМ по монитору). Все мониторы идут по шагам вместе: шаг 1, шаг 2… и по кругу до последнего заполненного шага. Пустой шаг монитора — его прежний фон." />
+            <!-- Слайд-шоу Windows (без своего раздела, докладка 2026-10-01): «Закрепить фоны» — внутри блока динамичной заставки. -->
+            <StackPanel DataContext="{Binding Main}" Margin="0,10,0,0">
+                <CheckBox ToolTip="Остановить смену картинок слайд-шоу Windows — на каждом мониторе остаётся его текущая картинка" IsChecked="{Binding PinWallpapers}">
+                    <TextBlock Text="Закрепить фоны рабочего стола (остановить слайд-шоу)" TextWrapping="Wrap" />
+                </CheckBox>
+                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
+                           Text="Слайд-шоу Windows ставит разные картинки на разные мониторы, но меняет их не реже раза в сутки. С галочкой смена останавливается: на каждом мониторе остаётся та картинка, что сейчас. Снимите галочку — слайд-шоу пойдёт снова из той же папки." />
+                <TextBlock Text="{Binding PinWallpapersStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,2,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PinWallpapers}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
         </StackPanel>
 
         <!-- ============ Экспорт / импорт: один архив со всеми картинками и настройками обоих режимов. ============ -->
@@ -344,8 +345,8 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal" DataContext="{Binding Main}" VerticalAlignment="Center">
                 <CheckBox Content="Быстрое открытие этого окна" IsChecked="{Binding BackgroundWindowHotkeyEnabled}" VerticalAlignment="Center"
                           Margin="0,0,10,0" ToolTip="Сочетание справа открывает это окно из любой программы" />
-                <c:HotkeyBox BindingValue="{Binding BackgroundWindowKey}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Width="140" Height="32"
-                             ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое" />
+                <c:HotkeyBox BindingValue="{Binding BackgroundWindowKeyShown}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Width="140" Height="32"
+                             ToolTip="Сочетание для открытия этого окна. Клик ЛКМ — назначить другое" />
             </StackPanel>
         </Grid>
         <TextBlock Text="{Binding ExchangeStatus}" Style="{StaticResource Style.StatusLine}" Foreground="{StaticResource Brush.TextSecondary}" />

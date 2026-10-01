@@ -79,7 +79,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (e.PropertyName == nameof(AlarmVolume)) foreach (var q in QuickTimers) q.OnGeneralVolumeChanged(); // галочка «общая» — ползунок следует
         };
-        _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(TryAutoClose);
+        _soundService.AlarmCompleted += (_, _) => _dispatcher.BeginInvoke(() => { _alarmPlaying = false; TryAutoClose(); RefreshFinishEffectActive(); });
         _engine.StatusChanged += (_, _) => RaiseStatusDependentChanges();
 
         SelectPresetCommand = new RelayCommand(p => SelectPreset((TimerPreset)p!));
@@ -903,6 +903,36 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         IsFinishEffectActive = Status == TimerStatus.Finished
                                && ActiveFinishEffect != FinishVisualEffect.None
                                && (duration == 0 || SecondsSinceFinish < duration);
+
+        // «Сбросить таймер по окончании эффекта» (докладка 2026-10-01): эффект отыграл своё время и звонок закончился —
+        // сброс, виджет снова показывает часы. «Бесконечный» эффект или без эффекта — нечего ждать, не сбрасываем.
+        if (Status == TimerStatus.Finished && _settings.ResetAfterFinishEffect && !_resetAfterEffectQueued && !_alarmPlaying
+            && ActiveFinishEffect != FinishVisualEffect.None && duration > 0 && SecondsSinceFinish >= duration)
+        {
+            _resetAfterEffectQueued = true;
+            _dispatcher.BeginInvoke(() =>
+            {
+                _resetAfterEffectQueued = false;
+                if (Status == TimerStatus.Finished) ResetTimer();
+            });
+        }
+    }
+
+    private bool _alarmPlaying;            // звонок завершения ещё играет — сброс по окончании эффекта ждёт его
+    private bool _resetAfterEffectQueued;
+
+    /// <summary>Галочка «Сбросить таймер по окончании эффекта» (под ползунком длительности эффекта).</summary>
+    public bool ResetAfterFinishEffect
+    {
+        get => _settings.ResetAfterFinishEffect;
+        set
+        {
+            if (_settings.ResetAfterFinishEffect == value) return;
+            _settings.ResetAfterFinishEffect = value;
+            _settingsService.Save(_settings);
+            OnPropertyChanged();
+            RefreshFinishEffectActive();
+        }
     }
 
     // ============ «Об авторе» (2026-09-27) ============
@@ -1067,16 +1097,16 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             ? $"Выключить звонок и сбросить на 00:00{KeyHint(ResetKey)}"
             : $"Сбросить таймер на 00:00{KeyHint(ResetKey)}",
         "Center" => Status is TimerStatus.Running or TimerStatus.Paused
-            ? $"Клик — компактный режим{KeyHint(CompactKey)}\nПотяните — переместить окно"
-            : $"Клик — компактный режим{KeyHint(CompactKey)}\nКолесо мыши — ±1 минута",
-        "CompactCenter" => $"Клик — вернуться к полному виду{KeyHint(CompactKey)}",
+            ? $"Клик ЛКМ — компактный режим{KeyHint(CompactKey)}\nПотяните — переместить окно"
+            : $"Клик ЛКМ — компактный режим{KeyHint(CompactKey)}\nКолесо мыши — ±1 минута",
+        "CompactCenter" => $"Клик ЛКМ — вернуться к полному виду{KeyHint(CompactKey)}",
         "Mute" => IsMuted ? "Включить звук звонка" : "Выключить звук звонка",
         "Volume" => $"Громкость звонка: {Math.Round(AlarmVolume * 100)}%",
         "Settings" => IsUpdateAvailable ? $"Настройки — доступно обновление {AvailableVersion}" : "Настройки",
         "Close" => CloseBehavior == CloseBehavior.Exit ? "Закрыть приложение" : "Свернуть в трей",
         "AutoClose" => AutoCloseAfterFinish
-            ? $"Автозакрытие ВКЛ: после звонка приложение {(CloseBehavior == CloseBehavior.Exit ? "закроется" : "свернётся в трей")}\nКлик — выключить"
-            : $"Автозакрытие выкл\nКлик — после звонка {(CloseBehavior == CloseBehavior.Exit ? "закрывать приложение" : "сворачивать в трей")}",
+            ? $"Автозакрытие ВКЛ: после звонка приложение {(CloseBehavior == CloseBehavior.Exit ? "закроется" : "свернётся в трей")}\nКлик ЛКМ — выключить"
+            : $"Автозакрытие выкл\nКлик ЛКМ — после звонка {(CloseBehavior == CloseBehavior.Exit ? "закрывать приложение" : "сворачивать в трей")}",
         _ => null
     };
 
@@ -1162,6 +1192,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         ClearQuickTimerOverrides(); // свой звук и эффект быстрого таймера — только до сброса
         _soundService.StopAlarm();
+        _alarmPlaying = false;
         _engine.Reset();
         RaiseStatusDependentChanges();
     }
@@ -1227,6 +1258,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (!IsMuted && !_quickSilent) // быстрый таймер без звука — только эффект
         {
+            _alarmPlaying = true;
             _soundService.PlayAlarm(_settings, _alarmChoice); // автозакрытие — по AlarmCompleted, когда звонок отыграет
         }
         else

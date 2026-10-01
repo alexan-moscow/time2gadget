@@ -176,8 +176,8 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
                 <CheckBox Content="Быстрое открытие этого окна" IsChecked="{Binding QuickTimersWindowHotkeyEnabled}" VerticalAlignment="Center"
                           ToolTip="Сочетание справа открывает это окно из любой программы" />
-                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding QuickTimersWindowKey}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}"
-                             ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое" />
+                <c:HotkeyBox Grid.Column="1" BindingValue="{Binding QuickTimersWindowKeyShown}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}"
+                             ToolTip="Сочетание для открытия этого окна. Клик ЛКМ — назначить другое" />
             </Grid>
         </StackPanel>
     </ScrollViewer>

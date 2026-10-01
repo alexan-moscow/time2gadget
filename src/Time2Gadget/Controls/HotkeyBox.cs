@@ -48,7 +48,7 @@ public sealed class HotkeyBox : Border
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewKeyDown += OnPreviewKeyDown;
         LostKeyboardFocus += (_, _) => EndCapture();
-        ToolTip = "Щёлкните и нажмите сочетание клавиш или кнопку мыши. Esc — отмена, Backspace — очистить.";
+        ToolTip = "Клик ЛКМ по полю, затем нажмите сочетание клавиш или кнопку мыши. Esc — отмена, Backspace — очистить.";
     }
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e)

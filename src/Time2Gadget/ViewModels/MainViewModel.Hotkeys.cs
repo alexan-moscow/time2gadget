@@ -25,7 +25,7 @@ public sealed partial class MainViewModel
     public bool WindowProfilesHotkeyEnabled
     {
         get => _settings.WindowProfilesHotkeyEnabled;
-        set => SetGlobal(value, _settings.WindowProfilesHotkeyEnabled, v => _settings.WindowProfilesHotkeyEnabled = v, null);
+        set => SetGlobal(value, _settings.WindowProfilesHotkeyEnabled, v => _settings.WindowProfilesHotkeyEnabled = v, nameof(WindowProfilesKeyShown));
     }
 
     public HotkeyBinding WindowProfilesKey
@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
     public bool BackgroundWindowHotkeyEnabled
     {
         get => _settings.BackgroundWindowHotkeyEnabled;
-        set => SetGlobal(value, _settings.BackgroundWindowHotkeyEnabled, v => _settings.BackgroundWindowHotkeyEnabled = v, null);
+        set => SetGlobal(value, _settings.BackgroundWindowHotkeyEnabled, v => _settings.BackgroundWindowHotkeyEnabled = v, nameof(BackgroundWindowKeyShown));
     }
 
     public HotkeyBinding BackgroundWindowKey
@@ -54,13 +54,33 @@ public sealed partial class MainViewModel
     public bool QuickTimersWindowHotkeyEnabled
     {
         get => _settings.QuickTimersWindowHotkeyEnabled;
-        set => SetGlobal(value, _settings.QuickTimersWindowHotkeyEnabled, v => _settings.QuickTimersWindowHotkeyEnabled = v, null);
+        set => SetGlobal(value, _settings.QuickTimersWindowHotkeyEnabled, v => _settings.QuickTimersWindowHotkeyEnabled = v, nameof(QuickTimersWindowKeyShown));
     }
 
     public HotkeyBinding QuickTimersWindowKey
     {
         get => _settings.QuickTimersWindowKey ?? HotkeyBinding.Empty;
         set => SetKey(value, (s, v) => s.QuickTimersWindowKey = v, global: true);
+    }
+
+    // Поле сочетания клавиши быстрого открытия: выключено — «Не задано» (приглушено), включено — само сочетание (по умолчанию
+    // или своё), его можно переназначить (докладка 2026-10-01).
+    public HotkeyBinding WindowProfilesKeyShown
+    {
+        get => WindowProfilesHotkeyEnabled ? WindowProfilesKey : HotkeyBinding.Empty;
+        set { if (WindowProfilesHotkeyEnabled) { WindowProfilesKey = value; OnPropertyChanged(); } }
+    }
+
+    public HotkeyBinding BackgroundWindowKeyShown
+    {
+        get => BackgroundWindowHotkeyEnabled ? BackgroundWindowKey : HotkeyBinding.Empty;
+        set { if (BackgroundWindowHotkeyEnabled) { BackgroundWindowKey = value; OnPropertyChanged(); } }
+    }
+
+    public HotkeyBinding QuickTimersWindowKeyShown
+    {
+        get => QuickTimersWindowHotkeyEnabled ? QuickTimersWindowKey : HotkeyBinding.Empty;
+        set { if (QuickTimersWindowHotkeyEnabled) { QuickTimersWindowKey = value; OnPropertyChanged(); } }
     }
 
     /// <summary>Открыть окно «Заставка и фон экрана» (клавиша быстрого открытия).</summary>
@@ -492,7 +512,7 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     public RelayCommand EffectCommand => _effectCommand ??= new RelayCommand(() => IsEffectMenuOpen = true);
     private RelayCommand? _effectCommand;
 
-    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}\nЩелчок — выбрать";
+    public string EffectToolTip => $"Эффект по окончании: {EffectOptions.FirstOrDefault(o => Equals(o.Value, Model.FinishEffect))?.Label}\nКлик ЛКМ — выбрать";
 
     /// <summary>Щелчок по эффекту в меню: выбрать, прекратить показ и закрыть меню.</summary>
     public void ChooseEffect(object value)
@@ -570,12 +590,12 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
 
     /// <summary>Задан свой звук (звонок, устройство или громкость) — колокольчик подсвечен.</summary>
     public string SoundToolTip => !Model.SoundEnabled
-        ? "Звук выключен (только эффект)\nЩелчок — выбрать звук"
+        ? "Звук выключен (только эффект)\nКлик ЛКМ — выбрать звук"
         : $"Звук: {SoundOptions.FirstOrDefault(r => r.Id == RingtoneKey)?.Title ?? "общий"}" +
           (IsCustomFileSelected ? $" ({CustomFileName})" : "") + "\n" +
           $"Громкость: {(Model.Volume is { } v ? $"{Math.Round(v * 100)}%" : "общая")}\n" +
           $"Устройство: {DeviceOptions.FirstOrDefault(d => d.Id == DeviceKey)?.FriendlyName ?? "как в разделе «Звук»"}\n" +
-          "Щелчок — выключить звук";
+          "Клик ЛКМ — выключить звук";
 
     /// <summary>▶/■ во всплывашке: звонок — с громкостью и на устройстве этого таймера.</summary>
     public void Preview(string ringtoneId) =>

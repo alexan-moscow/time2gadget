@@ -174,7 +174,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     }
 
     public bool HasSelection => SelectedWindow is not null;
-    public string SelectedHeader => SelectedWindow is { } w ? $"{w.ExeName} — {w.Title}" : "Выберите окно слева или нажмите «Указать окно»";
+    public string SelectedHeader => SelectedWindow is { } w ? $"{w.ExeName} — {w.Title}" : "Выберите окно слева или клик ЛКМ по «Указать окно»";
 
     private string _currentText = string.Empty;
     public string CurrentText { get => _currentText; private set => Set(ref _currentText, value); }
@@ -206,7 +206,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     private void PickForeground()
     {
         if (!SelectWindow(NativeWindows.ForegroundWindow))
-            Status = "Активным осталось окно Тайм2гаджета — нажмите «Указать окно» и за 3 секунды переключитесь в нужное окно (Alt+Tab).";
+            Status = "Активным осталось окно Тайм2гаджета — клик ЛКМ по «Указать окно» и за 3 секунды переключитесь в нужное окно (Alt+Tab).";
     }
 
     /// <summary>
@@ -258,13 +258,14 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     public bool QuickOpenEnabled
     {
         get => _main.WindowProfilesHotkeyEnabled;
-        set { _main.WindowProfilesHotkeyEnabled = value; OnPropertyChanged(); }
+        set { _main.WindowProfilesHotkeyEnabled = value; OnPropertyChanged(); OnPropertyChanged(nameof(QuickOpenKey)); }
     }
 
+    /// <summary>Выключено — «Не задано» (приглушено); включено — сочетание, его можно переназначить.</summary>
     public Models.HotkeyBinding QuickOpenKey
     {
-        get => _main.WindowProfilesKey;
-        set { _main.WindowProfilesKey = value; OnPropertyChanged(); }
+        get => _main.WindowProfilesKeyShown;
+        set { _main.WindowProfilesKeyShown = value; OnPropertyChanged(); }
     }
 
     // Строка статуса — своя у каждого окна (докладка 2026-09-29: «Применено» оставалось при выборе другого окна).
@@ -604,7 +605,7 @@ public sealed class WindowProfilesViewModel : INotifyPropertyChanged
     }
 
     public string ApplyPermanentlyToolTip => AssignedProfile is { } p
-        ? $"Сейчас к этой программе постоянно применяется «{p.Name}». Щелчок по включённой кнопке — выключить."
+        ? $"Сейчас к этой программе постоянно применяется «{p.Name}». Клик ЛКМ по включённой кнопке — выключить."
         : "Применять выбранный профиль к этой программе постоянно: при каждом её запуске и если она сама поменяет окно.";
 
     /// <summary>Снять назначение с программы выбранного окна; возвращает имя снятого профиля.</summary>

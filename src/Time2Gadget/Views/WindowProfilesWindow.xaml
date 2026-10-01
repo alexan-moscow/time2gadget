@@ -70,7 +70,7 @@
                 <Button Content="Обновить" Command="{Binding RefreshCommand}" Style="{StaticResource Style.SettingsButton}" Margin="0,0,6,0"
                         ToolTip="Перечитать список окон и мониторов" />
                 <Button Content="{Binding PickButtonText}" Command="{Binding PickWindowCommand}" Style="{StaticResource Style.SettingsButton}"
-                        ToolTip="Нажмите и за 3 секунды переключитесь в нужное окно (Alt+Tab) — для игр, которых нет в списке" />
+                        ToolTip="Клик ЛКМ — и за 3 секунды переключитесь в нужное окно (Alt+Tab) — для игр, которых нет в списке" />
                 <TextBlock Text="3 с — Alt+Tab&#x0a;в нужное окно" FontSize="10" Foreground="{StaticResource Brush.TextSecondary}"
                            VerticalAlignment="Center" Margin="6,0,0,0" />
             </StackPanel>
@@ -184,7 +184,7 @@
                         <CheckBox Grid.Row="3" Content="Не выпускать указатель мыши из окна" IsChecked="{Binding ConfineCursor}" VerticalAlignment="Center"
                                   Margin="0,6,0,0" ToolTip="Пока окно активно, указатель не выходит за его границы; другое окно (Alt+Tab) — свободен" />
                         <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding CursorConfineKey}" Width="150" Margin="12,8,0,2"
-                                     ToolTip="Сочетание: указатель свободен / снова в окне (для всех таких окон). Щелчок — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
+                                     ToolTip="Сочетание: указатель свободен / снова в окне (для всех таких окон). Клик ЛКМ — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
                         <TextBlock Grid.Row="4" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
                                    Text="Пока окно активно, указатель не выходит за его границы. Сочетание справа временно освобождает указатель и снова ограничивает его." />
                         <CheckBox Content="Без рамки и заголовка" IsChecked="{Binding Borderless}" VerticalAlignment="Center"
@@ -303,7 +303,7 @@
                               Margin="0,6,0,0" ToolTip="Общая настройка программы (не для отдельного окна): сочетание справа открывает это окно откуда угодно" />
                     <c:HotkeyBox Grid.Column="1" BindingValue="{Binding QuickOpenKey}" Width="150" Margin="12,8,0,2"
                                  IsEnabled="{Binding QuickOpenEnabled}"
-                                 ToolTip="Сочетание для открытия этого окна. Щелчок — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
+                                 ToolTip="Сочетание для открытия этого окна. Клик ЛКМ — назначить другое: с Ctrl/Shift/Alt/Win или кнопкой мыши" />
                     <TextBlock Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="20,0,0,0"
                                Text="Общая настройка — не для выбранного окна и не в профиль. Сочетание открывает это окно из любой программы или игры, и в списке сразу выбрано окно, которое было активным." />
                 </Grid>

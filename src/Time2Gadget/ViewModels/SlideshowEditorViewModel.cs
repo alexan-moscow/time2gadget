@@ -99,13 +99,13 @@ public sealed class SlotItem : INotifyPropertyChanged
     public string ToolTip => HasImage
         ? $"Шаг {Number}: {System.IO.Path.GetFileName(_slot!.Image)}, {MonitorFitItem.FitName(Fit)}"
         : HasColor
-            ? $"Шаг {Number}: сплошной цвет {MonitorFitItem.BasicColors.FirstOrDefault(c => c.Hex == _slot!.Color)?.Name ?? _slot!.Color}. Щелчок — другой цвет"
-            : $"Шаг {Number}: пусто — прежний фон монитора. Перетащите сюда картинку или щёлкните — сплошной цвет";
+            ? $"Шаг {Number}: сплошной цвет {MonitorFitItem.BasicColors.FirstOrDefault(c => c.Hex == _slot!.Color)?.Name ?? _slot!.Color}. Клик ЛКМ — другой цвет"
+            : $"Шаг {Number}: пусто — прежний фон монитора. Перетащите сюда картинку или клик ЛКМ — сплошной цвет";
 
     private static WallpaperFit NextFit(WallpaperFit fit) => fit >= WallpaperFit.Center ? WallpaperFit.Stretch : fit + 1;
 
-    /// <summary>«Сейчас: заполнить. Клик — по центру».</summary>
-    public string FitToolTip => $"Сейчас: {MonitorFitItem.FitName(Fit)}. Клик — {MonitorFitItem.FitName(NextFit(Fit))}";
+    /// <summary>«Сейчас: заполнить. Клик ЛКМ — по центру».</summary>
+    public string FitToolTip => $"Сейчас: {MonitorFitItem.FitName(Fit)}. Клик ЛКМ — {MonitorFitItem.FitName(NextFit(Fit))}";
 
     public RelayCommand ClearCommand { get; }
     public RelayCommand CycleFitCommand { get; }

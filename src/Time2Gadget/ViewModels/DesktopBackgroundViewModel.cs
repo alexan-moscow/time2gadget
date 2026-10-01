@@ -96,8 +96,8 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
     }
 
     public string ColorToolTip => _color is null
-        ? $"Монитор {Monitor.Number}: прежний фон. Щелчок — выбрать сплошной цвет"
-        : $"Монитор {Monitor.Number}: сплошной цвет {BasicColors.FirstOrDefault(c => c.Hex == _color)?.Name ?? _color}. Щелчок — другой цвет";
+        ? $"Монитор {Monitor.Number}: прежний фон. Клик ЛКМ — выбрать сплошной цвет"
+        : $"Монитор {Monitor.Number}: сплошной цвет {BasicColors.FirstOrDefault(c => c.Hex == _color)?.Name ?? _color}. Клик ЛКМ — другой цвет";
 
     /// <summary>Картинку выбрали или сняли — показать/скрыть квадратик.</summary>
     public void RefreshShowColor() => Raise(nameof(ShowColor));
@@ -113,7 +113,7 @@ public sealed class MonitorFitItem : INotifyPropertyChanged
 
     public string ToolTip =>
         $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}: {FitName(Fit)}.\n" +
-        $"Клик — {FitName(Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1)}";
+        $"Клик ЛКМ — {FitName(Fit == WallpaperFit.None ? WallpaperFit.Stretch : Fit + 1)}";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -347,8 +347,8 @@ public sealed class SlideshowMonitorItem
     public bool CanRestore { get; }
     public string Label => $"Монитор {Monitor.Number}";
     public string Caption => Filled == 0 ? "пусто" : $"шагов в цикле: {Filled}";
-    public string ToolTip => $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}. Щелчок — разложить картинки по шагам слайдшоу";
-    public string ClearToolTip => "Щелчок — убрать шаги этого монитора (на нём — прежний фон).\nПравый щелчок — вернуть убранные шаги"
+    public string ToolTip => $"Монитор {Monitor.Number} — {Monitor.Bounds.Width}×{Monitor.Bounds.Height}. Клик ЛКМ — разложить картинки по шагам слайдшоу";
+    public string ClearToolTip => "Клик ЛКМ — убрать шаги этого монитора (на нём — прежний фон).\nКлик ПКМ — вернуть убранные шаги"
                                   + (CanRestore ? "" : " (сейчас возвращать нечего)");
     public RelayCommand OpenCommand { get; }
     public RelayCommand ClearCommand { get; }

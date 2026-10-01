@@ -195,6 +195,12 @@ public sealed class AppSettings
     /// </summary>
     public int FinishEffectDurationSeconds { get; set; } = 10;
 
+    /// <summary>
+    /// Сбросить таймер, когда эффект завершения отыграл (и звонок закончился), — виджет снова показывает часы (докладка 2026-10-01).
+    /// По умолчанию да.
+    /// </summary>
+    public bool ResetAfterFinishEffect { get; set; } = true;
+
     /// <summary>Показывать текущее время (часы) под статусом «ГОТОВО/ОСТАЛОСЬ» — в обоих режимах.</summary>
     public bool ShowClock { get; set; } = true;
 

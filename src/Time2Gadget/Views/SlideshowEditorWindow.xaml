@@ -135,7 +135,7 @@
         <!-- Справа: 30 шагов. -->
         <DockPanel Grid.Row="1" Grid.Column="2">
             <TextBlock DockPanel.Dock="Top" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,4" TextWrapping="Wrap"
-                       Text="Шаги слайдшоу: перетащите картинку из списка на шаг. Пустой шаг по щелчку — сплошной цвет; незаполненный шаг — прежний фон монитора." />
+                       Text="Шаги слайдшоу: перетащите картинку из списка на шаг. Пустой шаг по клику ЛКМ — сплошной цвет; незаполненный шаг — прежний фон монитора." />
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding Slots}">
                     <ItemsControl.ItemsPanel>

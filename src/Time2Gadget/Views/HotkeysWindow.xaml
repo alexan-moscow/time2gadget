@@ -10,7 +10,7 @@
          плюс клавиши окон (указатель мыши, быстрое открытие окон) — те же настройки, что в самих окнах. -->
     <ScrollViewer Margin="20,16,0,16" VerticalScrollBarVisibility="Auto" Padding="0,0,20,0">
         <StackPanel>
-            <TextBlock Text="Клавиши таймера" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
+            <TextBlock Text="Клавиши в режиме таймера и компактного вида" Style="{StaticResource Style.SectionHeader}" Margin="0,0,0,8" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -22,28 +22,28 @@
                 </Grid.RowDefinitions>
                 <TextBlock Text="Старт / пауза" VerticalAlignment="Center" />
                 <c:HotkeyBox Grid.Column="1" BindingValue="{Binding StartPauseKey}" Margin="0,2" />
-                <Button Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding StartPauseGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                <Button Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding StartPauseGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Клик ЛКМ — только в окне таймера|Работает только в окне таймера. Клик ЛКМ — везде'}"
                         Command="{Binding ToggleKeyScopeCommand}" CommandParameter="StartPause">
                     <Path Style="{StaticResource Style.KeyScopeIcon}"
                           Data="{Binding StartPauseGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
                 </Button>
                 <TextBlock Grid.Row="1" Text="Сброс" VerticalAlignment="Center" />
                 <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding ResetKey}" Margin="0,2" />
-                <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ResetGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ResetGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Клик ЛКМ — только в окне таймера|Работает только в окне таймера. Клик ЛКМ — везде'}"
                         Command="{Binding ToggleKeyScopeCommand}" CommandParameter="Reset">
                     <Path Style="{StaticResource Style.KeyScopeIcon}"
                           Data="{Binding ResetGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
                 </Button>
                 <TextBlock Grid.Row="2" Text="Компактный вид" VerticalAlignment="Center" />
                 <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding CompactKey}" Margin="0,2" />
-                <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding CompactGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding CompactGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Клик ЛКМ — только в окне таймера|Работает только в окне таймера. Клик ЛКМ — везде'}"
                         Command="{Binding ToggleKeyScopeCommand}" CommandParameter="Compact">
                     <Path Style="{StaticResource Style.KeyScopeIcon}"
                           Data="{Binding CompactGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
                 </Button>
                 <TextBlock Grid.Row="3" Text="Показать / скрыть окно" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding ShowHideKey}" Margin="0,2" />
-                <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ShowHideGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Щелчок — только в окне таймера|Работает только в окне таймера. Щелчок — везде'}"
+                <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource Style.RowIconButton}" Margin="6,0,0,0" ToolTip="{Binding ShowHideGlobal, Converter={StaticResource BoolToText}, ConverterParameter='Работает везде. Клик ЛКМ — только в окне таймера|Работает только в окне таймера. Клик ЛКМ — везде'}"
                         Command="{Binding ToggleKeyScopeCommand}" CommandParameter="ShowHide">
                     <Path Style="{StaticResource Style.KeyScopeIcon}"
                           Data="{Binding ShowHideGlobal, Converter={StaticResource BoolToGeometry}, ConverterParameter=Geometry.KeyGlobe|Geometry.KeyWindow}" />
@@ -67,7 +67,7 @@
                 <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,2,0,0"
                            Text="Везде — глобальная клавиша: работает в любой программе, даже когда окно свёрнуто в трей." />
                 <TextBlock Grid.Row="2" Grid.ColumnSpan="2" TextWrapping="Wrap" Margin="0,4,0,0"
-                           Text="Щелчок по значку переключает режим; при переходе на «везде» старт/пауза и сброс получают Ctrl+F10 / Ctrl+F11 (можно назначить другие). Esc в окне таймера всегда сбрасывает." />
+                           Text="Клик ЛКМ по значку переключает режим; при переходе на «везде» старт/пауза и сброс получают Ctrl+F10 / Ctrl+F11 (можно назначить другие). Esc в окне таймера всегда сбрасывает." />
             </Grid>
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
@@ -83,20 +83,20 @@
                           ToolTip="Открыть окно «Размер и положение окон программ» из любой программы — в списке сразу выбрано активное окно">
                     <TextBlock Text="Открыть «Размер и положение окон программ»" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
-                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding WindowProfilesKey}" IsEnabled="{Binding WindowProfilesHotkeyEnabled}" Margin="0,2" />
+                <c:HotkeyBox Grid.Row="1" Grid.Column="1" BindingValue="{Binding WindowProfilesKeyShown}" IsEnabled="{Binding WindowProfilesHotkeyEnabled}" Margin="0,2" />
                 <CheckBox Grid.Row="2" IsChecked="{Binding BackgroundWindowHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
                           ToolTip="Открыть окно «Заставка и фон экрана» из любой программы">
                     <TextBlock Text="Открыть «Заставка и фон экрана»" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
-                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding BackgroundWindowKey}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Margin="0,2" />
+                <c:HotkeyBox Grid.Row="2" Grid.Column="1" BindingValue="{Binding BackgroundWindowKeyShown}" IsEnabled="{Binding BackgroundWindowHotkeyEnabled}" Margin="0,2" />
                 <CheckBox Grid.Row="3" IsChecked="{Binding QuickTimersWindowHotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,8,0"
                           ToolTip="Открыть окно «Быстрые таймеры» из любой программы">
                     <TextBlock Text="Открыть «Быстрые таймеры»" TextTrimming="CharacterEllipsis" />
                 </CheckBox>
-                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding QuickTimersWindowKey}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}" Margin="0,2" />
+                <c:HotkeyBox Grid.Row="3" Grid.Column="1" BindingValue="{Binding QuickTimersWindowKeyShown}" IsEnabled="{Binding QuickTimersWindowHotkeyEnabled}" Margin="0,2" />
             </Grid>
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0"
-                       Text="Клавиши окон работают везде, когда галочка включена (по умолчанию выключены). Те же настройки — в самих окнах. Щелчок по полю — назначить другое сочетание." />
+                       Text="Клавиши окон работают везде, когда галочка включена (по умолчанию выключены — «Не задано»). Те же настройки — в самих окнах. Клик ЛКМ по полю — назначить другое сочетание." />
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
         </StackPanel>
     </ScrollViewer>

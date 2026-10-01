@@ -126,6 +126,10 @@
             <TextBlock Text="{Binding FinishEffectDurationLabel}" Margin="0,10,0,2" />
             <Slider ToolTip="Сколько длится эффект по окончании" Minimum="0" Maximum="{Binding FinishEffectDurationMaxIndex, Mode=OneWay}"
                     Value="{Binding FinishEffectDurationIndex}" TickFrequency="1" IsSnapToTickEnabled="True" />
+            <CheckBox IsChecked="{Binding ResetAfterFinishEffect}" Margin="0,6,0,0"
+                      ToolTip="Когда эффект отыграл (и звонок закончился) — сбросить таймер: виджет снова показывает часы. С «бесконечным» эффектом не срабатывает">
+                <TextBlock Text="Сбросить таймер по окончании эффекта (снова показывать часы)" TextWrapping="Wrap" />
+            </CheckBox>
 
             <!-- ============ Размер видов — отдельно полный и компактный (докладка 2026-09-27) ============ -->
             <TextBlock Text="Размер" Style="{StaticResource Style.SectionHeader}" />
@@ -141,17 +145,15 @@
             <CheckBox ToolTip="Дата рядом с часами" Content="Показывать дату" IsChecked="{Binding ShowDate}" />
 
             <!-- ============ Настройка клавиш (докладка 2026-10-01): всё про клавиши — в окне HotkeysWindow по кнопке. ============ -->
-            <TextBlock Text="Настройка клавиш" Style="{StaticResource Style.SectionHeader}" />
             <Button Content="Настройка клавиш" Click="OnOpenHotkeys" Style="{StaticResource Style.SettingsButton}"
-                    HorizontalAlignment="Left" Margin="0,2,0,2"
+                    HorizontalAlignment="Left" Margin="0,18,0,2"
                     ToolTip="Старт/пауза, сброс, компактный вид, показать/скрыть; клавиши окон и быстрого открытия окон" />
 
             <TextBlock Text="{Binding HotkeysWarning}" Style="{StaticResource Style.HotkeyWarning}" />
 
             <!-- ============ Быстрые таймеры (докладка 2026-10-01): в окне QuickTimersWindow по кнопке; описание и предупреждения — там же. ============ -->
-            <TextBlock Text="Быстрые таймеры" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Настроить быстрые таймеры" Click="OnOpenQuickTimers" Style="{StaticResource Style.SettingsButton}"
-                    HorizontalAlignment="Left" Margin="0,2,0,2"
+            <Button Content="Быстрые таймеры" Click="OnOpenQuickTimers" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" Margin="0,6,0,2"
                     ToolTip="До 5 таймеров на своих клавишах: время, клавиша, эффект, звук" />
 
 
@@ -165,9 +167,8 @@
 
             <!-- ============ Заставка и фон экрана (докладка 2026-09-30): вместо раздела «Фон рабочего стола» — кнопка,
                  всё про фон (и «Закрепить фоны») — в окне DesktopBackgroundWindow. ============ -->
-            <TextBlock Text="Заставка и фон экрана" Style="{StaticResource Style.SectionHeader}" />
-            <Button Content="Управление заставкой и фоном экрана" Click="OnOpenDesktopBackground" Style="{StaticResource Style.SettingsButton}"
-                    HorizontalAlignment="Left" Margin="0,2,0,2"
+            <Button Content="Фоновая заставка и слайдшоу экрана" Click="OnOpenDesktopBackground" Style="{StaticResource Style.SettingsButton}"
+                    HorizontalAlignment="Left" Margin="0,18,0,2"
                     ToolTip="Своя картинка фона с режимом на каждый монитор, закрепление слайд-шоу Windows" />
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"
                        Text="Своя картинка на рабочий стол — на каждом мониторе можно выбрать, как она ложится; остановка слайд-шоу Windows." />

@@ -843,13 +843,13 @@ public partial class MainWindow : Window
         var textStyle = (Style)FindResource("Style.HintText");
         var panel = new StackPanel { MaxWidth = 250 };
         panel.Children.Add(new TextBlock { Style = textStyle, Text = $"После окончания таймера: {state}", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
-        panel.Children.Add(LegendRow("Brush.Accent", "ЛКМ — перейти в компактный вид (на его место)"));
-        panel.Children.Add(LegendRow("Brush.AutoClose", $"ПКМ — {trayOrExit}"));
+        panel.Children.Add(LegendRow("Brush.Accent", "Клик ЛКМ — перейти в компактный вид (на его место)"));
+        panel.Children.Add(LegendRow("Brush.AutoClose", $"Клик ПКМ — {trayOrExit}"));
         panel.Children.Add(LegendRow("Brush.TextSecondary", "Выключено"));
         panel.Children.Add(new TextBlock
         {
             Style = textStyle, Margin = new Thickness(0, 4, 0, 0), Foreground = (Brush)FindResource("Brush.TextSecondary"),
-            Text = "Срабатывает, когда звонок отыграл. Повторный щелчок той же кнопкой — выключить."
+            Text = "Срабатывает, когда звонок отыграл. Повторный клик той же кнопкой мыши — выключить."
         });
         return panel;
 
