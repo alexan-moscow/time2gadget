@@ -111,7 +111,7 @@ public sealed class AppSettings
     public HotkeyBinding QuickTimersWindowKey { get; set; } =
         HotkeyBinding.FromKey(System.Windows.Input.Key.PageDown, System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
 
-    /// <summary>Вкл/выкл виджет быстрых таймеров глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.; включается сама, когда виджет показали.</summary>
+    /// <summary>Показать/скрыть панель быстрых таймеров глобальной клавишей (докладка 2026-10-01). По умолчанию выкл.</summary>
     public bool QuickPanelHotkeyEnabled { get; set; } = false;
 
     /// <summary>Сочетание для панели быстрых таймеров, по умолчанию Ctrl+Shift+PageUp.</summary>
