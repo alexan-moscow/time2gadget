@@ -245,7 +245,8 @@ public sealed partial class MainViewModel
         SplitSharedWallpaperImage();
         _settings.WallpaperSpan = NextSpan(_settings.WallpaperSpan);
         _settingsService.Save(_settings);
-        bool ok = ApplyWallpaper(force: true);
+        // тумблер статичной заставки выключен — способ только запоминается, поставится при включении (это не ошибка)
+        bool ok = !StaticWallpaperEnabled || ApplyWallpaper(force: true);
         RaiseWallpaperChanged();
         return ok ? string.Empty : "Не удалось поставить картинку — файл повреждён или недоступен.";
     }
