@@ -21,7 +21,15 @@ public sealed class QuickTimer
     public QuickAfterAction AfterAction { get; set; }
     /// <summary>Для <see cref="QuickAfterAction.StartTimer"/> — какой быстрый таймер запустить (его <see cref="Id"/>).</summary>
     public string? AfterTimerId { get; set; }
-    /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
+
+    /// <summary>Для <see cref="QuickAfterAction.Open"/> — файл, программа или ссылка.</summary>
+    public string? AfterOpenTarget { get; set; }
+
+    /// <summary>Для <see cref="QuickAfterAction.Message"/> — текст (пусто — «Таймер «имя» закончился»), положение, фон, размер шрифта.</summary>
+    public string? AfterMessageText { get; set; }
+    public MessagePosition AfterMessagePosition { get; set; } = MessagePosition.Center;
+    public string AfterMessageColor { get; set; } = "#000000";
+    public int AfterMessageFontSize { get; set; } = 72;    /// <summary>Дни (докладка 2026-10-01). Клавиша запускает главный таймер — он считает не больше суток; панель — все дни.</summary>
     public int Days { get; set; }
     public int Hours { get; set; }
     public int Minutes { get; set; }
@@ -146,4 +154,16 @@ public enum QuickAfterAction
     Sleep,
     Restart,
     Shutdown,
+    // докладка 2026-10-01 (в конец: сохранённые значения не сдвигаются)
+    /// <summary>Заблокировать компьютер (как Win+L).</summary>
+    Lock,
+    /// <summary>Погасить мониторы, компьютер работает.</summary>
+    MonitorsOff,
+    /// <summary>Открыть файл, программу или ссылку.</summary>
+    Open,
+    /// <summary>Сообщение на весь экран.</summary>
+    Message,
 }
+
+/// <summary>Где на экране текст сообщения.</summary>
+public enum MessagePosition { Top, Center, Bottom }

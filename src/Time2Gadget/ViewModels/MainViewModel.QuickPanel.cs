@@ -283,6 +283,21 @@ public sealed partial class MainViewModel
                     else StartQuickTimer(next.Model);
                 });
                 break;
+            case QuickAfterAction.Lock:
+                _dispatcher.BeginInvoke(() => LockWorkStation());
+                break;
+            case QuickAfterAction.MonitorsOff:
+                // всем окнам: «погасить мониторы» (PostMessage — не ждать ответа зависших окон)
+                _dispatcher.BeginInvoke(() => PostMessage((IntPtr)0xFFFF, 0x0112 /* WM_SYSCOMMAND */, (IntPtr)0xF170 /* SC_MONITORPOWER */, (IntPtr)2));
+                break;
+            case QuickAfterAction.Open:
+                if (string.IsNullOrWhiteSpace(timer.AfterOpenTarget)) return;
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(timer.AfterOpenTarget.Trim()) { UseShellExecute = true }); }
+                catch { _trayService.ShowBalloon("Тайм2гаджет", $"«{timer.Name}»: не удалось открыть «{timer.AfterOpenTarget}»."); }
+                break;
+            case QuickAfterAction.Message:
+                _dispatcher.BeginInvoke(() => ShowAfterMessage(timer));
+                break;
             case QuickAfterAction.Sleep:
                 _dispatcher.BeginInvoke(() => System.Windows.Forms.Application.SetSuspendState(System.Windows.Forms.PowerState.Suspend, false, false));
                 break;
@@ -300,6 +315,16 @@ public sealed partial class MainViewModel
                 break;
         }
     }
+
+    /// <summary>Сообщение на весь экран (и кнопка «Показать» в меню действия).</summary>
+    internal void ShowAfterMessage(QuickTimer timer)
+    {
+        var text = string.IsNullOrWhiteSpace(timer.AfterMessageText) ? $"Таймер «{timer.Name}» закончился" : timer.AfterMessageText!;
+        new Views.MessageOverlayWindow(text, timer.AfterMessagePosition, timer.AfterMessageColor, timer.AfterMessageFontSize).Show();
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool LockWorkStation();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     /// <summary>Клавиша таймера виджета: запустить в виджете заново и показать виджет.</summary>
     internal void StartPanelTimer(QuickTimerItem item)

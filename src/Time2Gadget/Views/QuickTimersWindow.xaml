@@ -282,9 +282,9 @@
                                     </Canvas>
                                 </Viewbox>
                             </Button>
-                            <Popup Grid.Column="10" PlacementTarget="{Binding ElementName=AfterButton}" Placement="Bottom" HorizontalOffset="-220"
+                            <Popup Grid.Column="10" PlacementTarget="{Binding ElementName=AfterButton}" Placement="Bottom" HorizontalOffset="-250"
                                    StaysOpen="False" AllowsTransparency="True" IsOpen="{Binding IsAfterMenuOpen, Mode=TwoWay}">
-                                <Border Width="250" Style="{StaticResource Style.MenuBorder}">
+                                <Border Width="280" Style="{StaticResource Style.MenuBorder}">
                                     <StackPanel>
                                         <TextBlock Text="После окончания — когда отыграют эффект и звук:" TextWrapping="Wrap" FontSize="11"
                                                    Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6" />
@@ -294,6 +294,39 @@
                                         <ComboBox Margin="0,6,0,0" ItemsSource="{Binding AfterTargets}" DisplayMemberPath="Name" SelectedValuePath="Id"
                                                   SelectedValue="{Binding AfterTimerId}" ToolTip="Какой быстрый таймер запустить"
                                                   Visibility="{Binding IsAfterStartTimer, Converter={StaticResource BoolToVis}}" />
+                                        <!-- открыть: путь или ссылка + «Обзор» -->
+                                        <Grid Margin="0,6,0,0" Visibility="{Binding IsAfterOpen, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <TextBox Text="{Binding AfterOpenTarget, UpdateSourceTrigger=PropertyChanged, Delay=400}" Height="24" VerticalContentAlignment="Center"
+                                                     ToolTip="Путь к файлу или программе, или ссылка (https://…)" />
+                                            <Button Grid.Column="1" Content="Обзор" Command="{Binding BrowseOpenCommand}" Style="{StaticResource Style.SettingsButton}"
+                                                    Padding="8,2" Margin="4,0,0,0" ToolTip="Клик ЛКМ — выбрать файл или программу" />
+                                        </Grid>
+                                        <!-- сообщение: текст, положение, фон, размер шрифта -->
+                                        <StackPanel Margin="0,6,0,0" Visibility="{Binding IsAfterMessage, Converter={StaticResource BoolToVis}}">
+                                            <TextBox Text="{Binding AfterMessageText, UpdateSourceTrigger=PropertyChanged, Delay=400}" Height="48" TextWrapping="Wrap"
+                                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                     ToolTip="Текст сообщения; пусто — «Таймер «имя» закончился»" />
+                                            <Grid Margin="0,6,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Положение" VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:QuickTimerItem.MessagePositions}" DisplayMemberPath="Label"
+                                                          SelectedValuePath="Value" SelectedValue="{Binding AfterMessagePosition}" />
+                                            </Grid>
+                                            <TextBlock Text="Фон" FontSize="11" Margin="0,6,0,2" />
+                                            <ItemsControl x:Name="MessagePalette" ItemsSource="{x:Static vm:MonitorFitItem.BasicColors}" Tag="{Binding ChooseMessageColorCommand}"
+                                                          ItemTemplate="{StaticResource PanelSwatch}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><UniformGrid Columns="8" /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                            </ItemsControl>
+                                            <TextBlock FontSize="11" Margin="0,6,0,2">
+                                                <Run Text="Размер шрифта:" /> <Run Text="{Binding AfterMessageFontSize, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <Slider Minimum="16" Maximum="200" Value="{Binding AfterMessageFontSize}" SmallChange="2" LargeChange="10" />
+                                            <Button Content="Показать" Command="{Binding ShowMessageCommand}" Style="{StaticResource Style.SettingsButton}" HorizontalAlignment="Left"
+                                                    Margin="0,6,0,0" ToolTip="Клик ЛКМ — показать сообщение сейчас (закрыть — клик или любая клавиша)" />
+                                        </StackPanel>
                                         <TextBlock Text="Через 30 секунд, Windows предупредит. Передумали — Win+R, shutdown /a" TextWrapping="Wrap" FontSize="11"
                                                    Foreground="{StaticResource Brush.UpdateAccent}" Margin="0,6,0,0"
                                                    Visibility="{Binding IsAfterPower, Converter={StaticResource BoolToVis}}" />

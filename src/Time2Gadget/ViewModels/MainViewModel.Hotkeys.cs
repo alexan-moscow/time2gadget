@@ -476,6 +476,10 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     {
         new EnumOption<QuickAfterAction>(QuickAfterAction.None, "ничего"),
         new EnumOption<QuickAfterAction>(QuickAfterAction.StartTimer, "запустить быстрый таймер"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Message, "сообщение на весь экран"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Open, "открыть файл, программу или ссылку"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.Lock, "заблокировать компьютер"),
+        new EnumOption<QuickAfterAction>(QuickAfterAction.MonitorsOff, "погасить мониторы"),
         new EnumOption<QuickAfterAction>(QuickAfterAction.Sleep, "спящий режим"),
         new EnumOption<QuickAfterAction>(QuickAfterAction.Restart, "перезагрузка"),
         new EnumOption<QuickAfterAction>(QuickAfterAction.Shutdown, "завершение работы"),
@@ -504,6 +508,61 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
     }
 
     public bool IsAfterStartTimer => Model.AfterAction == QuickAfterAction.StartTimer;
+    public bool IsAfterOpen => Model.AfterAction == QuickAfterAction.Open;
+    public bool IsAfterMessage => Model.AfterAction == QuickAfterAction.Message;
+
+    public string? AfterOpenTarget
+    {
+        get => Model.AfterOpenTarget;
+        set { value = value?.Trim(); if (Model.AfterOpenTarget == value) return; Model.AfterOpenTarget = value; RaiseAfter(); }
+    }
+
+    public RelayCommand BrowseOpenCommand => _browseOpenCommand ??= new RelayCommand(() =>
+    {
+        IsAfterMenuOpen = false;
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Что открыть после окончания таймера", Filter = "Все файлы|*.*" };
+        if (dialog.ShowDialog() == true) AfterOpenTarget = dialog.FileName;
+        IsAfterMenuOpen = true;
+    });
+    private RelayCommand? _browseOpenCommand;
+
+    public string? AfterMessageText
+    {
+        get => Model.AfterMessageText;
+        set { if (Model.AfterMessageText == value) return; Model.AfterMessageText = value; RaiseAfter(); }
+    }
+
+    public static IReadOnlyList<EnumOption<MessagePosition>> MessagePositions { get; } = new[]
+    {
+        new EnumOption<MessagePosition>(MessagePosition.Top, "сверху"),
+        new EnumOption<MessagePosition>(MessagePosition.Center, "по центру"),
+        new EnumOption<MessagePosition>(MessagePosition.Bottom, "снизу"),
+    };
+
+    public MessagePosition AfterMessagePosition
+    {
+        get => Model.AfterMessagePosition;
+        set { if (Model.AfterMessagePosition == value) return; Model.AfterMessagePosition = value; RaiseAfter(); }
+    }
+
+    public string AfterMessageColor => Model.AfterMessageColor;
+
+    public RelayCommand ChooseMessageColorCommand => _chooseMessageColorCommand ??= new RelayCommand(p =>
+    {
+        if (p is not string hex || hex == Model.AfterMessageColor) return;
+        Model.AfterMessageColor = hex;
+        RaiseAfter();
+    });
+    private RelayCommand? _chooseMessageColorCommand;
+
+    public double AfterMessageFontSize
+    {
+        get => Model.AfterMessageFontSize;
+        set { int v = (int)Math.Round(Math.Clamp(value, 16, 200)); if (Model.AfterMessageFontSize == v) return; Model.AfterMessageFontSize = v; RaiseAfter(); }
+    }
+
+    public RelayCommand ShowMessageCommand => _showMessageCommand ??= new RelayCommand(() => { IsAfterMenuOpen = false; _owner.ShowAfterMessage(Model); });
+    private RelayCommand? _showMessageCommand;
     public bool IsAfterPower => Model.AfterAction is QuickAfterAction.Restart or QuickAfterAction.Shutdown;
     public bool HasAfterAction => Model.AfterAction != QuickAfterAction.None;
 
@@ -523,12 +582,17 @@ public sealed class QuickTimerItem : INotifyPropertyChanged
         QuickAfterAction.Sleep => "спящий режим",
         QuickAfterAction.Restart => "перезагрузка (через 30 с)",
         QuickAfterAction.Shutdown => "завершение работы (через 30 с)",
+        QuickAfterAction.Lock => "заблокировать компьютер",
+        QuickAfterAction.MonitorsOff => "погасить мониторы",
+        QuickAfterAction.Open => $"открыть «{Model.AfterOpenTarget}»",
+        QuickAfterAction.Message => "сообщение на весь экран",
         _ => "ничего",
     } + "\nКлик ЛКМ — выбрать";
 
     private void RaiseAfter()
     {
-        foreach (var n in new[] { nameof(AfterAction), nameof(AfterTimerId), nameof(IsAfterStartTimer), nameof(IsAfterPower), nameof(HasAfterAction), nameof(AfterToolTip) })
+        foreach (var n in new[] { nameof(AfterAction), nameof(AfterTimerId), nameof(IsAfterStartTimer), nameof(IsAfterPower), nameof(HasAfterAction), nameof(AfterToolTip),
+                     nameof(IsAfterOpen), nameof(IsAfterMessage), nameof(AfterOpenTarget), nameof(AfterMessageText), nameof(AfterMessagePosition), nameof(AfterMessageColor), nameof(AfterMessageFontSize) })
             OnPropertyChanged(n);
         _owner.OnQuickTimersChanged(hotkeys: false);
     }
