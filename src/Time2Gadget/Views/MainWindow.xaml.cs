@@ -494,6 +494,10 @@ public partial class MainWindow : Window
         _dialEffectStoryboard = null;
         StopPulseScale();
         StopShapeEffects();
+        // Анимация цвета кисти («радужная волна») шла бесконечно и после окончания эффекта: прозрачный слой с меняющейся
+        // кистью заставлял окно перерисовываться каждый кадр — 15% видеокарты в покое (найдено 2026-10-02). Останавливаем.
+        StopBrushAnimation(EffectOverlay.Fill);
+        StopBrushAnimation(CompactEffectOverlay.Background);
         EffectOverlay.Opacity = CompactEffectOverlay.Opacity = 0;
 
         object? effect = _viewModel.PreviewEffect
@@ -670,11 +674,17 @@ public partial class MainWindow : Window
     private IEnumerable<System.Windows.Shapes.Shape> EffectShapes =>
         new System.Windows.Shapes.Shape[] { WaveRingA, WaveRingB, FrameSnake, CompactWaveA, CompactWaveB, CompactSnake };
 
+    private static void StopBrushAnimation(Brush? brush)
+    {
+        if (brush is SolidColorBrush { IsFrozen: false } solid) solid.BeginAnimation(SolidColorBrush.ColorProperty, null);
+    }
+
     private void StopShapeEffects()
     {
         foreach (var shape in EffectShapes)
         {
             shape.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, null);
+            StopBrushAnimation(shape.Stroke); // радужная змейка — кисть с бесконечной анимацией цвета
             shape.Visibility = Visibility.Collapsed;
         }
     }
@@ -733,7 +743,11 @@ public partial class MainWindow : Window
         foreach (var (shape, dash, seconds) in new[] { (FrameSnake, rainbow ? 170.0 : 110.0, 3.6), (CompactSnake, rainbow ? 120.0 : 80.0, 2.6) })
         {
             shape.StrokeThickness = rainbow ? 3.5 : 2.5;
-            shape.Effect = null; // без свечения: тень-эффект пересчитывалась в каждом кадре (нагрузка на видеокарту, 2026-10-02)
+            shape.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = rainbow ? Colors.White : ((SolidColorBrush)brush).Color, BlurRadius = rainbow ? 12 : 8,
+                ShadowDepth = 0, Opacity = rainbow ? 0.55 : 0.8
+            };
             RunDashLoop(shape, brush, 1, dash, seconds * k, reverse: false);
         }
     }

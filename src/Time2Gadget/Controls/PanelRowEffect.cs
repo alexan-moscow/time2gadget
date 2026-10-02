@@ -56,6 +56,10 @@ public sealed class PanelRowEffect : Grid
     private void Stop()
     {
         _overlay.BeginAnimation(OpacityProperty, null);
+        // кисти радужных эффектов анимируются бесконечно — без остановки строка перерисовывалась бы и после эффекта
+        if (_overlay.Background is SolidColorBrush { IsFrozen: false } back) back.BeginAnimation(SolidColorBrush.ColorProperty, null);
+        foreach (var r in new[] { _a, _b })
+            if (r.Stroke is SolidColorBrush { IsFrozen: false } stroke) stroke.BeginAnimation(SolidColorBrush.ColorProperty, null);
         _overlay.Opacity = 0;
         foreach (var r in new[] { _a, _b })
         {
@@ -116,7 +120,10 @@ public sealed class PanelRowEffect : Grid
                 if (colorful) brush.BeginAnimation(SolidColorBrush.ColorProperty, RainbowAnimation(2));
                 Contour(_a, colorful ? 3 : 2.2);
                 double len = Length(_a);
-                // без свечения (тень-эффект пересчитывалась в каждом кадре — лишняя нагрузка на видеокарту, 2026-10-02)
+                _a.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = colorful ? Colors.White : color, BlurRadius = colorful ? 10 : 7, ShadowDepth = 0, Opacity = colorful ? 0.55 : 0.8,
+                };
                 RunDashLoop(_a, brush, 1, (colorful ? 0.2 : 0.14) * len, len / 280 * k, reverse: false);
                 break;
             }

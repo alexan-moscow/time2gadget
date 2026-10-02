@@ -52,7 +52,13 @@ public static class AnimatedGif
             animation.Duration = time; // последний кадр держится свою задержку, потом — снова первый
 
             image.Source = (ImageSource)animation.KeyFrames[0].Value;
-            if (animation.KeyFrames.Count > 1) image.BeginAnimation(Image.SourceProperty, animation);
+            if (animation.KeyFrames.Count > 1)
+            {
+                // только пока картинка на экране: закрыли окно — анимация останавливается (иначе крутилась бы вхолостую)
+                image.BeginAnimation(Image.SourceProperty, animation);
+                image.Unloaded += (_, _) => image.BeginAnimation(Image.SourceProperty, null);
+                image.Loaded += (_, _) => image.BeginAnimation(Image.SourceProperty, animation);
+            }
         }
         catch
         {
