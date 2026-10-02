@@ -287,10 +287,57 @@ public sealed class WindowLayoutService : IDisposable
             int error = ok ? 0 : Marshal.GetLastWin32Error();
             var check = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
             GetWindowPlacement(hwnd, ref check);
+            if (ok && saved.showCmd != 3 /* SW_SHOWMAXIMIZED */ && !minimized) check = FixSizeAndOnScreen(hwnd, saved, check);
             Log($"  {Describe(hwnd)}: было {Rect(current)} show={current.showCmd} → ставим {Rect(saved)} show={p.showCmd}; " +
                 (ok ? $"ok, стало {Rect(check)} show={check.showCmd}" : $"ОТКАЗ, код {error}{(error == 5 ? " (нет прав — окно запущено от администратора?)" : "")}"));
         }
     }
+
+    /// <summary>
+    /// Окно на стыке мониторов с разным масштабом: Windows при возврате пересчитывает его размер под масштаб — окно выросло
+    /// и уехало за край экрана (докладка 2026-10-03: Chrome 1802 → 2924 точки, за правый край нижнего монитора, достать нельзя).
+    /// Размер не совпал — ставим точное место ещё раз; всё равно за краем — сдвигаем внутрь ближайшего монитора (и уменьшаем).
+    /// </summary>
+    private WINDOWPLACEMENT FixSizeAndOnScreen(IntPtr hwnd, WINDOWPLACEMENT saved, WINDOWPLACEMENT check)
+    {
+        var want = saved.rcNormalPosition;
+        int ww = want.Right - want.Left, wh = want.Bottom - want.Top;
+        if (!GetWindowRect(hwnd, out var r)) return check;
+        if (Math.Abs((r.Right - r.Left) - ww) > 8 || Math.Abs((r.Bottom - r.Top) - wh) > 8)
+        {
+            SetWindowPos(hwnd, IntPtr.Zero, want.Left, want.Top, ww, wh, SwpNoZOrder | SwpNoActivate);
+            GetWindowRect(hwnd, out r);
+            Log($"  {Describe(hwnd)}: размер не совпал — поставлено точно, стало ({r.Left},{r.Top}-{r.Right},{r.Bottom})");
+        }
+        var monitor = MonitorFromRect(ref r, 2 /* MONITOR_DEFAULTTONEAREST */);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return check;
+        var work = info.rcWork;
+        // окно целиком на одном мониторе или на стыке, но ни один край не за пределами всех мониторов — не трогаем
+        if (FitsMonitors(r)) return check;
+        int w = Math.Min(r.Right - r.Left, work.Right - work.Left), h = Math.Min(r.Bottom - r.Top, work.Bottom - work.Top);
+        int x = Math.Clamp(r.Left, work.Left, work.Right - w), y = Math.Clamp(r.Top, work.Top, work.Bottom - h);
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h, SwpNoZOrder | SwpNoActivate);
+        Log($"  {Describe(hwnd)}: было за краем экрана — перенесено на монитор: ({x},{y}) {w}x{h}");
+        GetWindowPlacement(hwnd, ref check);
+        return check;
+    }
+
+    /// <summary>Каждый угол окна (чуть внутри) — на каком-нибудь мониторе.</summary>
+    private static bool FitsMonitors(RECT r)
+    {
+        foreach (var (x, y) in new[] { (r.Left + 8, r.Top + 8), (r.Right - 8, r.Top + 8), (r.Left + 8, r.Bottom - 8), (r.Right - 8, r.Bottom - 8) })
+            if (MonitorFromPoint(new POINT { X = x, Y = y }, 0 /* MONITOR_DEFAULTTONULL */) == IntPtr.Zero) return false;
+        return true;
+    }
+
+    private const uint SwpNoZOrder = 0x0004, SwpNoActivate = 0x0010;
+    [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromRect(ref RECT rect, uint flags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
+    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 
     // ---------------- Журнал (только при включённой функции) ----------------
     // %APPDATA%\Time2Gadget\window-layout.log — чтобы по реальному сну/гашению мониторов было видно, что запомнено
