@@ -733,11 +733,7 @@ public partial class MainWindow : Window
         foreach (var (shape, dash, seconds) in new[] { (FrameSnake, rainbow ? 170.0 : 110.0, 3.6), (CompactSnake, rainbow ? 120.0 : 80.0, 2.6) })
         {
             shape.StrokeThickness = rainbow ? 3.5 : 2.5;
-            shape.Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                Color = rainbow ? Colors.White : ((SolidColorBrush)brush).Color, BlurRadius = rainbow ? 12 : 8,
-                ShadowDepth = 0, Opacity = rainbow ? 0.55 : 0.8
-            };
+            shape.Effect = null; // без свечения: тень-эффект пересчитывалась в каждом кадре (нагрузка на видеокарту, 2026-10-02)
             RunDashLoop(shape, brush, 1, dash, seconds * k, reverse: false);
         }
     }

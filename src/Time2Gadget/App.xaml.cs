@@ -30,6 +30,10 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Анимации эффектов — 30 кадров в секунду вместо 60 (докладка 2026-10-02): на глаз так же плавно, а окно с
+        // прозрачностью Windows перерисовывает и копирует целиком в каждом кадре — вдвое меньше нагрузки на видеокарту.
+        System.Windows.Media.Animation.Timeline.DesiredFrameRateProperty.OverrideMetadata(
+            typeof(System.Windows.Media.Animation.Timeline), new FrameworkPropertyMetadata { DefaultValue = 30 });
         base.OnStartup(e);
 
         bool isFirstInstance;

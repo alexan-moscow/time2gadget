@@ -116,10 +116,7 @@ public sealed class PanelRowEffect : Grid
                 if (colorful) brush.BeginAnimation(SolidColorBrush.ColorProperty, RainbowAnimation(2));
                 Contour(_a, colorful ? 3 : 2.2);
                 double len = Length(_a);
-                _a.Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = colorful ? Colors.White : color, BlurRadius = colorful ? 10 : 7, ShadowDepth = 0, Opacity = colorful ? 0.55 : 0.8,
-                };
+                // без свечения (тень-эффект пересчитывалась в каждом кадре — лишняя нагрузка на видеокарту, 2026-10-02)
                 RunDashLoop(_a, brush, 1, (colorful ? 0.2 : 0.14) * len, len / 280 * k, reverse: false);
                 break;
             }

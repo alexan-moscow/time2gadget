@@ -76,7 +76,18 @@
         </Style>
     </Window.Resources>
 
-    <Border x:Name="Chrome" CornerRadius="20" Background="{StaticResource Brush.Background}" Margin="8"
+    <!-- Тень — отдельным слоем позади окна (докладка 2026-10-02): эффект на самом окне заставлял перерисовывать всё его содержимое
+         шейдером тени в каждом кадре любой анимации (волны, змейка) — 15–20% видеокарты у маленького окна. Слой тени не меняется. -->
+    <Grid Margin="8">
+        <Grid.LayoutTransform>
+            <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
+        </Grid.LayoutTransform>
+        <Border CornerRadius="20" Background="{StaticResource Brush.Background}" IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
+            </Border.Effect>
+        </Border>
+    <Border x:Name="Chrome" CornerRadius="20" Background="{StaticResource Brush.Background}"
             ContextMenuService.IsEnabled="{Binding QuickPanelSortMenu}"
             MouseLeftButtonDown="OnChromeMouseLeftButtonDown">
         <Border.ContextMenu>
@@ -94,12 +105,7 @@
                           IsChecked="{Binding QuickPanelSortOptions[4].IsChecked, Mode=OneWay}" />
             </ContextMenu>
         </Border.ContextMenu>
-        <Border.LayoutTransform>
-            <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
-        </Border.LayoutTransform>
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
-        </Border.Effect>
+
         <Border CornerRadius="14" Background="{StaticResource Brush.SurfaceSector}" MinWidth="180">
             <StackPanel Margin="5,4,5,4">
                 <!-- Заголовок справа: надпись, «поверх всех окон / закрепить», крестик -->
@@ -395,4 +401,5 @@
             </StackPanel>
         </Border>
     </Border>
+    </Grid>
 </Window>

@@ -41,15 +41,21 @@
     </Window.Resources>
 
 
-    <Border x:Name="Chrome" CornerRadius="28" Background="{StaticResource Brush.Background}" Margin="8">
+    <!-- Тень — отдельным слоем позади окна (докладка 2026-10-02): эффект на самом окне заставлял перерисовывать всё его содержимое
+         шейдером тени в каждом кадре любой анимации (волны, змейка) — 15–20% видеокарты у маленького окна. Слой тени не меняется. -->
+    <Grid Margin="8">
+        <Grid.LayoutTransform>
+            <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
+        </Grid.LayoutTransform>
+        <Border CornerRadius="28" Background="{StaticResource Brush.Background}" IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
+            </Border.Effect>
+        </Border>
+    <Border x:Name="Chrome" CornerRadius="28" Background="{StaticResource Brush.Background}">
         <!-- Масштаб вида — ползунки «Размер полного/компактного вида» (MainWindow.xaml.cs → ApplyModeLayout).
              LayoutTransform: вся вёрстка векторная, при увеличении остаётся чёткой. -->
-        <Border.LayoutTransform>
-            <ScaleTransform x:Name="ViewScale" ScaleX="1" ScaleY="1" />
-        </Border.LayoutTransform>
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Opacity="0.35" BlurRadius="24" ShadowDepth="0" />
-        </Border.Effect>
+
         <Grid x:Name="RootGrid" Background="Transparent"
               MouseLeftButtonDown="OnRootMouseLeftButtonDown"
               MouseMove="OnRootMouseMove"
@@ -95,11 +101,9 @@
                              бегущий пунктир навстречу друг другу с разной скоростью — MainWindow.xaml.cs → RunDashLoop. -->
                         <Ellipse x:Name="WaveRingA" Width="216" Height="216" StrokeThickness="24" Opacity="0.55"
                                  Visibility="Collapsed" IsHitTestVisible="False">
-                            <Ellipse.Effect><BlurEffect Radius="8" /></Ellipse.Effect>
                         </Ellipse>
                         <Ellipse x:Name="WaveRingB" Width="216" Height="216" StrokeThickness="24" Opacity="0.45"
                                  Visibility="Collapsed" IsHitTestVisible="False">
-                            <Ellipse.Effect><BlurEffect Radius="8" /></Ellipse.Effect>
                         </Ellipse>
 
                         <controls:ProgressRingControl x:Name="ProgressRing"
@@ -197,11 +201,9 @@
                 <!-- Волны и змейка компакта — по краю прямоугольника (докладка 2026-09-28). -->
                 <Rectangle x:Name="CompactWaveA" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeThickness="4" Opacity="0.7"
                            Visibility="Collapsed" IsHitTestVisible="False">
-                    <Rectangle.Effect><BlurEffect Radius="3" /></Rectangle.Effect>
                 </Rectangle>
                 <Rectangle x:Name="CompactWaveB" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeThickness="4" Opacity="0.55"
                            Visibility="Collapsed" IsHitTestVisible="False">
-                    <Rectangle.Effect><BlurEffect Radius="3" /></Rectangle.Effect>
                 </Rectangle>
                 <Rectangle x:Name="CompactSnake" Width="220" Height="132" RadiusX="20" RadiusY="20" StrokeDashCap="Round"
                            Visibility="Collapsed" IsHitTestVisible="False" />
@@ -391,4 +393,5 @@
             </Button>
         </Grid>
     </Border>
+    </Grid>
 </Window>
