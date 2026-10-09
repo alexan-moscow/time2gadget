@@ -40,6 +40,12 @@ public sealed class WindowLayoutService : IDisposable
     private readonly WinEventDelegate _winEventProc; // держим ссылку — иначе делегат соберёт GC, а хук останется
 
     private Dictionary<IntPtr, WINDOWPLACEMENT> _snapshot = new();
+    /// <summary>
+    /// Фактический прямоугольник обычных (не свёрнутых и не развёрнутых) окон на экране в момент снимка (докладка 2026-10-09).
+    /// У прикреплённого к краю окна (Win+стрелка, перетаскивание к краю) rcNormalPosition — прежний размер до прикрепления:
+    /// возврат по нему делал окно шире, чем было (Chrome 1300 → 1770 точек после каждого гашения мониторов).
+    /// </summary>
+    private Dictionary<IntPtr, RECT> _snapshotRects = new();
     private int _snapshotMonitors;
     private DateTime? _frozenSince;
     private bool _displayWentOff; // было «экран гаснет» — следующее «включился» настоящее
@@ -103,6 +109,7 @@ public sealed class WindowLayoutService : IDisposable
         _debounce.Stop();
         _restoreTimer.Stop();
         _snapshot.Clear();
+        _snapshotRects.Clear();
     }
 
     public void Dispose() => Enabled = false;
@@ -135,16 +142,22 @@ public sealed class WindowLayoutService : IDisposable
     {
         if (IsFrozen) { if (reason is not null) Log($"снимок ({reason}) пропущен: заморожен с {_frozenSince:HH:mm:ss}"); return; }
         var snapshot = new Dictionary<IntPtr, WINDOWPLACEMENT>();
+        var rects = new Dictionary<IntPtr, RECT>();
         EnumWindows((hwnd, _) =>
         {
             if (IsCandidate(hwnd))
             {
                 var p = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-                if (GetWindowPlacement(hwnd, ref p)) snapshot[hwnd] = p;
+                if (GetWindowPlacement(hwnd, ref p))
+                {
+                    snapshot[hwnd] = p;
+                    if (p.showCmd == SwShowNormal && !IsIconic(hwnd) && !IsZoomed(hwnd) && GetWindowRect(hwnd, out var r)) rects[hwnd] = r;
+                }
             }
             return true;
         }, IntPtr.Zero);
         _snapshot = snapshot;
+        _snapshotRects = rects;
         _snapshotMonitors = MonitorCount;
 
         if (reason is not null)
@@ -270,6 +283,23 @@ public sealed class WindowLayoutService : IDisposable
             var current = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
             if (!GetWindowPlacement(hwnd, ref current)) { Log($"  {Describe(hwnd)}: GetWindowPlacement отказ, код {Marshal.GetLastWin32Error()}"); continue; }
             bool minimized = saved.showCmd == SwShowMinimized || IsIconic(hwnd);
+            if (!minimized && _snapshotRects.TryGetValue(hwnd, out var rect) && !IsZoomed(hwnd))
+            {
+                // обычное окно: на то же место и того же размера, что было на экране (не «обычное положение» Windows)
+                if (!GetWindowRect(hwnd, out var now)) continue;
+                if (now.Left == rect.Left && now.Top == rect.Top && now.Right == rect.Right && now.Bottom == rect.Bottom) continue;
+                SetWindowPos(hwnd, IntPtr.Zero, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, SwpNoZOrder | SwpNoActivate);
+                GetWindowRect(hwnd, out var got);
+                Log($"  {Describe(hwnd)}: было ({now.Left},{now.Top}-{now.Right},{now.Bottom}) → ставим ({rect.Left},{rect.Top}-{rect.Right},{rect.Bottom}); стало ({got.Left},{got.Top}-{got.Right},{got.Bottom})");
+                if (got.Right - got.Left != rect.Right - rect.Left || got.Bottom - got.Top != rect.Bottom - rect.Top)
+                {
+                    // мониторы с разным масштабом: Windows пересчитала размер — ещё раз, уже на месте
+                    SetWindowPos(hwnd, IntPtr.Zero, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, SwpNoZOrder | SwpNoActivate);
+                    GetWindowRect(hwnd, out got);
+                }
+                if (!FitsMonitors(got)) KeepOnScreen(hwnd, got);
+                continue;
+            }
             // Свёрнутые — ВСЕГДА (докладка 2026-09-28): у свёрнутого окна Windows может сообщать прежнее место
             // разворачивания, а развернуть его всё равно на основном мониторе; обычные — только если сдвинуты.
             if (!minimized && current.showCmd == saved.showCmd && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
@@ -315,12 +345,22 @@ public sealed class WindowLayoutService : IDisposable
         var work = info.rcWork;
         // окно целиком на одном мониторе или на стыке, но ни один край не за пределами всех мониторов — не трогаем
         if (FitsMonitors(r)) return check;
+        KeepOnScreen(hwnd, r);
+        GetWindowPlacement(hwnd, ref check);
+        return check;
+    }
+
+    /// <summary>Окно за краем экрана — внутрь рабочей области ближайшего монитора (и уменьшить до неё).</summary>
+    private void KeepOnScreen(IntPtr hwnd, RECT r)
+    {
+        var monitor = MonitorFromRect(ref r, 2 /* MONITOR_DEFAULTTONEAREST */);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return;
+        var work = info.rcWork;
         int w = Math.Min(r.Right - r.Left, work.Right - work.Left), h = Math.Min(r.Bottom - r.Top, work.Bottom - work.Top);
         int x = Math.Clamp(r.Left, work.Left, work.Right - w), y = Math.Clamp(r.Top, work.Top, work.Bottom - h);
         SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h, SwpNoZOrder | SwpNoActivate);
         Log($"  {Describe(hwnd)}: было за краем экрана — перенесено на монитор: ({x},{y}) {w}x{h}");
-        GetWindowPlacement(hwnd, ref check);
-        return check;
     }
 
     /// <summary>Каждый угол окна (чуть внутри) — на каком-нибудь мониторе.</summary>
@@ -334,6 +374,7 @@ public sealed class WindowLayoutService : IDisposable
     private const uint SwpNoZOrder = 0x0004, SwpNoActivate = 0x0010;
     [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromRect(ref RECT rect, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
