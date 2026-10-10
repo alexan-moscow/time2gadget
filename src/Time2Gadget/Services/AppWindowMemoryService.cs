@@ -139,7 +139,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private void Record(IntPtr hwnd)
     {
         if (DateTime.UtcNow < _pausedUntil || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
-        if (GetKey(hwnd) is not { } key || IsFullScreen(hwnd) || IsProfiled?.Invoke(key) == true) return;
+        if (GetKey(hwnd) is not { } key || IsFullScreen(hwnd) || IsProfiled?.Invoke(ProgramKeyOf(key)) == true) return;
         var p = NewPlacement();
         if (!GetWindowPlacement(hwnd, ref p)) return;
         if (p.showCmd == SwShowMinimized && (p.flags & WpfRestoreToMaximized) == 0) p.showCmd = SwShowNormal; // свёрнутое — открыть обычным
@@ -171,7 +171,7 @@ public sealed class AppWindowMemoryService : IDisposable
     private void Apply(IntPtr hwnd)
     {
         if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
-        if (GetKey(hwnd) is not { } key || IsProfiled?.Invoke(key) == true || !_memory.TryGetValue(key, out var saved)) return;
+        if (GetKey(hwnd) is not { } key || IsProfiled?.Invoke(ProgramKeyOf(key)) == true || !_memory.TryGetValue(key, out var saved)) return;
         if (IsFullScreen(hwnd) || HasSiblingOfSameKind(hwnd, key)) return;
 
         var current = NewPlacement();
@@ -184,6 +184,15 @@ public sealed class AppWindowMemoryService : IDisposable
         if (_movedByUser.Contains(hwnd) || IsMouseButtonDown()) return; // человек двигает/двигал окно — не спорим
         if (!IsOnSomeMonitor(target)) return; // монитор, где окно было, сейчас отключён
 
+        if (key.EndsWith(FixedSuffix) && GetWindowRect(hwnd, out var own))
+        {
+            // фиксированный размер — только место (левый верхний угол), размер окна не трогаем
+            if (own.Left == target.Left && own.Top == target.Top) return;
+            var spot = new Rect32(target.Left, target.Top, target.Left + (own.Right - own.Left), target.Top + (own.Bottom - own.Top));
+            if (!IsOnSomeMonitor(spot)) return;
+            SetWindowPos(hwnd, IntPtr.Zero, target.Left, target.Top, 0, 0, SwpNoZOrder | SwpNoActivate | 0x0001 /* SWP_NOSIZE */);
+            return;
+        }
         if (!saved.Maximized)
         {
             // обычное окно — ровно на запомненный прямоугольник экрана (не через «обычное положение» Windows)
@@ -235,8 +244,21 @@ public sealed class AppWindowMemoryService : IDisposable
         string className = cls.ToString();
         if (className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Dwm" or "#32770"
             or "Windows.UI.Core.CoreWindow" or "ApplicationFrameWindow") return null; // рабочий стол, панель задач, диалоги, UWP
-        return NativeWindows.MakeProgramKey(NativeWindows.ProcessPath(pid), className); // общий ключ с профилями размера окон
+        var programKey = NativeWindows.MakeProgramKey(NativeWindows.ProcessPath(pid), className); // общий ключ с профилями размера окон
+        // Роль окна (докладка 2026-10-10, ROADMAP «конфликт памяти окон»): у Steam, WPF-программ и т.п. окно входа и главное окно —
+        // один exe и один класс. Окно входа фиксированного размера запоминалось, и главное окно открывалось его размером.
+        // Окна без рамки для растягивания — отдельная запись (только место); растягиваемые — прежний ключ (старые записи работают).
+        return IsFixedSize(style) ? programKey + FixedSuffix : programKey;
     }
+
+    private const string FixedSuffix = "|fixed";
+
+    /// <summary>Ключ программы без роли окна — для профилей размера окон.</summary>
+    private static string ProgramKeyOf(string key) => key.EndsWith(FixedSuffix) ? key[..^FixedSuffix.Length] : key;
+    private const long WsThickFrame = 0x00040000;
+
+    /// <summary>Окно, которое нельзя растянуть мышью (окна входа, заставки, небольшие диалоги без владельца).</summary>
+    private static bool IsFixedSize(long style) => (style & WsThickFrame) == 0;
 
     /// <summary>Окно во весь монитор — полноэкранная игра/видео или «полный экран в окне»: не трогаем.</summary>
     private static bool IsFullScreen(IntPtr hwnd)
