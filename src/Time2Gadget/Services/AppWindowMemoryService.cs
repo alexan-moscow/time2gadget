@@ -144,7 +144,11 @@ public sealed class AppWindowMemoryService : IDisposable
         if (!GetWindowPlacement(hwnd, ref p)) return;
         if (p.showCmd == SwShowMinimized && (p.flags & WpfRestoreToMaximized) == 0) p.showCmd = SwShowNormal; // свёрнутое — открыть обычным
         bool maximized = p.showCmd == SwShowMaximized || (p.flags & WpfRestoreToMaximized) != 0;
-        var saved = new SavedPlacement(p.rcNormalPosition.Left, p.rcNormalPosition.Top, p.rcNormalPosition.Right, p.rcNormalPosition.Bottom, maximized);
+        var normal = p.rcNormalPosition;
+        // Обычное окно — то, что на экране (докладка 2026-10-10): у прикреплённого к краю окна (Win+стрелка, перетаскивание
+        // к краю) rcNormalPosition — прежний размер до прикрепления, и Chrome открывался шире и на верхнем мониторе.
+        if (!maximized && p.showCmd == SwShowNormal && !IsIconic(hwnd) && !IsZoomed(hwnd) && GetWindowRect(hwnd, out var onScreen)) normal = onScreen;
+        var saved = new SavedPlacement(normal.Left, normal.Top, normal.Right, normal.Bottom, maximized);
         if (_memory.TryGetValue(key, out var old) && old == saved) return;
         _memory[key] = saved with { UsedUtc = DateTime.UtcNow };
         _saveTimer.Stop();
@@ -174,18 +178,31 @@ public sealed class AppWindowMemoryService : IDisposable
         if (!GetWindowPlacement(hwnd, ref current)) return;
         var target = new Rect32(saved.Left, saved.Top, saved.Right, saved.Bottom);
         bool curMax = current.showCmd == SwShowMaximized;
-        if (current.rcNormalPosition.Equals(target) && curMax == saved.Maximized) return; // уже на месте
+        if (saved.Maximized ? current.rcNormalPosition.Equals(target) && curMax : !curMax && GetWindowRect(hwnd, out var at) && at.Equals(target)) return; // уже на месте
 
         // Контрольная попытка: окно успел сдвинуть человек (не программа при запуске) — не спорим.
         if (_movedByUser.Contains(hwnd) || IsMouseButtonDown()) return; // человек двигает/двигал окно — не спорим
         if (!IsOnSomeMonitor(target)) return; // монитор, где окно было, сейчас отключён
 
+        if (!saved.Maximized)
+        {
+            // обычное окно — ровно на запомненный прямоугольник экрана (не через «обычное положение» Windows)
+            if (curMax || IsIconic(hwnd)) { var restore = current; restore.showCmd = SwShowNoActivate; restore.flags = 0; SetWindowPlacement(hwnd, ref restore); }
+            if (GetWindowRect(hwnd, out var now) && now.Equals(target)) return;
+            SetWindowPos(hwnd, IntPtr.Zero, target.Left, target.Top, target.Right - target.Left, target.Bottom - target.Top, SwpNoZOrder | SwpNoActivate);
+            return;
+        }
         var p = current;
         p.rcNormalPosition = target;
-        p.showCmd = saved.Maximized ? SwShowMaximized : SwShowNoActivate;
+        p.showCmd = SwShowMaximized;
         p.flags = 0;
         SetWindowPlacement(hwnd, ref p);
     }
+
+    private const uint SwpNoZOrder = 0x0004, SwpNoActivate = 0x0010;
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr hwnd);
 
     /// <summary>У программы открыто ещё одно видимое окно того же вида — непонятно, какое куда: не трогаем.</summary>
     private bool HasSiblingOfSameKind(IntPtr hwnd, string key)
