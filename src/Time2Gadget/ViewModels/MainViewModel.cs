@@ -500,6 +500,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
                 _settingsService.Save(_settings);
             }
 
+            if (result.Status == UpdateCheckStatus.Available && _updateService.IsSameAsCurrent(result.Version))
+                result = new UpdateCheckResult(UpdateCheckStatus.UpToDate); // найденная версия равна установленной
+
             switch (result.Status)
             {
                 case UpdateCheckStatus.Available:
@@ -522,8 +525,30 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>
+    /// Вызывается при открытии настроек: убирает устаревшее «найдено» (версия уже стоит) и тихо перепроверяет,
+    /// если шестерёнка горит — чтобы кнопка не предлагала поставить ту же версию.
+    /// </summary>
+    public void RefreshUpdateState()
+    {
+        if (_updateService.IsSameAsCurrent(AvailableVersion))
+        {
+            Time2Gadget.Services.UpdateService.Log($"устаревшее «найдено {AvailableVersion}» сброшено: она уже установлена");
+            AvailableVersion = null;
+            UpdateStatusText = string.Empty;
+        }
+        else if (IsUpdateAvailable)
+            _ = CheckUpdatesAsync(manual: false);
+    }
+
     private async Task InstallUpdateAsync()
     {
+        if (_updateService.IsSameAsCurrent(AvailableVersion))
+        {
+            RefreshUpdateState();
+            return;
+        }
+
         if (!_updateService.CanInstallInPlace)
         {
             if (_availableReleasePageUrl is not null) OpenUrl(_availableReleasePageUrl); // портативная копия — страница выпуска

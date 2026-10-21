@@ -17,6 +17,9 @@ public interface IUpdateService
     /// <summary>Установлено через Velopack — можно скачать и поставить обновление прямо из программы.</summary>
     bool CanInstallInPlace { get; }
 
+    /// <summary>Эта версия совпадает с установленной (шестерёнка и кнопка установки на такую не нужны).</summary>
+    bool IsSameAsCurrent(string? version);
+
     /// <summary>Проверка без исключений: нет сети/GitHub недоступен → Failed.</summary>
     Task<UpdateCheckResult> CheckAsync();
 

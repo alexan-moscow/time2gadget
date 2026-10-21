@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -42,9 +43,43 @@ public sealed class UpdateService : IUpdateService
     private async Task<UpdateCheckResult> CheckInstalledAsync()
     {
         _pending = await _manager.CheckForUpdatesAsync();
-        if (_pending is null) return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+        if (_pending is null)
+        {
+            Log($"проверка: обновлений нет (сейчас {CurrentVersion})");
+            return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+        }
         var version = _pending.TargetFullRelease.Version.ToString();
+        if (SameVersion(version, CurrentVersion)) // защита: найденная версия равна установленной — это не обновление
+        {
+            Log($"проверка: найдена {version}, равна установленной {CurrentVersion} — обновлением не считаем");
+            _pending = null;
+            return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+        }
+        Log($"проверка: сейчас {CurrentVersion}, найдена {version}");
         return new UpdateCheckResult(UpdateCheckStatus.Available, version, $"{RepoUrl}/releases/tag/v{version}");
+    }
+
+    public bool IsSameAsCurrent(string? version) => version is not null && SameVersion(version, CurrentVersion);
+
+    private static bool SameVersion(string a, string b) =>
+        Version.TryParse(a.Split('-', '+')[0], out var x) && Version.TryParse(b.Split('-', '+')[0], out var y)
+            ? x == y
+            : string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    // update.log рядом с настройками (папка Time2Gadget в AppData) — чтобы по необъяснённой шестерёнке
+    // было видно, что и когда проверялось и ставилось
+    private static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Time2Gadget", "update.log");
+
+    public static void Log(string text)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            if (File.Exists(LogPath) && new FileInfo(LogPath).Length > 200_000) File.Delete(LogPath);
+            File.AppendAllText(LogPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {text}{Environment.NewLine}");
+        }
+        catch { /* журнал не должен мешать работе */ }
     }
 
     private HttpClient CreateGitHubClient()
@@ -105,6 +140,7 @@ public sealed class UpdateService : IUpdateService
     public async Task DownloadAndRestartAsync(Action<int>? progress)
     {
         if (!CanInstallInPlace || _pending is null) return;
+        Log($"установка: {CurrentVersion} → {_pending.TargetFullRelease.Version}");
         await _manager.DownloadUpdatesAsync(_pending, progress);
         _manager.ApplyUpdatesAndRestart(_pending); // завершает процесс; Velopack ставит новую версию и запускает её
     }

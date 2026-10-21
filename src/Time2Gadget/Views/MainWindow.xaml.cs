@@ -274,6 +274,7 @@ public partial class MainWindow : Window
 
     private void OpenSettings()
     {
+        _viewModel.RefreshUpdateState();
         if (_settingsWindow is null)
         {
             _settingsWindow = new Views.SettingsWindow(_viewModel) { Owner = this };
