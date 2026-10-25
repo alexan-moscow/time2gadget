@@ -285,6 +285,9 @@ public sealed class WindowLayoutService : IDisposable
             bool minimized = saved.showCmd == SwShowMinimized || IsIconic(hwnd);
             if (!minimized && _snapshotRects.TryGetValue(hwnd, out var rect) && !IsZoomed(hwnd))
             {
+                // на стыке мониторов с разным масштабом — целиком на один монитор, иначе Windows пересчитает размер (2026-10-25)
+                var fit = MonitorFit.FitIfMixedDpi(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                rect = new RECT { Left = fit.Left, Top = fit.Top, Right = fit.Right, Bottom = fit.Bottom };
                 // обычное окно: на то же место и того же размера, что было на экране (не «обычное положение» Windows)
                 if (!GetWindowRect(hwnd, out var now)) continue;
                 if (now.Left == rect.Left && now.Top == rect.Top && now.Right == rect.Right && now.Bottom == rect.Bottom) continue;
@@ -303,8 +306,13 @@ public sealed class WindowLayoutService : IDisposable
             // Свёрнутые — ВСЕГДА (докладка 2026-09-28): у свёрнутого окна Windows может сообщать прежнее место
             // разворачивания, а развернуть его всё равно на основном мониторе; обычные — только если сдвинуты.
             if (!minimized && current.showCmd == saved.showCmd && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
+            // Свёрнутое и место уже то же — не трогать (докладка 2026-10-25): повторная установка того же места на стыке мониторов
+            // с разным масштабом каждый раз увеличивала окно (Telegram — на 200–400 точек после каждого гашения мониторов).
+            if (minimized && IsIconic(hwnd) && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
 
             var p = saved;
+            var fitted = MonitorFit.FitIfMixedDpi(saved.rcNormalPosition.Left, saved.rcNormalPosition.Top, saved.rcNormalPosition.Right, saved.rcNormalPosition.Bottom);
+            p.rcNormalPosition = new RECT { Left = fitted.Left, Top = fitted.Top, Right = fitted.Right, Bottom = fitted.Bottom };
             // Без перехвата фокуса: обычные — «показать, не активируя», свёрнутые — «свернуть, не активируя».
             // Свёрнутое окно остаётся свёрнутым, но развернётся уже на своём мониторе (rcNormalPosition).
             p.showCmd = saved.showCmd switch

@@ -176,7 +176,9 @@ public sealed class AppWindowMemoryService : IDisposable
 
         var current = NewPlacement();
         if (!GetWindowPlacement(hwnd, ref current)) return;
-        var target = new Rect32(saved.Left, saved.Top, saved.Right, saved.Bottom);
+        // на стыке мониторов с разным масштабом — целиком на один монитор (иначе Windows пересчитывает размер, окно растёт; 2026-10-25)
+        var fit = MonitorFit.FitIfMixedDpi(saved.Left, saved.Top, saved.Right, saved.Bottom);
+        var target = new Rect32(fit.Left, fit.Top, fit.Right, fit.Bottom);
         bool curMax = current.showCmd == SwShowMaximized;
         if (saved.Maximized ? current.rcNormalPosition.Equals(target) && curMax : !curMax && GetWindowRect(hwnd, out var at) && at.Equals(target)) return; // уже на месте
 
