@@ -141,6 +141,7 @@ public sealed class WindowLayoutService : IDisposable
 
     private void CheckAfterUnminimize(IntPtr hwnd, RECT expected)
     {
+        using var dpi = DpiScope.PerMonitor(); // настоящие координаты на мониторах с разным масштабом
         if (!IsWindow(hwnd) || IsIconic(hwnd) || IsZoomed(hwnd) || !GetWindowRect(hwnd, out var r)) return;
         if (Math.Abs(r.Left - expected.Left) <= 2 && Math.Abs(r.Top - expected.Top) <= 2
             && Math.Abs((r.Right - r.Left) - (expected.Right - expected.Left)) <= 2 && Math.Abs((r.Bottom - r.Top) - (expected.Bottom - expected.Top)) <= 2) return;
@@ -165,6 +166,7 @@ public sealed class WindowLayoutService : IDisposable
     /// <param name="reason">Не null — снимок «в последний момент» (гашение экрана/сон): пишется в журнал со свёрнутыми окнами.</param>
     private void TakeSnapshot(string? reason = null)
     {
+        using var dpi = DpiScope.PerMonitor(); // настоящие координаты на мониторах с разным масштабом
         if (IsFrozen) { if (reason is not null) Log($"снимок ({reason}) пропущен: заморожен с {_frozenSince:HH:mm:ss}"); return; }
         var snapshot = new Dictionary<IntPtr, WINDOWPLACEMENT>();
         var rects = new Dictionary<IntPtr, RECT>();
@@ -300,6 +302,7 @@ public sealed class WindowLayoutService : IDisposable
 
     private void RestoreAll()
     {
+        using var dpi = DpiScope.PerMonitor(); // настоящие координаты на мониторах с разным масштабом
         Log($"восстановление: мониторов {MonitorCount}, окон в снимке {_snapshot.Count}");
         foreach (var (hwnd, saved) in _snapshot)
         {

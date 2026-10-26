@@ -12,6 +12,7 @@ internal static class MonitorFit
 {
     public static (int Left, int Top, int Right, int Bottom) FitIfMixedDpi(int left, int top, int right, int bottom)
     {
+        using var dpi = DpiScope.PerMonitor(); // иначе GetDpiForMonitor сообщает всем мониторам масштаб системы
         var monitors = new List<(RECT Work, RECT Area, uint Dpi)>();
         EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr m, IntPtr dc, ref RECT r, IntPtr data) =>
         {

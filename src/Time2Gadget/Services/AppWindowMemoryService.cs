@@ -138,6 +138,7 @@ public sealed class AppWindowMemoryService : IDisposable
 
     private void Record(IntPtr hwnd)
     {
+        using var dpi = DpiScope.PerMonitor(); // настоящие координаты на мониторах с разным масштабом
         if (DateTime.UtcNow < _pausedUntil || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
         if (GetKey(hwnd) is not { } key || IsFullScreen(hwnd) || IsProfiled?.Invoke(ProgramKeyOf(key)) == true) return;
         var p = NewPlacement();
@@ -148,7 +149,7 @@ public sealed class AppWindowMemoryService : IDisposable
         // Обычное окно — то, что на экране (докладка 2026-10-10): у прикреплённого к краю окна (Win+стрелка, перетаскивание
         // к краю) rcNormalPosition — прежний размер до прикрепления, и Chrome открывался шире и на верхнем мониторе.
         if (!maximized && p.showCmd == SwShowNormal && !IsIconic(hwnd) && !IsZoomed(hwnd) && GetWindowRect(hwnd, out var onScreen)) normal = onScreen;
-        var saved = new SavedPlacement(normal.Left, normal.Top, normal.Right, normal.Bottom, maximized);
+        var saved = new SavedPlacement(normal.Left, normal.Top, normal.Right, normal.Bottom, maximized) { PerMonitor = true };
         if (_memory.TryGetValue(key, out var old) && old == saved) return;
         _memory[key] = saved with { UsedUtc = DateTime.UtcNow };
         _saveTimer.Stop();
@@ -171,6 +172,20 @@ public sealed class AppWindowMemoryService : IDisposable
     private void Apply(IntPtr hwnd)
     {
         if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) return;
+        // Записи до 1.0.17 — в координатах «один масштаб на систему»: ставим по-старому и сразу перезаписываем в настоящих.
+        bool legacy = GetKey(hwnd) is { } k && _memory.TryGetValue(k, out var old) && !old.PerMonitor;
+        if (legacy)
+        {
+            ApplyCore(hwnd);
+            Record(hwnd);
+            return;
+        }
+        using var dpi = DpiScope.PerMonitor();
+        ApplyCore(hwnd);
+    }
+
+    private void ApplyCore(IntPtr hwnd)
+    {
         if (GetKey(hwnd) is not { } key || IsProfiled?.Invoke(ProgramKeyOf(key)) == true || !_memory.TryGetValue(key, out var saved)) return;
         if (IsFullScreen(hwnd) || HasSiblingOfSameKind(hwnd, key)) return;
 
@@ -313,9 +328,11 @@ public sealed class AppWindowMemoryService : IDisposable
     public sealed record SavedPlacement(int Left, int Top, int Right, int Bottom, bool Maximized)
     {
         public DateTime UsedUtc { get; init; }
+        /// <summary>Координаты настоящие (с 1.0.17); false — старая запись в координатах «один масштаб на систему».</summary>
+        public bool PerMonitor { get; init; }
         // Сравнение мест — без даты.
         public bool Equals(SavedPlacement? other) => other is not null && Left == other.Left && Top == other.Top
-            && Right == other.Right && Bottom == other.Bottom && Maximized == other.Maximized;
+            && Right == other.Right && Bottom == other.Bottom && Maximized == other.Maximized && PerMonitor == other.PerMonitor;
         public override int GetHashCode() => HashCode.Combine(Left, Top, Right, Bottom, Maximized);
     }
 
