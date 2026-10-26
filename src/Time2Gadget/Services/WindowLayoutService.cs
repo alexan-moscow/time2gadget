@@ -119,9 +119,34 @@ public sealed class WindowLayoutService : IDisposable
     private void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (idObject != 0 || idChild != 0 || hwnd == IntPtr.Zero) return; // только сами окна, не их содержимое/курсор
+        if (evt == 0x0017 /* EVENT_SYSTEM_MINIMIZEEND */ && _expectAfterRestore.TryGetValue(hwnd, out var expected))
+        {
+            _expectAfterRestore.Remove(hwnd);
+            // развернули окно, которое мы возвращали свёрнутым: программа (Qt — Telegram) могла поставить свой размер — поправить
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+            timer.Tick += (_, _) => { timer.Stop(); CheckAfterUnminimize(hwnd, expected); };
+            timer.Start();
+        }
         if (IsFrozen) return;
         _debounce.Stop();
         _debounce.Start();
+    }
+
+    /// <summary>
+    /// Свёрнутые окна, которым при возврате поставлено место (докладка 2026-10-26): программа может держать свой размер у себя
+    /// (Telegram, Qt) и при разворачивании поставить его — окно было ×1,25 (масштаб верхнего монитора), хотя место вернули верно.
+    /// После разворачивания размер проверяется и правится обычным перемещением окна.
+    /// </summary>
+    private readonly Dictionary<IntPtr, RECT> _expectAfterRestore = new();
+
+    private void CheckAfterUnminimize(IntPtr hwnd, RECT expected)
+    {
+        if (!IsWindow(hwnd) || IsIconic(hwnd) || IsZoomed(hwnd) || !GetWindowRect(hwnd, out var r)) return;
+        if (Math.Abs(r.Left - expected.Left) <= 2 && Math.Abs(r.Top - expected.Top) <= 2
+            && Math.Abs((r.Right - r.Left) - (expected.Right - expected.Left)) <= 2 && Math.Abs((r.Bottom - r.Top) - (expected.Bottom - expected.Top)) <= 2) return;
+        SetWindowPos(hwnd, IntPtr.Zero, expected.Left, expected.Top, expected.Right - expected.Left, expected.Bottom - expected.Top, SwpNoZOrder | SwpNoActivate);
+        GetWindowRect(hwnd, out var got);
+        Log($"  {Describe(hwnd)}: развернули — было ({r.Left},{r.Top}-{r.Right},{r.Bottom}), поправлено на ({got.Left},{got.Top}-{got.Right},{got.Bottom})");
     }
 
     private bool IsFrozen
@@ -308,7 +333,11 @@ public sealed class WindowLayoutService : IDisposable
             if (!minimized && current.showCmd == saved.showCmd && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
             // Свёрнутое и место уже то же — не трогать (докладка 2026-10-25): повторная установка того же места на стыке мониторов
             // с разным масштабом каждый раз увеличивала окно (Telegram — на 200–400 точек после каждого гашения мониторов).
-            if (minimized && IsIconic(hwnd) && current.rcNormalPosition.Equals(saved.rcNormalPosition)) continue;
+            if (minimized && IsIconic(hwnd) && current.rcNormalPosition.Equals(saved.rcNormalPosition))
+            {
+                if ((saved.flags & 0x0002) == 0) _expectAfterRestore[hwnd] = saved.rcNormalPosition;
+                continue;
+            }
 
             var p = saved;
             var fitted = MonitorFit.FitIfMixedDpi(saved.rcNormalPosition.Left, saved.rcNormalPosition.Top, saved.rcNormalPosition.Right, saved.rcNormalPosition.Bottom);
@@ -326,6 +355,7 @@ public sealed class WindowLayoutService : IDisposable
             var check = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
             GetWindowPlacement(hwnd, ref check);
             if (ok && saved.showCmd != 3 /* SW_SHOWMAXIMIZED */ && !minimized) check = FixSizeAndOnScreen(hwnd, saved, check);
+            if (ok && minimized && (saved.flags & 0x0002 /* WPF_RESTORETOMAXIMIZED */) == 0) _expectAfterRestore[hwnd] = p.rcNormalPosition;
             Log($"  {Describe(hwnd)}: было {Rect(current)} show={current.showCmd} → ставим {Rect(saved)} show={p.showCmd}; " +
                 (ok ? $"ok, стало {Rect(check)} show={check.showCmd}" : $"ОТКАЗ, код {error}{(error == 5 ? " (нет прав — окно запущено от администратора?)" : "")}"));
         }
