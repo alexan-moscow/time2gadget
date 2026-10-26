@@ -122,10 +122,15 @@ public sealed class WindowLayoutService : IDisposable
         if (evt == 0x0017 /* EVENT_SYSTEM_MINIMIZEEND */ && _expectAfterRestore.TryGetValue(hwnd, out var expected))
         {
             _expectAfterRestore.Remove(hwnd);
-            // развернули окно, которое мы возвращали свёрнутым: программа (Qt — Telegram) могла поставить свой размер — поправить
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-            timer.Tick += (_, _) => { timer.Stop(); CheckAfterUnminimize(hwnd, expected); };
-            timer.Start();
+            // Развернули окно, которое мы возвращали свёрнутым: программа (Qt — Telegram) ставит свой размер. Поправить сразу и
+            // в течение секунды — при каждом изменении места/размера этого окна (2026-10-26: раньше через 0,4 с — рывок был заметен).
+            _watchUntil[hwnd] = (expected, DateTime.UtcNow + TimeSpan.FromSeconds(1));
+            _owner.Dispatcher.BeginInvoke(() => CheckAfterUnminimize(hwnd, expected), DispatcherPriority.Send);
+        }
+        else if (evt == 0x800B /* EVENT_OBJECT_LOCATIONCHANGE */ && _watchUntil.TryGetValue(hwnd, out var watch))
+        {
+            if (DateTime.UtcNow > watch.Until) _watchUntil.Remove(hwnd);
+            else _owner.Dispatcher.BeginInvoke(() => CheckAfterUnminimize(hwnd, watch.Expected), DispatcherPriority.Send);
         }
         if (IsFrozen) return;
         _debounce.Stop();
@@ -138,6 +143,7 @@ public sealed class WindowLayoutService : IDisposable
     /// После разворачивания размер проверяется и правится обычным перемещением окна.
     /// </summary>
     private readonly Dictionary<IntPtr, RECT> _expectAfterRestore = new();
+    private readonly Dictionary<IntPtr, (RECT Expected, DateTime Until)> _watchUntil = new();
 
     private void CheckAfterUnminimize(IntPtr hwnd, RECT expected)
     {
